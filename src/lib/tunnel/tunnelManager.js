@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { loadState, saveState, generateShortId } from "./state.js";
 import { spawnQuickTunnel, killCloudflared, isCloudflaredRunning, setUnexpectedExitHandler } from "./cloudflared.js";
-import { startFunnel, stopFunnel, stopDaemon, isTailscaleRunning, isTailscaleLoggedIn, startLogin, startDaemonWithPassword } from "./tailscale.js";
+import { startFunnel, stopFunnel, isTailscaleRunning, isTailscaleLoggedIn, startLogin, startDaemonWithPassword } from "./tailscale.js";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { getCachedPassword, loadEncryptedPassword, initDbHooks } from "@/mitm/manager";
 
@@ -18,6 +18,7 @@ let isReconnecting = false;
 let exitHandlerRegistered = false;
 let reconnectTimeoutId = null;
 let manualDisabled = false;
+let activeLocalPort = null;
 
 export function isTunnelManuallyDisabled() {
   return manualDisabled;
@@ -49,6 +50,7 @@ async function registerTunnelUrl(shortId, tunnelUrl) {
 
 export async function enableTunnel(localPort = 20129) {
   manualDisabled = false;
+  activeLocalPort = localPort;
 
   if (isCloudflaredRunning()) {
     const existing = loadState();
@@ -58,7 +60,7 @@ export async function enableTunnel(localPort = 20129) {
     }
   }
 
-  killCloudflared();
+  killCloudflared(localPort);
 
   const machineId = getMachineId();
   const existing = loadState();
@@ -127,7 +129,7 @@ export async function disableTunnel() {
   setUnexpectedExitHandler(null);
   exitHandlerRegistered = false;
 
-  killCloudflared();
+  killCloudflared(activeLocalPort);
 
   const state = loadState();
   if (state) {
@@ -194,9 +196,8 @@ export async function enableTailscale(localPort = 20128) {
 }
 
 export async function disableTailscale() {
+  // Only reset funnel — keep tailscaled daemon running to avoid breaking other apps using Tailscale
   stopFunnel();
-  const sudoPass = getCachedPassword() || await loadEncryptedPassword() || "";
-  await stopDaemon(sudoPass);
   await updateSettings({ tailscaleEnabled: false, tailscaleUrl: "" });
   return { success: true };
 }

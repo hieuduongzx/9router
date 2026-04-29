@@ -4,6 +4,7 @@
 
 import { platform, arch } from "os";
 import { CLIENT_METADATA, getPlatformUserAgent } from "../config/appConstants.js";
+import { proxyAwareFetch } from "../utils/proxyFetch.js";
 
 // GitHub API config
 const GITHUB_CONFIG = {
@@ -62,22 +63,22 @@ const CLAUDE_CONFIG = {
  * @param {Object} connection - Provider connection with accessToken
  * @returns {Object} Usage data with quotas
  */
-export async function getUsageForProvider(connection) {
+export async function getUsageForProvider(connection, proxyOptions = null) {
   const { provider, accessToken, providerSpecificData } = connection;
 
   switch (provider) {
     case "github":
-      return await getGitHubUsage(accessToken, providerSpecificData);
+      return await getGitHubUsage(accessToken, providerSpecificData, proxyOptions);
     case "gemini-cli":
-      return await getGeminiUsage(accessToken);
+      return await getGeminiUsage(accessToken, proxyOptions);
     case "antigravity":
-      return await getAntigravityUsage(accessToken);
+      return await getAntigravityUsage(accessToken, providerSpecificData, proxyOptions);
     case "claude":
-      return await getClaudeUsage(accessToken);
+      return await getClaudeUsage(accessToken, proxyOptions);
     case "codex":
-      return await getCodexUsage(accessToken);
+      return await getCodexUsage(accessToken, proxyOptions);
     case "kiro":
-      return await getKiroUsage(accessToken, providerSpecificData);
+      return await getKiroUsage(accessToken, providerSpecificData, proxyOptions);
     case "qwen":
       return await getQwenUsage(accessToken, providerSpecificData);
     case "iflow":
@@ -102,13 +103,17 @@ function parseResetTime(resetValue) {
       return resetValue.toISOString();
     }
 
-    // If it's a number (Unix timestamp in milliseconds)
+    // Unix timestamps from provider APIs may be seconds or milliseconds.
     if (typeof resetValue === 'number') {
-      return new Date(resetValue).toISOString();
+      return new Date(resetValue < 1e12 ? resetValue * 1000 : resetValue).toISOString();
     }
 
-    // If it's a string (ISO date or any parseable date string)
+    // If it's a numeric string, treat it like a Unix timestamp too.
     if (typeof resetValue === 'string') {
+      if (/^\d+$/.test(resetValue)) {
+        const timestamp = Number(resetValue);
+        return new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp).toISOString();
+      }
       return new Date(resetValue).toISOString();
     }
 
@@ -123,14 +128,14 @@ function parseResetTime(resetValue) {
  * GitHub Copilot Usage
  * Uses GitHub accessToken (not copilotToken) to call copilot_internal/user API
  */
-async function getGitHubUsage(accessToken, providerSpecificData) {
+async function getGitHubUsage(accessToken, providerSpecificData, proxyOptions = null) {
   try {
     if (!accessToken) {
       throw new Error("No GitHub access token available. Please re-authorize the connection.");
     }
 
     // copilot_internal/user API requires GitHub OAuth token, not copilotToken
-    const response = await fetch("https://api.github.com/copilot_internal/user", {
+    const response = await proxyAwareFetch("https://api.github.com/copilot_internal/user", {
       headers: {
         "Authorization": `token ${accessToken}`,
         "Accept": "application/json",
@@ -139,7 +144,7 @@ async function getGitHubUsage(accessToken, providerSpecificData) {
         "Editor-Version": "vscode/1.100.0",
         "Editor-Plugin-Version": "copilot-chat/0.26.7",
       },
-    });
+    }, proxyOptions);
 
     if (!response.ok) {
       const error = await response.text();
@@ -210,18 +215,27 @@ function formatGitHubQuotaSnapshot(quota) {
  * Gemini CLI Usage - Fetch quota from Google Cloud Code API
  * Uses retrieveUserQuota endpoint (different from Antigravity's fetchAvailableModels)
  */
-async function getGeminiUsage(accessToken) {
+async function getGeminiUsage(accessToken, proxyOptions = null) {
   try {
-    // Fetch subscription info to get project ID
-    const subscriptionInfo = await getGeminiSubscriptionInfo(accessToken);
-    let projectId = subscriptionInfo?.cloudaicompanionProject || null;
+    // Gemini CLI uses Google Cloud quotas
+    // Try to get quota info from Cloud Resource Manager
+    const projectsRes = await proxyAwareFetch(
+      "https://cloudresourcemanager.googleapis.com/v1/projects?filter=lifecycleState:ACTIVE",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+      },
+      proxyOptions
+    );
 
-    // Handle case where projectId is an object with id property
-    if (projectId && typeof projectId === "object") {
-      projectId = projectId.id || projectId.projectId || null;
+    let projectId = null;
+    if (projectsRes.ok) {
+      const projectsData = await projectsRes.json();
+      const firstProject = projectsData.projects?.[0];
+      projectId = firstProject?.projectId || null;
     }
-
-    console.log("[Gemini CLI] Project ID:", projectId, "Type:", typeof projectId);
 
     if (!projectId) {
       return {
@@ -381,10 +395,10 @@ async function getGeminiSubscriptionInfo(accessToken) {
 /**
  * Antigravity Usage - Fetch quota from Google Cloud Code API
  */
-async function getAntigravityUsage(accessToken, providerSpecificData) {
+async function getAntigravityUsage(accessToken, providerSpecificData, proxyOptions = null) {
   try {
     // Fetch subscription info once — reuse for both projectId and plan
-    const subscriptionInfo = await getAntigravitySubscriptionInfo(accessToken);
+    const subscriptionInfo = await getAntigravitySubscriptionInfo(accessToken, proxyOptions);
     const projectId = subscriptionInfo?.cloudaicompanionProject || null;
 
     // Fetch quota data with timeout
@@ -393,7 +407,7 @@ async function getAntigravityUsage(accessToken, providerSpecificData) {
 
     let response;
     try {
-      response = await fetch(ANTIGRAVITY_CONFIG.quotaApiUrl, {
+      response = await proxyAwareFetch(ANTIGRAVITY_CONFIG.quotaApiUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
@@ -407,7 +421,7 @@ async function getAntigravityUsage(accessToken, providerSpecificData) {
           ...(projectId ? { project: projectId } : {})
         }),
         signal: controller.signal,
-      });
+      }, proxyOptions);
     } finally {
       clearTimeout(timeoutId);
     }
@@ -502,11 +516,11 @@ async function getAntigravityProjectId(accessToken) {
 /**
  * Get Antigravity subscription info
  */
-async function getAntigravitySubscriptionInfo(accessToken) {
+async function getAntigravitySubscriptionInfo(accessToken, proxyOptions = null) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
   try {
-    const response = await fetch(ANTIGRAVITY_CONFIG.loadProjectApiUrl, {
+    const response = await proxyAwareFetch(ANTIGRAVITY_CONFIG.loadProjectApiUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -516,7 +530,7 @@ async function getAntigravitySubscriptionInfo(accessToken) {
       },
       body: JSON.stringify({ metadata: CLIENT_METADATA, mode: 1 }),
       signal: controller.signal,
-    });
+    }, proxyOptions);
 
     if (!response.ok) return null;
     return await response.json();
@@ -531,17 +545,17 @@ async function getAntigravitySubscriptionInfo(accessToken) {
 /**
  * Claude Usage - Primary: OAuth endpoint, Fallback: legacy settings/org endpoint
  */
-async function getClaudeUsage(accessToken) {
+async function getClaudeUsage(accessToken, proxyOptions = null) {
   try {
     // Primary: OAuth usage endpoint (Claude Code consumer OAuth tokens)
-    const oauthResponse = await fetch(CLAUDE_CONFIG.oauthUsageUrl, {
+    const oauthResponse = await proxyAwareFetch(CLAUDE_CONFIG.oauthUsageUrl, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "anthropic-beta": "oauth-2025-04-20",
         "anthropic-version": CLAUDE_CONFIG.apiVersion,
       },
-    });
+    }, proxyOptions);
 
     if (oauthResponse.ok) {
       const data = await oauthResponse.json();
@@ -589,7 +603,7 @@ async function getClaudeUsage(accessToken) {
 
     // Fallback: legacy settings + org usage endpoint
     console.warn(`[Claude Usage] OAuth endpoint returned ${oauthResponse.status}, falling back to legacy`);
-    return await getClaudeUsageLegacy(accessToken);
+    return await getClaudeUsageLegacy(accessToken, proxyOptions);
   } catch (error) {
     return { message: `Claude connected. Unable to fetch usage: ${error.message}` };
   }
@@ -598,21 +612,21 @@ async function getClaudeUsage(accessToken) {
 /**
  * Legacy Claude usage for API key / org admin users
  */
-async function getClaudeUsageLegacy(accessToken) {
+async function getClaudeUsageLegacy(accessToken, proxyOptions = null) {
   try {
-    const settingsResponse = await fetch(CLAUDE_CONFIG.settingsUrl, {
+    const settingsResponse = await proxyAwareFetch(CLAUDE_CONFIG.settingsUrl, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "anthropic-version": CLAUDE_CONFIG.apiVersion,
       },
-    });
+    }, proxyOptions);
 
     if (settingsResponse.ok) {
       const settings = await settingsResponse.json();
 
       if (settings.organization_id) {
-        const usageResponse = await fetch(
+        const usageResponse = await proxyAwareFetch(
           CLAUDE_CONFIG.usageUrl.replace("{org_id}", settings.organization_id),
           {
             method: "GET",
@@ -620,7 +634,8 @@ async function getClaudeUsageLegacy(accessToken) {
               "Authorization": `Bearer ${accessToken}`,
               "anthropic-version": CLAUDE_CONFIG.apiVersion,
             },
-          }
+          },
+          proxyOptions
         );
 
         if (usageResponse.ok) {
@@ -649,15 +664,15 @@ async function getClaudeUsageLegacy(accessToken) {
 /**
  * Codex (OpenAI) Usage - Fetch from ChatGPT backend API
  */
-async function getCodexUsage(accessToken) {
+async function getCodexUsage(accessToken, proxyOptions = null) {
   try {
-    const response = await fetch(CODEX_CONFIG.usageUrl, {
+    const response = await proxyAwareFetch(CODEX_CONFIG.usageUrl, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "application/json",
       },
-    });
+    }, proxyOptions);
 
     if (!response.ok) {
       return { message: `Codex connected. Usage API temporarily unavailable (${response.status}).` };
@@ -741,7 +756,7 @@ function parseKiroQuotaData(data) {
   };
 }
 
-async function getKiroUsage(accessToken, providerSpecificData) {
+async function getKiroUsage(accessToken, providerSpecificData, proxyOptions = null) {
   // Default profileArn fallback
   const DEFAULT_PROFILE_ARN = "arn:aws:codewhisperer:us-east-1:638616132270:profile/AAAACCCCXXXX";
   const profileArn = providerSpecificData?.profileArn || DEFAULT_PROFILE_ARN;
@@ -757,7 +772,7 @@ async function getKiroUsage(accessToken, providerSpecificData) {
   const attempts = [
     {
       name: "codewhisperer-get",
-      run: async () => fetch(
+      run: async () => proxyAwareFetch(
         `https://codewhisperer.us-east-1.amazonaws.com/getUsageLimits?${getUsageParams.toString()}`,
         {
           method: "GET",
@@ -768,11 +783,12 @@ async function getKiroUsage(accessToken, providerSpecificData) {
             "user-agent": "aws-sdk-js/1.0.0 KiroIDE",
           },
         },
+        proxyOptions
       ),
     },
     {
       name: "codewhisperer-post",
-      run: async () => fetch("https://codewhisperer.us-east-1.amazonaws.com", {
+      run: async () => proxyAwareFetch("https://codewhisperer.us-east-1.amazonaws.com", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
@@ -785,7 +801,7 @@ async function getKiroUsage(accessToken, providerSpecificData) {
           profileArn,
           resourceType: "AGENTIC_REQUEST",
         }),
-      }),
+      }, proxyOptions),
     },
     {
       name: "q-get",
@@ -795,13 +811,13 @@ async function getKiroUsage(accessToken, providerSpecificData) {
           profileArn,
           resourceType: "AGENTIC_REQUEST",
         });
-        return fetch(`https://q.us-east-1.amazonaws.com/getUsageLimits?${params}`, {
+        return proxyAwareFetch(`https://q.us-east-1.amazonaws.com/getUsageLimits?${params}`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Accept": "application/json",
           },
-        });
+        }, proxyOptions);
       },
     },
   ];
