@@ -253,77 +253,11 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
   return originalFetch(url, options);
 }
 
-async function getNodeHttpModule(isHttps) {
-  if (typeof Bun !== "undefined") {
-    // Bun: dynamic import("node:https") may fail; require works reliably
-    const mod = isHttps ? require("node:https") : require("node:http");
-    return mod;
-  }
-  // Node.js: use ESM dynamic import
-  const mod = await import(isHttps ? "node:https" : "node:http");
-  return mod.default ?? mod;
-}
-
-async function nodeFetchFallback(url, options = {}) {
-  const parsed = new URL(url);
-  const isHttps = parsed.protocol === "https:";
-  const httpMod = await getNodeHttpModule(isHttps);
-
-  return new Promise((resolve, reject) => {
-    const req = httpMod.request(url, {
-      method: options.method || "GET",
-      headers: options.headers,
-      timeout: 30000,
-    }, (res) => {
-      const chunks = [];
-      res.on("data", (chunk) => chunks.push(chunk));
-      res.on("end", () => {
-        const body = Buffer.concat(chunks);
-        resolve({
-          ok: res.statusCode >= 200 && res.statusCode < 300,
-          status: res.statusCode,
-          statusText: res.statusMessage,
-          headers: new Map(Object.entries(res.headers)),
-          text: async () => body.toString(),
-          json: async () => JSON.parse(body.toString()),
-        });
-      });
-    });
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    if (options.body) {
-      req.write(typeof options.body === "string" ? options.body : JSON.stringify(options.body));
-    }
-    req.end();
-  });
-}
-
-/**
- * Determine if a connection error should trigger Node.js https fallback
- * (Bun-specific "Unable to connect" vs actual HTTP errors)
- */
-function shouldUseNodeFallback(err) {
-  const msg = err?.message || "";
-  // Bun-specific "Unable to connect" + Node.js fetch generic errors + DNS/TCP errors
-  return msg.includes("Unable to connect") || msg.includes("fetch failed") || msg.includes("getaddrinfo") || msg.includes("ETIMEDOUT") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND") || msg.includes("ECONNRESET");
-}
-
 /**
  * Patched global fetch with env-proxy support and MITM DNS bypass
  */
 async function patchedFetch(url, options = {}) {
-  try {
-    return await proxyAwareFetch(url, options, null);
-  } catch (err) {
-    if (shouldUseNodeFallback(err)) {
-      console.warn(`[ProxyFetch] Bun fetch failed (${err.message}), falling back to Node.js https for: ${url}`);
-      return nodeFetchFallback(url, options);
-    }
-    throw err;
-  }
+  return proxyAwareFetch(url, options, null);
 }
 
 // Idempotency guard — only patch once to avoid wrapping multiple times
