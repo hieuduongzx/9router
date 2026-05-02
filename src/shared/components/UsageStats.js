@@ -431,7 +431,6 @@ export default function UsageStats() {
             byProvider={stats.byProvider || {}}
           />
           <RecentRequests requests={stats.recentRequests || []} />
->>>>>>> upstream/master
         </div>
       )}
 
