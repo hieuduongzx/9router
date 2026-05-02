@@ -82,6 +82,9 @@ export default function MediaProviderKindPage() {
     if (kind === "webSearch" || kind === "webFetch") {
       router.replace("/dashboard/media-providers/web");
     }
+    if (kind === "audio") {
+      router.replace("/dashboard/media-providers/tts");
+    }
   }, [kind, router]);
 
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);

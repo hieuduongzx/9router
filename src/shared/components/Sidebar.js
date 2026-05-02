@@ -11,7 +11,7 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Button from "./Button";
 import { ConfirmModal } from "./Modal";
 
-const VISIBLE_MEDIA_KINDS = ["embedding", "audio", "image", "imageToText", "video"];
+const VISIBLE_MEDIA_KINDS = ["embedding", "tts", "stt", "image", "imageToText", "video"];
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
 const navItems = [
