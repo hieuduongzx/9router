@@ -71,21 +71,24 @@ function MediaProviderCard({ provider, kind, connections, isCustom }) {
 }
 
 export default function MediaProviderKindPage() {
-  const { kind } = useParams();
+  const { kind: rawKind } = useParams();
   const router = useRouter();
+
+  // Map legacy/alias kinds to canonical
+  const kind = rawKind === "audio" ? "tts" : rawKind;
+
+  useEffect(() => {
+    if (rawKind === "audio") {
+      router.replace("/dashboard/media-providers/tts");
+    }
+    if (rawKind === "webSearch" || rawKind === "webFetch") {
+      router.replace("/dashboard/media-providers/web");
+    }
+  }, [rawKind, router]);
+
   const [connections, setConnections] = useState([]);
   const [customNodes, setCustomNodes] = useState([]);
   const [showAddCustomEmbedding, setShowAddCustomEmbedding] = useState(false);
-
-  // webSearch/webFetch listing pages are merged into /web
-  useEffect(() => {
-    if (kind === "webSearch" || kind === "webFetch") {
-      router.replace("/dashboard/media-providers/web");
-    }
-    if (kind === "audio") {
-      router.replace("/dashboard/media-providers/tts");
-    }
-  }, [kind, router]);
 
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
   const isEmbedding = kind === "embedding";

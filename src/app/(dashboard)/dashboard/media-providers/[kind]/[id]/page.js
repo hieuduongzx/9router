@@ -1331,8 +1331,9 @@ function GenericExampleCard({ providerId, kind }) {
 
 // MediaProviderDetailPage
 export default function MediaProviderDetailPage() {
-  const { kind, id } = useParams();
+  const { kind: rawKind, id } = useParams();
   const router = useRouter();
+  const kind = rawKind === "audio" ? "tts" : rawKind;
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
   const isCustom = isCustomEmbeddingProvider(id) && kind === "embedding";
 
