@@ -12,13 +12,15 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   const [message, setMessage] = useState(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [selectedApiKey, setSelectedApiKey] = useState("");
-  const [selectedModels, setSelectedModels] = useState([]);
-  const [defaultModel, setDefaultModel] = useState("");
-  const [editingSlot, setEditingSlot] = useState(-1);
+  const [selectedModel, setSelectedModel] = useState("");
+  const [subagentModel, setSubagentModel] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [subagentModalOpen, setSubagentModalOpen] = useState(false);
   const [modelAliases, setModelAliases] = useState({});
   const [showManualConfigModal, setShowManualConfigModal] = useState(false);
   const [customBaseUrl, setCustomBaseUrl] = useState("");
+  const [selectedModels, setSelectedModels] = useState([]);
+  const [activeModel, setActiveModel] = useState("");
 
   useEffect(() => {
     if (apiKeys?.length > 0 && !selectedApiKey) {
@@ -40,19 +42,16 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
 
   // Sync models from existing config
   useEffect(() => {
-    if (status?.config?.provider?.["api2k"]?.models) {
-      const models = status.config.provider["api2k"].models;
-      const modelIds = Object.keys(models);
-      setSelectedModels(modelIds);
-      if (status.config.model?.startsWith("api2k/")) {
-        setDefaultModel(status.config.model.replace("api2k/", ""));
-      } else if (modelIds.length > 0) {
-        setDefaultModel(modelIds[0]);
-      }
-    } else if (status?.config?.model?.startsWith("api2k/")) {
-      const m = status.config.model.replace("api2k/", "");
-      setSelectedModels([m]);
-      setDefaultModel(m);
+    if (status?.opencode?.models) {
+      setSelectedModels(status.opencode.models);
+    }
+    if (status?.opencode?.activeModel) {
+      setActiveModel(status.opencode.activeModel);
+    }
+    
+    // Parse subagent settings from agent.explorer if exists
+    if (status?.config?.agent?.explorer?.model?.startsWith("api2k/")) {
+      setSubagentModel(status.config.agent.explorer.model.replace("api2k/", ""));
     }
   }, [status]);
 
@@ -104,13 +103,16 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
         ? selectedApiKey
         : (!cloudEnabled ? "sk_api2k" : selectedApiKey);
 
-      const validModels = selectedModels.filter((m) => m.trim());
-      const effectiveDefault = defaultModel || validModels[0] || "";
-
       const res = await fetch("/api/cli-tools/opencode-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseUrl: getEffectiveBaseUrl(), apiKey: keyToUse, models: validModels, defaultModel: effectiveDefault }),
+        body: JSON.stringify({ 
+          baseUrl: getEffectiveBaseUrl(), 
+          apiKey: keyToUse, 
+          models: selectedModels,
+          activeModel: activeModel === "" ? "" : (activeModel || selectedModels[0]),
+          subagentModel: subagentModel
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -134,8 +136,10 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
       const data = await res.json();
       if (res.ok) {
         setMessage({ type: "success", text: "Settings reset successfully!" });
+        setSelectedModel("");
+        setSubagentModel("");
         setSelectedModels([]);
-        setDefaultModel("");
+        setActiveModel("");
         checkStatus();
       } else {
         setMessage({ type: "error", text: data.error || "Failed to reset settings" });
@@ -152,42 +156,46 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
       ? selectedApiKey
       : (!cloudEnabled ? "sk_api2k" : "<API_KEY_FROM_DASHBOARD>");
 
-    const validModels = selectedModels.filter((m) => m.trim());
-    const modelsObj = {};
-    if (validModels.length > 0) {
-      validModels.forEach((m) => {
-        modelsObj[m] = { name: m };
-      });
-    } else {
-      modelsObj["provider/model-id"] = { name: "provider/model-id" };
-    }
+    const modelsToShow = selectedModels.length > 0 ? selectedModels : ["provider/model-id"];
+    const activeModelToShow = activeModel || selectedModels[0] || modelsToShow[0];
+    const effectiveSubagentModel = subagentModel || activeModelToShow;
 
-    const config = {
-      provider: {
-        api2k: {
-          npm: "@ai-sdk/openai-compatible",
-          options: { baseURL: getEffectiveBaseUrl(), apiKey: keyToUse },
-          models: modelsObj,
-        },
-      },
-      model: `api2k/${defaultModel || validModels[0] || "provider/model-id"}`,
-    };
+    const modelsObj = {};
+    modelsToShow.forEach(m => {
+      modelsObj[m] = { name: m };
+    });
 
     return [{
       filename: "~/.config/opencode/opencode.json",
-      content: JSON.stringify(config, null, 2),
+      content: JSON.stringify({
+        provider: {
+          "api2k": {
+            npm: "@ai-sdk/openai-compatible",
+            options: { baseURL: getEffectiveBaseUrl(), apiKey: keyToUse },
+            models: modelsObj,
+          },
+        },
+        model: `api2k/${activeModelToShow}`,
+        agent: {
+          explorer: {
+            description: "Fast explorer subagent for codebase exploration",
+            mode: "subagent",
+            model: `api2k/${effectiveSubagentModel}`
+          }
+        }
+      }, null, 2),
     }];
   };
 
   return (
     <Card padding="xs" className="overflow-hidden">
-      <div className="flex items-center justify-between hover:cursor-pointer" onClick={onToggle}>
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+        <div className="flex min-w-0 items-center gap-3">
           <div className="size-8 flex items-center justify-center shrink-0">
             <Image src="/providers/opencode.png" alt={tool.name} width={32} height={32} className="size-8 object-contain rounded-lg" sizes="32px" onError={(e) => { e.target.style.display = "none"; }} />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="font-medium text-sm">{tool.name}</h3>
               {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">Connected</span>}
               {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full">Not configured</span>}
@@ -249,25 +257,25 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
               <div className="flex flex-col gap-2">
                 {/* Current base URL */}
                 {status?.config?.provider?.["api2k"]?.options?.baseURL && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">Current</span>
-                    <span className="material-symbols-outlined text-text-muted text-[14px]">arrow_forward</span>
-                    <span className="flex-1 px-2 py-1.5 text-xs text-text-muted truncate">
+                  <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                    <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
+                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                    <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
                       {status.config.provider["api2k"].options.baseURL}
                     </span>
                   </div>
                 )}
 
                 {/* Base URL */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">Base URL</span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">arrow_forward</span>
+                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Base URL</span>
+                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
                   <input
                     type="text"
                     value={getDisplayUrl()}
                     onChange={(e) => setCustomBaseUrl(e.target.value)}
                     placeholder="https://.../v1"
-                    className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="min-w-0 px-2 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
                   />
                   {customBaseUrl && customBaseUrl !== `${baseUrl}/v1` && (
                     <button onClick={() => setCustomBaseUrl("")} className="p-1 text-text-muted hover:text-primary rounded transition-colors" title="Reset to default">
@@ -277,83 +285,126 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
                 </div>
 
                 {/* API Key */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">API Key</span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">arrow_forward</span>
+                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
+                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
                   {apiKeys.length > 0 ? (
-                    <select value={selectedApiKey} onChange={(e) => setSelectedApiKey(e.target.value)} className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50">
+                    <select value={selectedApiKey} onChange={(e) => setSelectedApiKey(e.target.value)} className="min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5">
                       {apiKeys.map((key) => <option key={key.id} value={key.key}>{key.key}</option>)}
                     </select>
                   ) : (
-                    <span className="flex-1 text-xs text-text-muted px-2 py-1.5">
+                    <span className="min-w-0 rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
                       {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_api2k (default)"}
                     </span>
                   )}
                 </div>
 
                 {/* Models */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">Models</span>
-                    <span className="material-symbols-outlined text-text-muted text-[14px]">arrow_forward</span>
-                    <button
-                      onClick={() => {
-                        setSelectedModels((prev) => [...prev, ""]);
-                        setEditingSlot(selectedModels.length);
-                        setModalOpen(true);
-                      }}
-                      disabled={!activeProviders?.length}
-                      className={`px-2 py-1.5 rounded border text-xs transition-colors shrink-0 whitespace-nowrap ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
-                    >
-                      <span className="material-symbols-outlined text-[14px] mr-0.5 align-middle">add</span>Add Model
-                    </button>
-                  </div>
-                  {selectedModels.length > 0 && (
-                    <div className="flex flex-col gap-1.5" style={{ marginLeft: "8.5rem" }}>
-                      {selectedModels.map((model, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setDefaultModel(model)}
-                            className={`p-0.5 rounded transition-colors shrink-0 flex items-center justify-center w-5 h-5 ${model === defaultModel && model ? "" : "opacity-0 hover:opacity-100 focus:opacity-100"}`}
-                            title={model === defaultModel && model ? "Default model" : "Set as default"}
-                            disabled={!model}
-                          >
-                            <span className={`block rounded-full ${model === defaultModel && model ? "w-2 h-2 bg-emerald-500 animate-pulse" : "w-1.5 h-1.5 bg-text-muted"}`} />
-                          </button>
-                          <input
-                            type="text"
-                            value={model}
-                            onChange={(e) => {
-                              const newModels = [...selectedModels];
-                              newModels[idx] = e.target.value;
-                              setSelectedModels(newModels);
-                              if (defaultModel === model) setDefaultModel(e.target.value);
+                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
+                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">Models</span>
+                  <span className="material-symbols-outlined text-text-muted text-[14px] mt-1.5">arrow_forward</span>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-1.5 min-h-[28px] px-2 py-1.5 bg-surface rounded border border-border">
+                      {selectedModels.length === 0 ? (
+                        <span className="text-xs text-text-muted">No models selected</span>
+                      ) : (
+                        selectedModels.map((model) => (
+                          <span
+                            key={model}
+                            onClick={async () => {
+                              if (model === activeModel) {
+                                try {
+                                  const res = await fetch("/api/cli-tools/opencode-settings", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ clearActiveModel: true }),
+                                  });
+                                  if (res.ok) {
+                                    setActiveModel("");
+                                    checkStatus();
+                                  }
+                                } catch (error) {
+                                  console.log("Error clearing active model:", error);
+                                }
+                              } else {
+                                setActiveModel(model);
+                              }
                             }}
-                            placeholder="provider/model-id"
-                            className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                          />
-                          <button
-                            onClick={() => { setEditingSlot(idx); setModalOpen(true); }}
-                            disabled={!activeProviders?.length}
-                            className="px-2 py-1.5 rounded border text-xs transition-colors shrink-0 whitespace-nowrap bg-surface border-border text-text-main hover:border-primary cursor-pointer"
-                          >Select</button>
-                          <button
-                            onClick={() => {
-                              const removed = selectedModels[idx];
-                              const newModels = selectedModels.filter((_, i) => i !== idx);
-                              setSelectedModels(newModels);
-                              if (defaultModel === removed) setDefaultModel(newModels[0] || "");
-                              if (editingSlot > idx) setEditingSlot((prev) => prev - 1);
-                              else if (editingSlot === idx) setEditingSlot(newModels.length > 0 ? Math.min(idx, newModels.length - 1) : -1);
-                            }}
-                            className="p-0.5 text-text-muted hover:text-red-500 rounded transition-colors shrink-0"
-                            title="Remove"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors ${
+                              model === activeModel
+                                ? "bg-primary/10 text-primary border border-primary"
+                                : "bg-black/5 dark:bg-white/5 text-text-muted border border-transparent hover:border-border"
+                            }`}
+                            title={model === activeModel ? "Click to clear active model" : "Click to set as active"}
                           >
-                            <span className="material-symbols-outlined text-[14px]">close</span>
-                          </button>
-                        </div>
-                      ))}
+                            {model === activeModel && <span className="material-symbols-outlined text-[10px]">star</span>}
+                            {model}
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const res = await fetch(`/api/cli-tools/opencode-settings?model=${encodeURIComponent(model)}`, { method: "DELETE" });
+                                  if (res.ok) {
+                                    const newModels = selectedModels.filter((m) => m !== model);
+                                    setSelectedModels(newModels);
+                                    if (activeModel === model) {
+                                      setActiveModel("");
+                                    }
+                                    checkStatus();
+                                  }
+                                } catch (error) {
+                                  console.log("Error removing model:", error);
+                                }
+                              }}
+                              className="ml-0.5 hover:text-red-500"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">close</span>
+                            </button>
+                          </span>
+                        ))
+                      )}
                     </div>
+                    <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                      <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`px-2 py-1 rounded border text-xs transition-colors ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Add Model</button>
+                      <span className="text-xs text-text-muted">
+                        {selectedModels.length > 0 && activeModel ? (
+                          <>Active: <span className="text-primary">{activeModel}</span></>
+                        ) : selectedModels.length > 0 ? (
+                          <span className="text-yellow-500">Click a model to set/clear active</span>
+                        ) : (
+                          "Select models to add"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subagent Model */}
+                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Subagent Model</span>
+                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <input 
+                    type="text" 
+                    value={subagentModel} 
+                    onChange={(e) => setSubagentModel(e.target.value)} 
+                    placeholder={selectedModel || "provider/model-id (defaults to main model)"} 
+                    className="min-w-0 px-2 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5" 
+                  />
+                  <button 
+                    onClick={() => setSubagentModalOpen(true)} 
+                    disabled={!activeProviders?.length} 
+                    className={`rounded border px-2 py-2 text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
+                  >
+                    Select Model
+                  </button>
+                  {subagentModel && (
+                    <button 
+                      onClick={() => setSubagentModel("")} 
+                      className="p-1 text-text-muted hover:text-red-500 rounded transition-colors" 
+                      title="Clear (will use main model)"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">close</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -365,8 +416,8 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.filter((m) => m.trim()).length === 0} loading={applying}>
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+                <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying}>
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.hasApi2K} loading={restoring}>
@@ -384,21 +435,27 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
       <ModelSelectModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSelect={(model) => {
-          const newModels = [...selectedModels];
-          if (editingSlot >= 0 && editingSlot < newModels.length) {
-            const oldModel = newModels[editingSlot];
-            newModels[editingSlot] = model.value;
-            if (defaultModel === oldModel) setDefaultModel(model.value);
-            else if (!defaultModel) setDefaultModel(model.value);
+        onSelect={(model) => { 
+          if (!selectedModels.includes(model.value)) {
+            setSelectedModels([...selectedModels, model.value]);
+            if (!activeModel) setActiveModel(model.value);
           }
-          setSelectedModels(newModels);
           setModalOpen(false);
         }}
-        selectedModel={editingSlot >= 0 ? selectedModels[editingSlot] : defaultModel}
+        selectedModel={null}
         activeProviders={activeProviders}
         modelAliases={modelAliases}
-        title={editingSlot >= 0 ? `Select Model (Slot ${editingSlot + 1})` : "Select Model for OpenCode"}
+        title="Add Model for OpenCode"
+      />
+
+      <ModelSelectModal
+        isOpen={subagentModalOpen}
+        onClose={() => setSubagentModalOpen(false)}
+        onSelect={(model) => { setSubagentModel(model.value); setSubagentModalOpen(false); }}
+        selectedModel={subagentModel}
+        activeProviders={activeProviders}
+        modelAliases={modelAliases}
+        title="Select Subagent Model for OpenCode"
       />
 
       <ManualConfigModal

@@ -26,6 +26,9 @@ ENV PORT=20129
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install Node.js for reliable HTTP stack (Bun fetch has DNS/connect bugs in Docker/VPS)
+RUN apk --no-cache add nodejs
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/.next/standalone ./
@@ -45,4 +48,4 @@ RUN apk --no-cache upgrade && apk --no-cache add su-exec && \
 EXPOSE 20129
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bun", "server.js"]
+CMD ["node", "server.js"]

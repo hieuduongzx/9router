@@ -5,13 +5,11 @@ import path from "path";
 import fs from "fs";
 import { DATA_DIR } from "@/lib/dataDir.js";
 
-const isCloud = typeof caches !== 'undefined' || typeof caches === 'object';
-
-const DB_FILE = isCloud ? null : path.join(DATA_DIR, "usage.json");
-const LOG_FILE = isCloud ? null : path.join(DATA_DIR, "log.txt");
+const DB_FILE = path.join(DATA_DIR, "usage.json");
+const LOG_FILE = path.join(DATA_DIR, "log.txt");
 
 // Ensure data directory exists
-if (!isCloud && fs && typeof fs.existsSync === "function") {
+if (fs && typeof fs.existsSync === "function") {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -232,15 +230,6 @@ export async function getActiveRequests() {
  * Get usage database instance (singleton)
  */
 export async function getUsageDb() {
-  if (isCloud) {
-    // Return in-memory DB for Workers
-    if (!dbInstance) {
-      dbInstance = new Low({ read: async () => {}, write: async () => {} }, defaultData);
-      dbInstance.data = defaultData;
-    }
-    return dbInstance;
-  }
-
   if (!dbInstance) {
     const adapter = new JSONFile(DB_FILE);
     dbInstance = new Low(adapter, defaultData);
@@ -280,11 +269,8 @@ export async function getUsageDb() {
  * @param {object} entry - Usage entry { provider, model, tokens: { prompt_tokens, completion_tokens, ... }, connectionId?, apiKey? }
  */
 export async function saveRequestUsage(entry) {
-  if (isCloud) return; // Skip saving in Workers
-
   try {
     const db = await getUsageDb();
-    console.log("[DEBUG] saveRequestUsage called with:", JSON.stringify({ provider: entry.provider, model: entry.model, tokens: entry.tokens }));
 
     // Add timestamp if not present
     if (!entry.timestamp) {
@@ -302,7 +288,6 @@ export async function saveRequestUsage(entry) {
     const entryCost = await calculateCost(entry.provider, entry.model, entry.tokens);
     entry.cost = entryCost;
     db.data.history.push(entry);
-    console.log("[DEBUG] History length after push:", db.data.history.length);
     db.data.totalRequestsLifetime += 1;
 
     if (!db.data.dailySummary) db.data.dailySummary = {};
@@ -314,7 +299,6 @@ export async function saveRequestUsage(entry) {
     }
 
     await db.write();
-    console.log("[DEBUG] db.write() completed");
     statsEmitter.emit("update");
   } catch (error) {
     console.error("Failed to save usage stats:", error);
@@ -370,8 +354,6 @@ function formatLogDate(date = new Date()) {
  * Format: datetime(dd-mm-yyyy h:m:s) | model | provider | account | tokens sent | tokens received | status
  */
 export async function appendRequestLog({ model, provider, connectionId, tokens, status }) {
-  if (isCloud) return; // Skip logging in Workers
-
   try {
     const timestamp = formatLogDate();
     const p = provider?.toUpperCase() || "-";
@@ -410,8 +392,6 @@ export async function appendRequestLog({ model, provider, connectionId, tokens, 
  * Get last N lines of log.txt
  */
 export async function getRecentLogs(limit = 200) {
-  if (isCloud) return []; // Skip in Workers
-  
   // Runtime check: ensure fs module is available
   if (!fs || typeof fs.existsSync !== "function") {
     console.error("[usageDb] fs module not available in this environment");
@@ -431,26 +411,7 @@ export async function getRecentLogs(limit = 200) {
   try {
     const content = fs.readFileSync(LOG_FILE, "utf-8");
     const lines = content.trim().split("\n");
-    return lines.slice(-limit).reverse().map((line) => {
-      const parts = line.split(" | ");
-      if (parts.length >= 7) {
-        const [time, model, provider, account, tokensSent, tokensReceived, status] = parts;
-        const sent = parseInt(tokensSent) || 0;
-        const received = parseInt(tokensReceived) || 0;
-        return {
-          time,
-          model: model || "-",
-          provider: provider || "-",
-          account: account || "-",
-          tokensSent: sent,
-          tokensReceived: received,
-          tokens: sent + received,
-          statusRaw: status?.trim(),
-          status: status?.trim().toUpperCase().includes("OK") || status?.trim().toLowerCase() === "success" ? "success" : status?.trim().toUpperCase().includes("PENDING") ? "pending" : "error",
-        };
-      }
-      return { time: "-", model: "Unknown", provider: "Unknown", tokens: 0, status: "error", raw: line };
-    });
+    return lines.slice(-limit).reverse();
   } catch (error) {
     console.error("[usageDb] Failed to read log.txt:", error.message);
     console.error("[usageDb] LOG_FILE path:", LOG_FILE);
@@ -465,7 +426,7 @@ export async function getRecentLogs(limit = 200) {
  * @param {object} tokens - Token counts
  * @returns {number} Cost in dollars
  */
-export async function calculateCost(provider, model, tokens) {
+async function calculateCost(provider, model, tokens) {
   if (!tokens || !provider || !model) return 0;
 
   try {
@@ -524,8 +485,6 @@ export async function getUsageStats(period = "all") {
   const db = await getUsageDb();
   const history = db.data.history || [];
   const dailySummary = db.data.dailySummary || {};
-
-
 
   const { getProviderConnections, getApiKeys, getProviderNodes } = await import("@/lib/localDb.js");
 
@@ -846,7 +805,7 @@ export async function getUsageStats(period = "all") {
 /**
  * Get time-series chart data for a given period
  * @param {"24h"|"7d"|"30d"|"60d"} period
- * @returns {Promise<Array<{label: string, tokens: number, cost: number, success: number, errors: number}>>}
+ * @returns {Promise<Array<{label: string, tokens: number, cost: number}>>}
  */
 export async function getChartData(period = "7d") {
   const db = await getUsageDb();
@@ -893,35 +852,6 @@ export async function getChartData(period = "7d") {
   });
 
   return buckets;
-}
-
-export async function getHourlyActivity() {
-  const db = await getUsageDb();
-  const history = db.data.history || [];
-  const now = new Date();
-  
-  const currentHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
-  const firstHour = new Date(currentHour.getTime() - 23 * 60 * 60 * 1000);
-
-  const hours = [];
-  for (let i = 0; i < 24; i++) {
-    const hourTime = new Date(firstHour.getTime() + i * 60 * 60 * 1000);
-    const hourLabel = hourTime.toLocaleTimeString("vi-VN", { hour: "2-digit", hour12: false });
-    hours.push({ hour: hourLabel, requests: 0, _ts: hourTime.getTime(), isCurrent: i === 23 });
-  }
-  
-  for (const entry of history) {
-    const entryTime = new Date(entry.timestamp).getTime();
-    if (entryTime < firstHour.getTime() || entryTime > now.getTime()) continue;
-    
-    const idx = Math.min(
-      Math.floor((entryTime - firstHour.getTime()) / (60 * 60 * 1000)),
-      23
-    );
-    if (hours[idx]) hours[idx].requests++;
-  }
-  
-  return hours.map(({ hour, requests, isCurrent }) => ({ hour, requests, isCurrent }));
 }
 
 // Re-export request details functions from new SQLite-based module
