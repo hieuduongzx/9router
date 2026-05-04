@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, Toggle } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -13,13 +12,53 @@ export default function CombosPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCombo, setEditingCombo] = useState(null);
+  const [duplicatingCombo, setDuplicatingCombo] = useState(null);
   const [activeProviders, setActiveProviders] = useState([]);
   const [comboStrategies, setComboStrategies] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
   const { copied, copy } = useCopyToClipboard();
+
+  const visibleCombos = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = combos.filter((combo) => {
+      if (!query) return true;
+      return (
+        combo.name?.toLowerCase().includes(query) ||
+        combo.models?.some((model) => model.toLowerCase().includes(query))
+      );
+    });
+
+    return [...filtered].sort((a, b) => {
+      let result = 0;
+      if (sortField === "models") {
+        result = (a.models?.length || 0) - (b.models?.length || 0);
+      } else if (sortField === "strategy") {
+        const strategyA = comboStrategies[a.name]?.fallbackStrategy || "fallback";
+        const strategyB = comboStrategies[b.name]?.fallbackStrategy || "fallback";
+        result = strategyA.localeCompare(strategyB);
+      } else {
+        result = (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" });
+      }
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [combos, comboStrategies, searchQuery, sortDirection, sortField]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortField(field);
+    setSortDirection("asc");
+  };
+
+  const sortLabel = sortDirection === "asc" ? "ascending" : "descending";
 
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -139,6 +178,26 @@ export default function CombosPage() {
         </Button>
       </div>
 
+      <Card padding="sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search combos or models..."
+            icon="search"
+            className="w-full"
+          />
+        </div>
+        <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
+          <span>
+            Showing {visibleCombos.length} of {combos.length} combos
+          </span>
+          <span className="hidden sm:inline">
+            Sorted by {sortField} ({sortLabel})
+          </span>
+        </div>
+      </Card>
+
       {/* Combos List */}
       {combos.length === 0 ? (
         <Card>
@@ -153,21 +212,41 @@ export default function CombosPage() {
             </Button>
           </div>
         </Card>
+      ) : visibleCombos.length === 0 ? (
+        <Card>
+          <div className="text-center py-10">
+            <p className="text-text-main font-medium mb-1">No combos match your search</p>
+            <p className="text-sm text-text-muted">Try a different combo name or model keyword.</p>
+          </div>
+        </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {combos.map((combo) => (
-            <ComboCard
-              key={combo.id}
-              combo={combo}
-              copied={copied}
-              onCopy={copy}
-              onEdit={() => setEditingCombo(combo)}
-              onDelete={() => handleDelete(combo.id)}
-              roundRobinEnabled={comboStrategies[combo.name]?.fallbackStrategy === "round-robin"}
-              onToggleRoundRobin={(enabled) => handleToggleRoundRobin(combo.name, enabled)}
-            />
-          ))}
-        </div>
+        <Card padding="none" className="overflow-hidden">
+          <div className="hidden md:grid grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_170px_180px] gap-6 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-text-muted dark:border-zinc-800 dark:bg-zinc-900/60">
+            <button onClick={() => handleSort("name")} className="flex items-center gap-1 text-left hover:text-primary">
+              Combo {sortField === "name" && <SortIcon direction={sortDirection} />}
+            </button>
+            <span>Models</span>
+            <button onClick={() => handleSort("strategy")} className="flex items-center gap-1 text-left hover:text-primary">
+              Strategy {sortField === "strategy" && <SortIcon direction={sortDirection} />}
+            </button>
+            <span className="text-right">Actions</span>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-zinc-800">
+            {visibleCombos.map((combo) => (
+              <ComboListRow
+                key={combo.id}
+                combo={combo}
+                copied={copied}
+                onCopy={copy}
+                onEdit={() => setEditingCombo(combo)}
+                onDuplicate={() => setDuplicatingCombo({ ...combo, name: `${combo.name}-copy` })}
+                onDelete={() => handleDelete(combo.id)}
+                roundRobinEnabled={comboStrategies[combo.name]?.fallbackStrategy === "round-robin"}
+                onToggleRoundRobin={(enabled) => handleToggleRoundRobin(combo.name, enabled)}
+              />
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Create Modal - Use key to force remount and reset state */}
@@ -188,80 +267,111 @@ export default function CombosPage() {
         onSave={(data) => handleUpdate(editingCombo.id, data)}
         activeProviders={activeProviders}
       />
+
+      <ComboFormModal
+        key={`duplicate-${duplicatingCombo?.id || "new"}`}
+        isOpen={!!duplicatingCombo}
+        combo={duplicatingCombo}
+        duplicate
+        onClose={() => setDuplicatingCombo(null)}
+        onSave={async (data) => {
+          await handleCreate(data);
+          setDuplicatingCombo(null);
+        }}
+        activeProviders={activeProviders}
+      />
     </div>
   );
 }
 
-function ComboCard({ combo, copied, onCopy, onEdit, onDelete, roundRobinEnabled, onToggleRoundRobin }) {
+function SortIcon({ direction }) {
   return (
-    <Card padding="sm" className="group">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-primary text-[18px]">layers</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <code className="text-sm font-medium font-mono truncate">{combo.name}</code>
-            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-              {combo.models.length === 0 ? (
-                <span className="text-xs text-text-muted italic">No models</span>
-              ) : (
-                combo.models.slice(0, 3).map((model, index) => (
-                  <code key={index} className="text-[10px] font-mono bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded text-text-muted">
-                    {model}
-                  </code>
-                ))
-              )}
-              {combo.models.length > 3 && (
-                <span className="text-[10px] text-text-muted">+{combo.models.length - 3} more</span>
-              )}
-            </div>
-          </div>
+    <span className="material-symbols-outlined text-[14px] leading-none">
+      {direction === "asc" ? "arrow_upward" : "arrow_downward"}
+    </span>
+  );
+}
+
+function ComboListRow({ combo, copied, onCopy, onEdit, onDuplicate, onDelete, roundRobinEnabled, onToggleRoundRobin }) {
+  const models = combo.models || [];
+
+  return (
+    <div className="grid gap-3 px-4 py-4 transition-colors hover:bg-slate-50 dark:hover:bg-zinc-800/40 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_170px_180px] md:items-center md:gap-6">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-primary text-[19px]">layers</span>
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Round Robin Toggle — always visible */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-text-muted font-medium">Round Robin</span>
-            <Toggle
-              size="sm"
-              checked={roundRobinEnabled}
-              onChange={onToggleRoundRobin}
-            />
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); onCopy(combo.name, `combo-${combo.id}`); }}
-              className="flex flex-col items-center px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary transition-colors"
-              title="Copy combo name"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {copied === `combo-${combo.id}` ? "check" : "content_copy"}
-              </span>
-              <span className="text-[10px] leading-tight">Copy</span>
-            </button>
-            <button
-              onClick={onEdit}
-              className="flex flex-col items-center px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary transition-colors"
-              title="Edit"
-            >
-              <span className="material-symbols-outlined text-[18px]">edit</span>
-              <span className="text-[10px] leading-tight">Edit</span>
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex flex-col items-center px-2 py-1 rounded hover:bg-red-500/10 text-red-500 transition-colors"
-              title="Delete"
-            >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
-              <span className="text-[10px] leading-tight">Delete</span>
-            </button>
-          </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onCopy(combo.name, `combo-${combo.id}`); }}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-black/5 hover:text-primary dark:hover:bg-white/5"
+          title="Copy combo name"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {copied === `combo-${combo.id}` ? "check" : "content_copy"}
+          </span>
+        </button>
+        <div className="min-w-0 flex-1">
+          <code className="block truncate text-sm font-semibold font-mono text-text-main">{combo.name}</code>
+          <span className="text-xs text-text-muted md:hidden">{models.length} models</span>
         </div>
       </div>
-    </Card>
+
+      <div className="min-w-0">
+        {models.length === 0 ? (
+          <span className="text-xs text-text-muted italic">No models</span>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {models.slice(0, 5).map((model, index) => (
+              <code key={index} className="max-w-full truncate text-[11px] font-mono bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md text-text-muted">
+                {model}
+              </code>
+            ))}
+            {models.length > 5 && (
+              <span className="text-[11px] text-text-muted px-2 py-1">+{models.length - 5} more</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Toggle
+          size="sm"
+          checked={roundRobinEnabled}
+          onChange={onToggleRoundRobin}
+        />
+        <span className="text-xs font-medium text-text-muted">
+          {roundRobinEnabled ? "Round Robin" : "Fallback"}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-start gap-1 md:justify-end">
+        <ActionButton
+          icon="difference"
+          label="Duplicate"
+          title="Duplicate combo"
+          onClick={onDuplicate}
+        />
+        <ActionButton icon="edit" label="Edit" title="Edit" onClick={onEdit} />
+        <ActionButton icon="delete" label="Delete" title="Delete" danger onClick={onDelete} />
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ icon, label, title, danger = false, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+        danger
+          ? "text-red-500 hover:bg-red-500/10"
+          : "text-text-muted hover:bg-black/5 hover:text-primary dark:hover:bg-white/5"
+      }`}
+      title={title}
+    >
+      <span className="material-symbols-outlined text-[17px]">{icon}</span>
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -354,7 +464,7 @@ function ModelItem({ index, model, isFirst, isLast, isDragging, isDragOver, onEd
   );
 }
 
-function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null }) {
+function ComboFormModal({ isOpen, combo, duplicate = false, onClose, onSave, activeProviders, kindFilter = null }) {
   // Initialize state with combo values - key prop on parent handles reset on remount
   const [name, setName] = useState(combo?.name || "");
   const [models, setModels] = useState(combo?.models || []);
@@ -364,19 +474,21 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
   const [modelAliases, setModelAliases] = useState({});
   const [draggedIndex, setDraggedIndex] = useState(null);
 
-  const fetchModalData = async () => {
-    try {
-      const aliasesRes = await fetch("/api/models/alias");
-      if (!aliasesRes.ok) return;
-      const aliasesData = await aliasesRes.json();
-      setModelAliases(aliasesData.aliases || {});
-    } catch (error) {
-      console.error("Error fetching modal data:", error);
-    }
-  };
-
   useEffect(() => {
-    if (isOpen) fetchModalData();
+    if (!isOpen) return;
+
+    const fetchModalData = async () => {
+      try {
+        const aliasesRes = await fetch("/api/models/alias");
+        if (!aliasesRes.ok) return;
+        const aliasesData = await aliasesRes.json();
+        setModelAliases(aliasesData.aliases || {});
+      } catch (error) {
+        console.error("Error fetching modal data:", error);
+      }
+    };
+
+    fetchModalData();
   }, [isOpen]);
 
   const validateName = (value) => {
@@ -439,14 +551,14 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
     setSaving(false);
   };
 
-  const isEdit = !!combo;
+  const isEdit = !!combo && !duplicate;
 
   return (
     <>
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={isEdit ? "Edit Combo" : "Create Combo"}
+        title={duplicate ? "Duplicate Combo" : isEdit ? "Edit Combo" : "Create Combo"}
       >
         <div className="flex flex-col gap-3">
           {/* Name */}
@@ -520,7 +632,7 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
               size="sm"
               disabled={!name.trim() || !!nameError || saving}
             >
-              {saving ? "Saving..." : isEdit ? "Save" : "Create"}
+              {saving ? "Saving..." : isEdit ? "Save" : duplicate ? "Duplicate" : "Create"}
             </Button>
           </div>
         </div>
