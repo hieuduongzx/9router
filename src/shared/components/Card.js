@@ -11,6 +11,7 @@ export default function Card({
   action,
   padding = "md",
   hover = false,
+  elev = false,
   className,
   accentColor,
   ...props

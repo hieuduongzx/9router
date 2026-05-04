@@ -13,6 +13,7 @@ export default function Modal({
   size = "md",
   closeOnOverlay = true,
   showCloseButton = true,
+  showTrafficLights = true,
   className,
 }) {
   const sizes = {
@@ -23,24 +24,18 @@ export default function Modal({
     full: "max-w-4xl",
   };
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
+      if (e.key === "Escape" && isOpen) onClose();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
@@ -109,7 +104,6 @@ export default function Modal({
   );
 }
 
-// Confirm Modal helper
 export function ConfirmModal({
   isOpen,
   onClose,
