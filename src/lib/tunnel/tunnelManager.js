@@ -10,10 +10,6 @@ initDbHooks(getSettings, updateSettings);
 
 const WORKER_URL = process.env.TUNNEL_WORKER_URL || "https://api2k.com";
 const MACHINE_ID_SALT = "api2k-tunnel-salt";
-const SHORT_ID_LENGTH = 6;
-const SHORT_ID_CHARS = "abcdefghijklmnpqrstuvwxyz23456789";
-const RECONNECT_DELAYS_MS = [5000, 10000, 20000, 30000, 60000];
-const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS_MS.length;
 
 // Per-service state (independent: tunnel ≠ tailscale)
 const tunnelSvc = {
@@ -57,50 +53,11 @@ async function registerTunnelUrl(shortId, tunnelUrl) {
   });
 }
 
-export async function enableTunnel(localPort = 20129) {
-  manualDisabled = false;
-  activeLocalPort = localPort;
-
-  if (isCloudflaredRunning()) {
-    const existing = loadState();
-    if (existing?.tunnelUrl) {
-      const publicUrl = `https://r${existing.shortId}.9router.com`;
-      return { success: true, tunnelUrl: existing.tunnelUrl, shortId: existing.shortId, publicUrl, alreadyRunning: true };
-    }
-  }
-
-  killCloudflared(localPort);
-
-  const machineId = getMachineId();
-  const existing = loadState();
-  const shortId = existing?.shortId || generateShortId();
-
-  // onUrlUpdate: called when URL changes AFTER initial connect
-  const onUrlUpdate = async (url) => {
-    if (manualDisabled) return;
-    await registerTunnelUrl(shortId, url);
-    saveState({ shortId, machineId, tunnelUrl: url });
-    await updateSettings({ tunnelEnabled: true, tunnelUrl: url });
-  };
-
-  const { tunnelUrl } = await spawnQuickTunnel(localPort, onUrlUpdate);
-
-  await registerTunnelUrl(shortId, tunnelUrl);
-  saveState({ shortId, machineId, tunnelUrl });
-  await updateSettings({ tunnelEnabled: true, tunnelUrl });
-
-  if (!exitHandlerRegistered) {
-    setUnexpectedExitHandler(() => {
-      if (!isReconnecting) scheduleReconnect(0);
-    });
-    exitHandlerRegistered = true;
-  }
-
-  const publicUrl = `https://r${shortId}.api2k.com`;
-  return { success: true, tunnelUrl, shortId, publicUrl };
+function throwIfCancelled(token, label) {
+  if (token.cancelled) throw new Error(`${label} cancelled`);
 }
 
-export async function enableTunnel(localPort = 20128) {
+export async function enableTunnel(localPort = 20129) {
   tunnelSvc.cancelToken = { cancelled: false };
   tunnelSvc.activeLocalPort = localPort;
   tunnelSvc.spawnInProgress = true;
@@ -177,7 +134,7 @@ export async function getTunnelStatus() {
 
 // ─── Tailscale Funnel ─────────────────────────────────────────────────────────
 
-export async function enableTailscale(localPort = 20128) {
+export async function enableTailscale(localPort = 20129) {
   tailscaleSvc.cancelToken = { cancelled: false };
   tailscaleSvc.activeLocalPort = localPort;
   tailscaleSvc.spawnInProgress = true;

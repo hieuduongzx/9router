@@ -1,4 +1,4 @@
-import { saveRequestUsage, appendRequestLog, saveRequestDetail, calculateCost } from "@/lib/usageDb.js";
+import { saveRequestUsage, appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
 import { COLORS } from "../../utils/stream.js";
 
 const OPTIONAL_PARAMS = [
