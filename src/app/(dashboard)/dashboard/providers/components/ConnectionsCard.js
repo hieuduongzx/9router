@@ -123,11 +123,13 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
             </Badge>
             {hasAnyProxy && <Badge variant={proxyBadgeVariant} size="sm">Proxy</Badge>}
             {isCooldown && connection.isActive !== false && <CooldownTimer until={modelLockUntil} />}
-            {connection.lastError && connection.isActive !== false && (
-              <span className="text-xs text-red-500 truncate max-w-[300px]" title={connection.lastError}>{connection.lastError}</span>
-            )}
             <span className="text-xs text-text-muted">#{connection.priority}</span>
           </div>
+          {connection.lastError && connection.isActive !== false && (
+            <div className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-red-500/20 bg-red-500/5 px-2 py-1.5 font-mono text-[11px] leading-relaxed text-red-600 dark:text-red-400">
+              {connection.lastError}
+            </div>
+          )}
           {hasAnyProxy && (
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <span className="text-[11px] text-text-muted truncate max-w-[420px]" title={proxyDisplayText}>{proxyDisplayText}</span>

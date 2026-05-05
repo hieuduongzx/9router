@@ -2,7 +2,6 @@
  * Usage Fetcher - Get usage data from provider APIs
  */
 
-import { platform, arch } from "os";
 import { CLIENT_METADATA, getPlatformUserAgent } from "../config/appConstants.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 
@@ -12,28 +11,23 @@ const GITHUB_CONFIG = {
   userAgent: "GitHubCopilotChat/0.26.7",
 };
 
-// Gemini CLI API config - uses retrieveUserQuota endpoint (different from Antigravity)
-const GEMINI_CLI_CONFIG = {
-  baseUrl: "https://cloudcode-pa.googleapis.com/v1internal",
-  quotaApiUrl: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
-  loadProjectApiUrl: "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
+// GLM quota endpoints (region-aware)
+const GLM_QUOTA_URLS = {
+  international: "https://api.z.ai/api/monitor/usage/quota/limit",
+  china: "https://open.bigmodel.cn/api/monitor/usage/quota/limit",
 };
 
-// Gemini CLI metadata - uses string enum values from types.ts
-const GEMINI_CLI_METADATA = {
-  ideType: "GEMINI_CLI",  // From ClientMetadataIdeType
-  platform: getPlatformEnumForGeminiCLI(),  // DARWIN_AMD64, LINUX_AMD64, etc.
-  pluginType: "GEMINI",  // From ClientMetadataPluginType
+// MiniMax usage endpoints (try in order, fallback on transient errors)
+const MINIMAX_USAGE_URLS = {
+  minimax: [
+    "https://www.minimax.io/v1/token_plan/remains",
+    "https://api.minimax.io/v1/api/openplatform/coding_plan/remains",
+  ],
+  "minimax-cn": [
+    "https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains",
+    "https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains",
+  ],
 };
-
-function getPlatformEnumForGeminiCLI() {
-  const os = platform();
-  const architecture = arch();
-  if (os === "darwin") return architecture === "arm64" ? "DARWIN_ARM64" : "DARWIN_AMD64";
-  if (os === "linux") return architecture === "arm64" ? "LINUX_ARM64" : "LINUX_AMD64";
-  if (os === "win32") return "WINDOWS_AMD64";
-  return "PLATFORM_UNSPECIFIED";
-}
 
 // Antigravity API config (from Quotio)
 const ANTIGRAVITY_CONFIG = {
@@ -64,13 +58,13 @@ const CLAUDE_CONFIG = {
  * @returns {Object} Usage data with quotas
  */
 export async function getUsageForProvider(connection, proxyOptions = null) {
-  const { provider, accessToken, providerSpecificData } = connection;
+  const { provider, accessToken, apiKey, providerSpecificData } = connection;
 
   switch (provider) {
     case "github":
       return await getGitHubUsage(accessToken, providerSpecificData, proxyOptions);
     case "gemini-cli":
-      return await getGeminiUsage(accessToken, proxyOptions);
+      return await getGeminiUsage(accessToken, providerSpecificData, proxyOptions);
     case "antigravity":
       return await getAntigravityUsage(accessToken, providerSpecificData, proxyOptions);
     case "claude":
@@ -85,6 +79,12 @@ export async function getUsageForProvider(connection, proxyOptions = null) {
       return await getIflowUsage(accessToken);
     case "ollama":
       return await getOllamaUsage(accessToken);
+    case "glm":
+    case "glm-cn":
+      return await getGlmUsage(apiKey, provider, proxyOptions);
+    case "minimax":
+    case "minimax-cn":
+      return await getMiniMaxUsage(apiKey, provider, proxyOptions);
     default:
       return { message: `Usage API not implemented for ${provider}` };
   }
@@ -212,180 +212,112 @@ function formatGitHubQuotaSnapshot(quota) {
 }
 
 /**
- * Gemini CLI Usage - Fetch quota from Google Cloud Code API
- * Uses retrieveUserQuota endpoint (different from Antigravity's fetchAvailableModels)
+ * Gemini CLI Usage — fetch per-model quota via Cloud Code Assist API.
+ * Uses retrieveUserQuota (same endpoint as `gemini /stats`) returning
+ * per-model buckets with remainingFraction + resetTime.
  */
-async function getGeminiUsage(accessToken, proxyOptions = null) {
-  try {
-    // Gemini CLI uses Google Cloud quotas
-    // Try to get quota info from Cloud Resource Manager
-    const projectsRes = await proxyAwareFetch(
-      "https://cloudresourcemanager.googleapis.com/v1/projects?filter=lifecycleState:ACTIVE",
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-        },
-      },
-      proxyOptions
-    );
+async function getGeminiUsage(accessToken, providerSpecificData, proxyOptions = null) {
+  if (!accessToken) {
+    return { plan: "Free", message: "Gemini CLI access token not available." };
+  }
 
-    let projectId = null;
-    if (projectsRes.ok) {
-      const projectsData = await projectsRes.json();
-      const firstProject = projectsData.projects?.[0];
-      projectId = firstProject?.projectId || null;
+  try {
+    // Resolve project id: prefer connection-stored id, else loadCodeAssist lookup
+    let projectId = providerSpecificData?.projectId || null;
+    let plan = "Free";
+
+    if (!projectId) {
+      const subInfo = await getGeminiSubscriptionInfo(accessToken, proxyOptions);
+      projectId = subInfo?.cloudaicompanionProject || null;
+      plan = subInfo?.currentTier?.name || plan;
     }
 
     if (!projectId) {
-      return {
-        message: "No project ID available. Please check your Gemini CLI connection.",
-        quotas: {}
-      };
+      return { plan, message: "Gemini CLI project ID not available." };
     }
 
-    // Fetch quota data with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     let response;
     try {
-      const requestBody = {
-        project: projectId.toString(),
-      };
-      console.log("[Gemini CLI] Request body:", JSON.stringify(requestBody));
-
-      response = await fetch(GEMINI_CLI_CONFIG.quotaApiUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+      response = await proxyAwareFetch(
+        "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ project: projectId }),
+          signal: controller.signal,
         },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+        proxyOptions
+      );
     } finally {
       clearTimeout(timeoutId);
     }
 
-    if (response.status === 403) {
-      console.log("[Gemini CLI] retrieveUserQuota returned 403 - Gemini CLI may not support quota API for this account type");
-      return {
-        message: "Gemini CLI quota API access forbidden. This is normal for some account types - chat still works.",
-        quotas: {}
-      };
-    }
-
-    if (response.status === 401) {
-      return {
-        message: "Gemini CLI quota API authentication expired. Please re-authorize.",
-        quotas: {}
-      };
-    }
-
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => "Unknown error");
-      console.error(`[Gemini CLI] API error ${response.status}:`, errorBody);
-      
-      if (response.status === 400) {
-        return {
-          message: `Gemini CLI quota API bad request: ${errorBody}`,
-          quotas: {}
-        };
-      }
-      
-      throw new Error(`Gemini CLI API error: ${response.status}`);
+      return { plan, message: `Gemini CLI quota error (${response.status}).` };
     }
 
     const data = await response.json();
-    console.log("[Gemini CLI] Quota API raw response:", JSON.stringify(data, null, 2));
     const quotas = {};
 
-    // Parse quota buckets (from retrieveUserQuota endpoint)
-    // Response format: { buckets: [{ modelId, tokenType, remainingFraction, remainingAmount, resetTime }] }
-    if (data.buckets && Array.isArray(data.buckets)) {
+    if (Array.isArray(data.buckets)) {
       for (const bucket of data.buckets) {
-        const modelId = bucket.modelId || bucket.tokenType || "unknown";
-        const remainingFraction = bucket.remainingFraction ?? 0;
-        const remainingPercentage = remainingFraction * 100;
-        
-        // Check if API provides real numbers or just percentages
-        const hasRealNumbers = bucket.remainingAmount !== undefined && bucket.remainingAmount !== null;
-        
-        let remaining = 0;
-        let total = 0;
-        let used = 0;
-        
-        if (hasRealNumbers) {
-          // API returns real remainingAmount - calculate actual used/total
-          remaining = parseInt(bucket.remainingAmount, 10) || 0;
-          if (remainingFraction > 0) {
-            total = Math.round(remaining / remainingFraction);
-          } else {
-            total = remaining; // If 0% remaining, total = remaining (which is 0)
-          }
-          used = total - remaining;
-        } else {
-          // API only returns percentages - no real numbers available
-          // Mark as unknown to avoid displaying fake 1000/1000
-          remaining = null;
-          total = null;
-          used = null;
-        }
+        if (!bucket.modelId || bucket.remainingFraction == null) continue;
 
-        quotas[modelId] = {
+        const remainingFraction = Number(bucket.remainingFraction) || 0;
+        const total = 1000; // Normalized base, matches antigravity convention
+        const remaining = Math.round(total * remainingFraction);
+        const used = Math.max(0, total - remaining);
+
+        quotas[bucket.modelId] = {
           used,
           total,
-          remaining,
-          remainingPercentage, // Always have this from API
           resetAt: parseResetTime(bucket.resetTime),
-          unlimited: remainingFraction >= 0.99, // If 99%+ remaining, likely unlimited
-          displayName: modelId,
-          hasRealNumbers, // Flag to tell UI which format to use
+          remainingPercentage: remainingFraction * 100,
+          unlimited: false,
         };
       }
     }
 
-    return {
-      plan: subscriptionInfo?.currentTier?.name || "Gemini CLI",
-      quotas,
-      subscriptionInfo,
-    };
+    return { plan, quotas };
   } catch (error) {
-    console.error("[Gemini CLI Usage] Error:", error.message);
     return { message: `Gemini CLI error: ${error.message}` };
   }
 }
 
 /**
- * Get Gemini CLI subscription info using loadCodeAssist endpoint
+ * Get Gemini CLI subscription info via loadCodeAssist
  */
-async function getGeminiSubscriptionInfo(accessToken) {
+async function getGeminiSubscriptionInfo(accessToken, proxyOptions = null) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(GEMINI_CLI_CONFIG.loadProjectApiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    const response = await proxyAwareFetch(
+      "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          metadata: {
+            ideType: "IDE_UNSPECIFIED",
+            platform: "PLATFORM_UNSPECIFIED",
+            pluginType: "GEMINI",
+          },
+        }),
+        signal: controller.signal,
       },
-      body: JSON.stringify({ 
-        metadata: GEMINI_CLI_METADATA, 
-        mode: 1  // FULL_ELIGIBILITY_CHECK
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      console.log("[Gemini CLI Subscription] API returned:", response.status);
-      return null;
-    }
-    const data = await response.json();
-    console.log("[Gemini CLI Subscription] Response:", JSON.stringify(data, null, 2));
-    return data;
-  } catch (error) {
-    console.error("[Gemini CLI Subscription] Error:", error.message);
+      proxyOptions
+    );
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
     return null;
   } finally {
     clearTimeout(timeoutId);
@@ -664,6 +596,70 @@ async function getClaudeUsageLegacy(accessToken, proxyOptions = null) {
 /**
  * Codex (OpenAI) Usage - Fetch from ChatGPT backend API
  */
+function toFiniteNumber(value, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function getCodexRateLimitBody(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  return snapshot.rate_limit && typeof snapshot.rate_limit === "object"
+    ? snapshot.rate_limit
+    : snapshot;
+}
+
+function formatCodexWindow(window) {
+  const used = Math.max(0, Math.min(100, toFiniteNumber(window?.used_percent ?? window?.percent_used, 0)));
+  return {
+    used,
+    total: 100,
+    remaining: Math.max(0, 100 - used),
+    resetAt: parseResetTime(window?.reset_at ?? window?.resets_at ?? window?.resetAt ?? null),
+    unlimited: false,
+  };
+}
+
+function appendCodexQuotaWindows(quotas, prefix, snapshot) {
+  const rateLimit = getCodexRateLimitBody(snapshot);
+  if (!rateLimit) return false;
+
+  const primary = rateLimit.primary_window || rateLimit.primary || snapshot.primary_window || snapshot.primary;
+  const secondary = rateLimit.secondary_window || rateLimit.secondary || snapshot.secondary_window || snapshot.secondary;
+  let added = false;
+
+  if (primary) {
+    quotas[prefix ? `${prefix}_session` : "session"] = formatCodexWindow(primary);
+    added = true;
+  }
+  if (secondary) {
+    quotas[prefix ? `${prefix}_weekly` : "weekly"] = formatCodexWindow(secondary);
+    added = true;
+  }
+
+  return added;
+}
+
+function getCodexReviewRateLimit(data) {
+  if (data.code_review_rate_limit || data.review_rate_limit) {
+    return data.code_review_rate_limit || data.review_rate_limit;
+  }
+
+  const byLimitId = data.rate_limits_by_limit_id;
+  if (byLimitId && typeof byLimitId === "object" && !Array.isArray(byLimitId)) {
+    return byLimitId.code_review || byLimitId.codex_review || byLimitId.review || null;
+  }
+
+  const additional = Array.isArray(data.additional_rate_limits) ? data.additional_rate_limits : [];
+  return additional.find((entry) => {
+    const id = String(entry?.limit_name || entry?.metered_feature || entry?.id || "").toLowerCase();
+    return id === "code_review" || id === "codex_review" || id === "review" || id.includes("review");
+  }) || null;
+}
+
 async function getCodexUsage(accessToken, proxyOptions = null) {
   try {
     const response = await proxyAwareFetch(CODEX_CONFIG.usageUrl, {
@@ -679,35 +675,18 @@ async function getCodexUsage(accessToken, proxyOptions = null) {
     }
 
     const data = await response.json();
+    const normalRateLimit = data.rate_limit || data.rate_limits || data.rate_limits_by_limit_id?.codex || {};
+    const reviewRateLimit = getCodexReviewRateLimit(data);
+    const quotas = {};
 
-    // Parse rate limit info
-    const rateLimit = data.rate_limit || {};
-    const primaryWindow = rateLimit.primary_window || {};
-    const secondaryWindow = rateLimit.secondary_window || {};
-
-    // Parse reset dates (reset_at is Unix timestamp in seconds, multiply by 1000 for ms)
-    const sessionResetAt = parseResetTime(primaryWindow.reset_at ? primaryWindow.reset_at * 1000 : null);
-    const weeklyResetAt = parseResetTime(secondaryWindow.reset_at ? secondaryWindow.reset_at * 1000 : null);
+    appendCodexQuotaWindows(quotas, "", normalRateLimit);
+    appendCodexQuotaWindows(quotas, "review", reviewRateLimit);
 
     return {
-      plan: data.plan_type || "unknown",
-      limitReached: rateLimit.limit_reached || false,
-      quotas: {
-        session: {
-          used: primaryWindow.used_percent || 0,
-          total: 100,
-          remaining: 100 - (primaryWindow.used_percent || 0),
-          resetAt: sessionResetAt,
-          unlimited: false,
-        },
-        weekly: {
-          used: secondaryWindow.used_percent || 0,
-          total: 100,
-          remaining: 100 - (secondaryWindow.used_percent || 0),
-          resetAt: weeklyResetAt,
-          unlimited: false,
-        },
-      },
+      plan: data.plan_type || data.summary?.plan || "unknown",
+      limitReached: getCodexRateLimitBody(normalRateLimit)?.limit_reached || false,
+      reviewLimitReached: getCodexRateLimitBody(reviewRateLimit)?.limit_reached || false,
+      quotas,
     };
   } catch (error) {
     throw new Error(`Failed to fetch Codex usage: ${error.message}`);
@@ -926,4 +905,207 @@ async function getOllamaUsage(accessToken, providerSpecificData) {
   } catch (error) {
     return { message: "Unable to fetch Ollama Cloud usage." };
   }
+}
+
+/**
+ * GLM Coding Plan usage (international + China regions)
+ */
+async function getGlmUsage(apiKey, provider, proxyOptions = null) {
+  if (!apiKey) {
+    return { message: "GLM API key not available." };
+  }
+
+  const region = provider === "glm-cn" ? "china" : "international";
+  const quotaUrl = GLM_QUOTA_URLS[region];
+
+  try {
+    const response = await proxyAwareFetch(quotaUrl, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    }, proxyOptions);
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return { message: "GLM API key invalid or expired." };
+      }
+      return { message: `GLM quota API error (${response.status}).` };
+    }
+
+    const json = await response.json();
+    const data = json?.data && typeof json.data === "object" ? json.data : {};
+    const limits = Array.isArray(data.limits) ? data.limits : [];
+    const quotas = {};
+
+    for (const limit of limits) {
+      if (!limit || limit.type !== "TOKENS_LIMIT") continue;
+      const usedPercent = Number(limit.percentage) || 0;
+      const resetMs = Number(limit.nextResetTime) || 0;
+      const remaining = Math.max(0, 100 - usedPercent);
+
+      quotas["session"] = {
+        used: usedPercent,
+        total: 100,
+        remaining,
+        remainingPercentage: remaining,
+        resetAt: resetMs > 0 ? new Date(resetMs).toISOString() : null,
+        unlimited: false,
+      };
+    }
+
+    const levelRaw = typeof data.level === "string" ? data.level : "";
+    const plan = levelRaw
+      ? levelRaw.charAt(0).toUpperCase() + levelRaw.slice(1).toLowerCase()
+      : "Unknown";
+
+    return { plan, quotas };
+  } catch (error) {
+    return { message: `GLM error: ${error.message}` };
+  }
+}
+
+// ── MiniMax helpers ──────────────────────────────────────────────────────
+function isMiniMaxTextQuotaModel(modelName) {
+  const normalized = (modelName || "").trim().toLowerCase();
+  return normalized.startsWith("minimax-m") || normalized.startsWith("coding-plan");
+}
+
+function getMiniMaxField(model, snakeKey, camelKey) {
+  if (!model || typeof model !== "object") return null;
+  return model[snakeKey] ?? model[camelKey] ?? null;
+}
+
+function getMiniMaxSessionTotal(model) {
+  return Math.max(0, Number(getMiniMaxField(model, "current_interval_total_count", "currentIntervalTotalCount")) || 0);
+}
+
+function getMiniMaxWeeklyTotal(model) {
+  return Math.max(0, Number(getMiniMaxField(model, "current_weekly_total_count", "currentWeeklyTotalCount")) || 0);
+}
+
+function pickMiniMaxRepresentativeModel(models, getTotal) {
+  const withQuota = models.filter((m) => getTotal(m) > 0);
+  const pool = withQuota.length > 0 ? withQuota : models;
+  if (pool.length === 0) return null;
+  return pool.reduce((best, current) => (getTotal(current) > getTotal(best) ? current : best));
+}
+
+function getMiniMaxResetAt(model, capturedAtMs, remainsSnake, remainsCamel, endSnake, endCamel) {
+  const remainsMs = Number(getMiniMaxField(model, remainsSnake, remainsCamel)) || 0;
+  if (remainsMs > 0) return new Date(capturedAtMs + remainsMs).toISOString();
+  return parseResetTime(getMiniMaxField(model, endSnake, endCamel));
+}
+
+function buildMiniMaxQuota(total, count, resetAt, countMeansRemaining) {
+  const safeTotal = Math.max(0, total);
+  const used = countMeansRemaining ? Math.max(safeTotal - count, 0) : Math.min(Math.max(0, count), safeTotal);
+  const remaining = Math.max(safeTotal - used, 0);
+  return {
+    used,
+    total: safeTotal,
+    remaining,
+    remainingPercentage: safeTotal > 0 ? Math.max(0, Math.min(100, (remaining / safeTotal) * 100)) : 0,
+    resetAt,
+    unlimited: false,
+  };
+}
+
+/**
+ * MiniMax Token Plan / Coding Plan usage
+ */
+async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
+  if (!apiKey) {
+    return { message: "MiniMax API key not available." };
+  }
+
+  const usageUrls = MINIMAX_USAGE_URLS[provider] || [];
+  let lastErrorMessage = "";
+
+  for (let index = 0; index < usageUrls.length; index += 1) {
+    const usageUrl = usageUrls[index];
+    const canFallback = index < usageUrls.length - 1;
+
+    try {
+      const response = await proxyAwareFetch(usageUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      }, proxyOptions);
+
+      const rawText = await response.text();
+      let payload = {};
+      if (rawText) {
+        try { payload = JSON.parse(rawText); } catch { payload = {}; }
+      }
+
+      const baseResp = (payload?.base_resp ?? payload?.baseResp) || {};
+      const apiStatusCode = Number(baseResp.status_code ?? baseResp.statusCode) || 0;
+      const apiStatusMessage = String(baseResp.status_msg ?? baseResp.statusMsg ?? "").trim();
+      const combined = `${apiStatusMessage} ${rawText}`.trim();
+      const authLike = /token plan|coding plan|invalid api key|invalid key|unauthorized|inactive/i;
+
+      if (response.status === 401 || response.status === 403 || apiStatusCode === 1004 || authLike.test(combined)) {
+        return { message: "MiniMax API key invalid or inactive. Use an active Token/Coding Plan key." };
+      }
+
+      if (!response.ok) {
+        lastErrorMessage = `MiniMax usage endpoint error (${response.status})`;
+        if ((response.status === 404 || response.status === 405 || response.status >= 500) && canFallback) continue;
+        return { message: `MiniMax connected. ${lastErrorMessage}` };
+      }
+
+      if (apiStatusCode !== 0) {
+        return { message: `MiniMax connected. ${apiStatusMessage || "Upstream quota API error"}` };
+      }
+
+      const modelRemains = payload?.model_remains ?? payload?.modelRemains;
+      const allModels = Array.isArray(modelRemains) ? modelRemains : [];
+      const textModels = allModels.filter((m) => isMiniMaxTextQuotaModel(String(getMiniMaxField(m, "model_name", "modelName"))));
+
+      if (textModels.length === 0) {
+        return { message: "MiniMax connected. No text quota data was returned." };
+      }
+
+      const capturedAtMs = Date.now();
+      const countMeansRemaining = usageUrl.includes("/coding_plan/remains");
+      const quotas = {};
+
+      const sessionModel = pickMiniMaxRepresentativeModel(textModels, getMiniMaxSessionTotal);
+      if (sessionModel) {
+        const total = getMiniMaxSessionTotal(sessionModel);
+        const count = Math.max(0, Number(getMiniMaxField(sessionModel, "current_interval_usage_count", "currentIntervalUsageCount")) || 0);
+        quotas["session (5h)"] = buildMiniMaxQuota(
+          total, count,
+          getMiniMaxResetAt(sessionModel, capturedAtMs, "remains_time", "remainsTime", "end_time", "endTime"),
+          countMeansRemaining
+        );
+      }
+
+      const weeklyModel = pickMiniMaxRepresentativeModel(textModels, getMiniMaxWeeklyTotal);
+      if (weeklyModel && getMiniMaxWeeklyTotal(weeklyModel) > 0) {
+        const total = getMiniMaxWeeklyTotal(weeklyModel);
+        const count = Math.max(0, Number(getMiniMaxField(weeklyModel, "current_weekly_usage_count", "currentWeeklyUsageCount")) || 0);
+        quotas["weekly (7d)"] = buildMiniMaxQuota(
+          total, count,
+          getMiniMaxResetAt(weeklyModel, capturedAtMs, "weekly_remains_time", "weeklyRemainsTime", "weekly_end_time", "weeklyEndTime"),
+          countMeansRemaining
+        );
+      }
+
+      if (Object.keys(quotas).length === 0) {
+        return { message: "MiniMax connected. Unable to extract quota usage." };
+      }
+
+      return { quotas };
+    } catch (error) {
+      lastErrorMessage = error.message;
+      if (!canFallback) break;
+    }
+  }
+
+  return { message: lastErrorMessage ? `MiniMax connected. Unable to fetch usage: ${lastErrorMessage}` : "MiniMax connected. Unable to fetch usage." };
 }
