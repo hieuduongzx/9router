@@ -119,7 +119,7 @@ export default function RequestLogger() {
         </div>
       </Card>
       <div className="text-[10px] text-text-muted italic">
-        Request logs from database with input/output tokens.
+        Logs are loaded from the request history database.
       </div>
     </div>
   );

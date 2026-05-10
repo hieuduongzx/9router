@@ -517,6 +517,10 @@ function ComboFormModal({ isOpen, combo, duplicate = false, onClose, onSave, act
     }
   };
 
+  const handleDeselectModel = (model) => {
+    setModels(models.filter((m) => m !== model.value));
+  };
+
   const handleRemoveModel = (index) => {
     setModels(models.filter((_, i) => i !== index));
   };
@@ -643,10 +647,13 @@ function ComboFormModal({ isOpen, combo, duplicate = false, onClose, onSave, act
         isOpen={showModelSelect}
         onClose={() => setShowModelSelect(false)}
         onSelect={handleAddModel}
+        onDeselect={handleDeselectModel}
         activeProviders={activeProviders}
         modelAliases={modelAliases}
         title="Add Model to Combo"
         kindFilter={kindFilter}
+        addedModelValues={models}
+        closeOnSelect={false}
       />
     </>
   );
