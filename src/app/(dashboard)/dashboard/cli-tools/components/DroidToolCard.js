@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
+import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
@@ -140,7 +141,7 @@ export default function DroidToolCard({
     try {
       const keyToUse = selectedApiKey?.trim()
         || (apiKeys?.length > 0 ? apiKeys[0].key : null)
-        || (!cloudEnabled ? "sk_api2k" : null);
+        || (!cloudEnabled ? "sk_9router" : null);
 
       const res = await fetch("/api/cli-tools/droid-settings", {
         method: "POST",
@@ -189,7 +190,7 @@ export default function DroidToolCard({
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_api2k" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
 
     const settingsContent = {
       customModels: modelList.map((m, i) => ({
@@ -255,7 +256,7 @@ export default function DroidToolCard({
                   <span className="material-symbols-outlined text-yellow-500">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-yellow-600 dark:text-yellow-400">Factory Droid CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if Api2K is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if 9router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
@@ -304,7 +305,7 @@ export default function DroidToolCard({
 
                 {/* Current configured */}
                 {droidStatus?.settings?.customModels?.find(m => m.id?.startsWith("custom:9Router"))?.baseUrl && (
-                  <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
                     <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
                     <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
@@ -313,24 +314,15 @@ export default function DroidToolCard({
                   </div>
                 )}
 
-
                 {/* API Key */}
-                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  {apiKeys.length > 0 ? (
-                    <select value={selectedApiKey} onChange={(e) => setSelectedApiKey(e.target.value)} className="min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5">
-                      {apiKeys.map((key) => <option key={key.id} value={key.key}>{key.key}</option>)}
-                    </select>
-                  ) : (
-                    <span className="min-w-0 rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                      {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_api2k (default)"}
-                    </span>
-                  )}
+                  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
                 {/* Models */}
-                <div className="grid gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
                     Models {modelList.length > 0 && <span className="text-primary">({modelList.length})</span>}
                   </span>
@@ -357,7 +349,7 @@ export default function DroidToolCard({
                         onChange={(e) => setModelInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addModel(); } }}
                         placeholder="provider/model-id"
-                        className="min-w-0 px-2 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
+                        className="w-full min-w-0 px-2 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
                       />
                       <button
                         onClick={() => setModalOpen(true)}

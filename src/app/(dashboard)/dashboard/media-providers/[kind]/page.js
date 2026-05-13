@@ -69,6 +69,7 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 {isCustom && <Badge variant="default" size="sm">Custom</Badge>}
                 {renderStatus()}
+              </div>
             </div>
           </div>
           {total > 0 && (

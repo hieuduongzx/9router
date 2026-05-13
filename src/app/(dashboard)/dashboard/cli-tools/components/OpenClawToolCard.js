@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
+import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 
 export default function OpenClawToolCard({
@@ -38,7 +39,7 @@ export default function OpenClawToolCard({
 
   const getConfigStatus = () => {
     if (!openclawStatus?.installed) return null;
-    const currentProvider = openclawStatus.settings?.models?.providers?.["api2k"];
+    const currentProvider = openclawStatus.settings?.models?.providers?.["9router"];
     if (!currentProvider) return "not_configured";
     return matchKnownEndpoint(currentProvider.baseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
   };
@@ -76,13 +77,10 @@ export default function OpenClawToolCard({
   useEffect(() => {
     if (openclawStatus?.installed && !hasInitializedModel.current) {
       hasInitializedModel.current = true;
-      const provider = openclawStatus.settings?.models?.providers?.["api2k"];
+      const provider = openclawStatus.settings?.models?.providers?.["9router"];
       if (provider) {
         const primaryModel = openclawStatus.settings?.agents?.defaults?.model?.primary;
-        if (primaryModel) {
-          const modelId = primaryModel.replace("api2k/", "");
-          setSelectedModel(modelId);
-        }
+        if (primaryModel) setSelectedModel(primaryModel.replace("9router/", ""));
         if (provider.apiKey && apiKeys?.some(k => k.key === provider.apiKey)) {
           setSelectedApiKey(provider.apiKey);
         }
@@ -116,7 +114,7 @@ export default function OpenClawToolCard({
     if (typeof window !== "undefined") {
       return normalizeLocalhost(window.location.origin);
     }
-    return "http://127.0.0.1:20129";
+    return "http://127.0.0.1:20128";
   };
 
   const getEffectiveBaseUrl = () => {
@@ -128,7 +126,6 @@ export default function OpenClawToolCard({
     const url = customBaseUrl || getLocalBaseUrl();
     return url.endsWith("/v1") ? url : `${url}/v1`;
   };
-  const hasCustomSelectedApiKey = selectedApiKey && !apiKeys.some((key) => key.key === selectedApiKey);
 
   const handleApplySettings = async () => {
     setApplying(true);
@@ -136,7 +133,7 @@ export default function OpenClawToolCard({
     try {
       const keyToUse = selectedApiKey?.trim()
         || (apiKeys?.length > 0 ? apiKeys[0].key : null)
-        || (!cloudEnabled ? "sk_api2k" : null);
+        || (!cloudEnabled ? "sk_9router" : null);
 
       const res = await fetch("/api/cli-tools/openclaw-settings", {
         method: "POST",
@@ -194,21 +191,21 @@ export default function OpenClawToolCard({
   };
 
   const getManualConfigs = () => {
-    const keyToUse = (selectedApiKey && selectedApiKey.trim()) 
-      ? selectedApiKey 
-      : (!cloudEnabled ? "sk_api2k" : "<API_KEY_FROM_DASHBOARD>");
+    const keyToUse = (selectedApiKey && selectedApiKey.trim())
+      ? selectedApiKey
+      : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
 
     const settingsContent = {
       agents: {
         defaults: {
           model: {
-            primary: `api2k/${selectedModel || "provider/model-id"}`,
+            primary: `9router/${selectedModel || "provider/model-id"}`,
           },
         },
       },
       models: {
         providers: {
-          "api2k": {
+          "9router": {
             baseUrl: getEffectiveBaseUrl(),
             apiKey: keyToUse,
             api: "openai-completions",
@@ -267,7 +264,7 @@ export default function OpenClawToolCard({
                   <span className="material-symbols-outlined text-yellow-500">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-yellow-600 dark:text-yellow-400">Open Claw CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if Api2K is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if 9router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
@@ -304,7 +301,7 @@ export default function OpenClawToolCard({
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
                     <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
                     <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                      {openclawStatus.settings.models.providers["api2k"].baseUrl}
+                      {openclawStatus.settings.models.providers["9router"].baseUrl}
                     </span>
                   </div>
                 )}
@@ -313,16 +310,7 @@ export default function OpenClawToolCard({
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  {apiKeys.length > 0 || selectedApiKey ? (
-                    <select value={selectedApiKey} onChange={(e) => setSelectedApiKey(e.target.value)} className="w-full min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5">
-                      {hasCustomSelectedApiKey && <option value={selectedApiKey}>{selectedApiKey}</option>}
-                      {apiKeys.map((key) => <option key={key.id} value={key.key}>{key.key}</option>)}
-                    </select>
-                  ) : (
-                    <span className="min-w-0 rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                      {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_api2k (default)"}
-                    </span>
-                  )}
+                  <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
                 {/* Default Model */}
