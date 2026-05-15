@@ -220,8 +220,9 @@ export function extractUsage(chunk) {
     });
   }
 
-  // Ollama format: prompt_eval_count (input), eval_count (output)
-  if (chunk.prompt_eval_count !== undefined || chunk.eval_count !== undefined) {
+  // Ollama NDJSON format (raw from provider, before translation)
+  // Ollama sends: {"model":"...","done":true,"prompt_eval_count":N,"eval_count":M}
+  if (chunk.done === true && typeof chunk.prompt_eval_count === "number") {
     return normalizeUsage({
       prompt_tokens: chunk.prompt_eval_count || 0,
       completion_tokens: chunk.eval_count || 0,

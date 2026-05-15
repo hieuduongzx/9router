@@ -511,5 +511,6 @@
   "Server Disconnected": "服务器已断开",
   "The proxy server has been stopped.": "代理服务器已停止。",
   "Reload Page": "重新加载页面",
-  "Service is running in terminal. You can close this web page. Shutdown will stop the service.": "服务正在终端中运行。您可以关闭此网页。关闭将停止服务。"
+  "Service is running in terminal. You can close this web page. Shutdown will stop the service.": "服务正在终端中运行。您可以关闭此网页。关闭将停止服务。",
+  "One Endpoint for": "统一端点,接入",
 }
