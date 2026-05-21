@@ -1,8 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import "@/lib/initCloudSync";
-import "@/lib/network/initOutboundProxy";
+import "@/lib/network/initOutboundProxy"; // Auto-initialize outbound proxy env
 import { initConsoleLogCapture } from "@/lib/consoleLogBuffer";
 import { RuntimeI18nProvider } from "@/i18n/RuntimeI18nProvider";
 

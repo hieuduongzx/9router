@@ -280,7 +280,7 @@ export async function spawnQuickTunnel(localPort, onUrlUpdate) {
 
   const requestedProtocol = String(process.env.TUNNEL_TRANSPORT_PROTOCOL || process.env.CLOUDFLARED_PROTOCOL || DEFAULT_QUICK_TUNNEL_PROTOCOL).trim().toLowerCase();
   const tunnelProtocol = QUICK_TUNNEL_PROTOCOLS.has(requestedProtocol) ? requestedProtocol : DEFAULT_QUICK_TUNNEL_PROTOCOL;
-  const child = spawn(binaryPath, ["tunnel", "--url", `http://127.0.0.1:${localPort}`, "--config", configPath, "--no-autoupdate"], {
+  const child = spawn(binaryPath, ["tunnel", "--url", `http://127.0.0.1:${localPort}`, "--config", configPath, "--no-autoupdate", "--retries", "99"], {
     detached: false,
     windowsHide: true,
     cwd: os.tmpdir(),
@@ -296,6 +296,8 @@ export async function spawnQuickTunnel(localPort, onUrlUpdate) {
 
   return new Promise((resolve, reject) => {
     let resolved = false;
+    // Keep a small tail of raw cloudflared logs to surface real failure causes
+    let logTail = "";
 
     function getQuickTunnelUrlFromLog(message) {
       // cloudflared logs may contain "api.trycloudflare.com" as well,
@@ -317,13 +319,14 @@ export async function spawnQuickTunnel(localPort, onUrlUpdate) {
       if (resolved) return;
       resolved = true;
       cleanup();
-      reject(new Error("Quick tunnel timed out"));
+      reject(new Error(`Quick tunnel timed out. Last log: ${logTail.slice(-800) || "(empty)"}`));
     }, 90000);
 
     let lastUrl = null;
 
     const handleLog = (data) => {
       const msg = data.toString();
+      logTail = (logTail + msg).slice(-4000);
       const tunnelUrl = getQuickTunnelUrlFromLog(msg);
       if (!tunnelUrl) return;
 
@@ -365,7 +368,14 @@ export async function spawnQuickTunnel(localPort, onUrlUpdate) {
         resolved = true;
         clearTimeout(timeout);
         cleanup();
-        reject(new Error(`cloudflared exited with code ${code}`));
+        const tail = logTail.slice(-600).trim() || "(empty)";
+        if (code === 1) {
+          reject(new Error(`cloudflared quick tunnel exited (code 1). Common causes: (1) outbound port 7844 (TCP/UDP) blocked, (2) TryCloudflare service issue, (3) cannot reach 127.0.0.1:${localPort}, (4) protocol (http2/quic) blocked by network. Last log: ${tail}`));
+        } else if (code === 2) {
+          reject(new Error(`cloudflared exited (code 2). Bad arguments. Last log: ${tail}`));
+        } else {
+          reject(new Error(`cloudflared exited (code ${code}). Last log: ${tail}`));
+        }
         return;
       }
       if (unexpectedExitHandler) unexpectedExitHandler();

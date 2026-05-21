@@ -131,7 +131,7 @@ export async function POST(request) {
     existingProvider.models = existingProvider.models || {};
     for (const m of modelsArray) {
       if (!m || typeof m !== "string") continue;
-      existingProvider.models[m] = { name: m };
+      existingProvider.models[m] = { name: m, modalities: { input: ["text", "image"], output: ["text"] } };
     }
     config.provider["api2k"] = existingProvider;
 
