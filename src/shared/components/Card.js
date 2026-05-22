@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-// Card component with solid colors (no gradients)
+// Card — token-driven container with refined elevation and spacing.
 export default function Card({
   children,
   title,
@@ -41,34 +41,38 @@ export default function Card({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-zinc-900 text-slate-900 dark:text-slate-100 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm",
-        hover && "hover:border-blue-300 hover:shadow-md transition-all duration-200",
+        "rounded-xl border border-border bg-card text-card-foreground",
+        elev ? "shadow-pop" : "shadow-soft",
+        hover &&
+          "transition-[border-color,box-shadow,transform] duration-200 ease-out hover:border-primary/40 hover:shadow-pop",
         paddings[padding],
         className
       )}
       {...props}
     >
       {(title || action) && (
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between mb-4 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className={cn(
-                "p-2 rounded-lg text-white shadow-md",
-                bgColor
-              )}>
-                <span className="material-symbols-outlined text-lg">{icon}</span>
+              <div
+                className={cn(
+                  "flex items-center justify-center size-9 shrink-0 rounded-lg text-white shadow-soft",
+                  bgColor
+                )}
+              >
+                <span className="material-symbols-outlined text-[18px]">{icon}</span>
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               {title && (
-                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
+                <h3 className="text-sm font-semibold text-foreground truncate">{title}</h3>
               )}
               {subtitle && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+                <p className="text-xs text-text-muted mt-0.5 truncate">{subtitle}</p>
               )}
             </div>
           </div>
-          {action}
+          {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
       {children}
@@ -78,16 +82,16 @@ export default function Card({
 
 Card.Section = function CardSection({ children, accentColor, className, ...props }) {
   const accentBorders = {
-    blue: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30",
-    green: "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30",
-    yellow: "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
-    purple: "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30",
-    red: "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30",
+    blue: "border-blue-200/70 bg-blue-500/[0.06] dark:border-blue-800/50",
+    green: "border-green-200/70 bg-green-500/[0.06] dark:border-green-800/50",
+    yellow: "border-amber-200/70 bg-amber-500/[0.06] dark:border-amber-800/50",
+    purple: "border-purple-200/70 bg-purple-500/[0.06] dark:border-purple-800/50",
+    red: "border-red-200/70 bg-red-500/[0.06] dark:border-red-800/50",
   };
-  
-  const borderClass = accentColor && accentBorders[accentColor] 
-    ? accentBorders[accentColor] 
-    : "border-slate-200 bg-slate-50 dark:border-zinc-700 dark:bg-zinc-800/50";
+
+  const borderClass = accentColor && accentBorders[accentColor]
+    ? accentBorders[accentColor]
+    : "border-border bg-bg-subtle/50";
 
   return (
     <div
@@ -104,8 +108,8 @@ Card.Row = function CardRow({ children, className, ...props }) {
     <div
       className={cn(
         "py-3 px-4 -mx-4 transition-colors rounded-lg",
-        "border-b border-slate-100 dark:border-zinc-800 last:border-b-0 first:-mt-4 last:-mb-4",
-        "hover:bg-slate-50 dark:hover:bg-zinc-800/50",
+        "border-b border-border last:border-b-0 first:-mt-4 last:-mb-4",
+        "hover:bg-bg-subtle/60",
         className
       )}
       {...props}
@@ -120,9 +124,8 @@ Card.ListItem = function CardListItem({ children, actions, className, ...props }
     <div
       className={cn(
         "group flex items-center justify-between py-3 px-4 -mx-4 rounded-lg",
-        "border-b border-slate-100 dark:border-zinc-800 last:border-b-0 first:-mt-5 last:-mb-5",
-        "hover:bg-slate-50 dark:hover:bg-zinc-800/50",
-        "transition-colors",
+        "border-b border-border last:border-b-0 first:-mt-5 last:-mb-5",
+        "hover:bg-bg-subtle/60 transition-colors",
         className
       )}
       {...props}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -505,7 +505,6 @@ function ComboFormModal({ isOpen, combo, duplicate = false, onClose, onSave, act
     }
   };
 
-  const fetchModalData = async () => {
 
   useEffect(() => {
     if (!isOpen) return;

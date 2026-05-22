@@ -118,8 +118,8 @@ function PageBtn({ children, active, disabled, onClick }) {
       className={cn(
         "inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-md text-[12px] font-medium transition-colors",
         active
-          ? "bg-text-main text-bg"
-          : "text-text-muted hover:text-text-main hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+          ? "bg-foreground text-background"
+          : "text-text-muted hover:text-foreground hover:bg-muted",
         disabled && "opacity-30 pointer-events-none"
       )}
     >

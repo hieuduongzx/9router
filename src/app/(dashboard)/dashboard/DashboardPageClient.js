@@ -3,7 +3,7 @@
 import PropTypes from "prop-types";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Card, Button, Input, Toggle, CardSkeleton } from "@/shared/components";
+import { Card, Button, Input, Toggle, CardSkeleton, Skeleton } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import {
@@ -25,18 +25,27 @@ import {
 // Stat Card Component
 function StatCard({ title, value, subtitle, icon, trend, trendUp }) {
   return (
-    <Card className="flex items-center gap-4 p-5">
-      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary shrink-0">
-        <span className="material-symbols-outlined text-[24px]">{icon}</span>
+    <Card padding="md" hover className="flex items-center gap-4">
+      <div className="flex items-center justify-center size-11 rounded-lg bg-primary/[0.10] text-primary shrink-0">
+        <span className="material-symbols-outlined text-[22px]">{icon}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-text-muted mb-0.5">{title}</p>
-        <p className="text-2xl font-bold text-text-main truncate">{value}</p>
-        {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+        <p className="text-[12px] text-text-muted uppercase tracking-wide font-medium">{title}</p>
+        <p className="text-[22px] font-semibold text-foreground truncate tabular-nums leading-tight mt-0.5">{value}</p>
+        {subtitle && <p className="text-[11px] text-text-muted mt-0.5 truncate">{subtitle}</p>}
       </div>
       {trend && (
-        <div className={`text-xs font-medium px-2 py-1 rounded-full ${trendUp ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-          {trendUp ? "↑" : "↓"} {trend}
+        <div
+          className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 ${
+            trendUp
+              ? "bg-green-500/[0.10] text-green-700 dark:text-green-400"
+              : "bg-red-500/[0.10] text-red-700 dark:text-red-400"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[14px] leading-none">
+            {trendUp ? "trending_up" : "trending_down"}
+          </span>
+          {trend}
         </div>
       )}
     </Card>
@@ -45,10 +54,10 @@ function StatCard({ title, value, subtitle, icon, trend, trendUp }) {
 
 function ActivityByHourChart({ hourlyData }) {
   return (
-    <Card className="p-4 overflow-hidden">
+    <Card padding="md" className="overflow-hidden">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold">Hourly Activity</h3>
-        <span className="text-xs text-text-muted">Local time (24h)</span>
+        <h3 className="text-sm font-semibold text-foreground">Hourly Activity</h3>
+        <span className="text-[11px] text-text-muted">Local time (24h)</span>
       </div>
       {hourlyData.length === 0 ? (
         <div className="h-[100px] flex items-center justify-center text-text-muted text-sm">
@@ -85,21 +94,21 @@ function ActivityByHourChart({ hourlyData }) {
                   {hourlyData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={entry.isCurrent ? "#3b82f6" : "#10b981"}
-                      fillOpacity={entry.isCurrent ? 1 : 0.8}
+                      fill={entry.isCurrent ? "#ea580c" : "#10b981"}
+                      fillOpacity={entry.isCurrent ? 1 : 0.75}
                     />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex items-center justify-center gap-4 mt-2 text-xs text-text-muted">
+          <div className="flex items-center justify-center gap-4 mt-2 text-[11px] text-text-muted">
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" />
+              <div className="size-2 rounded-sm bg-emerald-500" />
               <span>Other hours</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-sm bg-[#3b82f6] ring-1 ring-blue-400/50" />
+              <div className="size-2 rounded-sm bg-primary ring-1 ring-primary/40" />
               <span>Current hour</span>
             </div>
           </div>
@@ -120,46 +129,49 @@ function UsageTable({ requests }) {
   const fmtCost = (n) => `$${(n || 0).toFixed(4)}`;
 
   return (
-    <Card className="flex flex-col h-[320px] overflow-hidden">
+    <Card padding="none" className="flex flex-col h-[320px] overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <h3 className="font-semibold">Recent Activity</h3>
+        <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/[0.10] text-green-700 dark:text-green-400 text-[11px] font-medium rounded-full border border-green-500/20">
+            <span className="size-1.5 rounded-full bg-green-500 animate-pulse-soft" />
             Live
           </span>
-          <Button variant="ghost" size="sm" href="/dashboard/usage">View All</Button>
+          <Button asChild variant="ghost" size="xs">
+            <Link href="/dashboard/usage">View All</Link>
+          </Button>
         </div>
       </div>
-      <div className="flex-1 overflow-auto relative">
+      <div className="flex-1 overflow-auto custom-scrollbar relative">
         {!requests?.length ? (
-          <div className="flex items-center justify-center h-full text-text-muted text-sm">
-            No recent requests
+          <div className="flex flex-col items-center justify-center gap-2 h-full text-text-muted text-sm py-6">
+            <span className="material-symbols-outlined text-[40px] opacity-30">inbox</span>
+            <span>No recent requests</span>
           </div>
         ) : (
           <table className="w-full text-xs border-collapse">
-            <thead className="bg-white dark:bg-zinc-900 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-card sticky top-0 z-10 shadow-soft">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-text-muted uppercase tracking-wider bg-white dark:bg-zinc-900">Model</th>
-                <th className="px-3 py-2 text-right font-medium text-text-muted uppercase tracking-wider bg-white dark:bg-zinc-900">Token</th>
-                <th className="px-3 py-2 text-right font-medium text-text-muted uppercase tracking-wider bg-white dark:bg-zinc-900">Cost</th>
-                <th className="px-3 py-2 text-right font-medium text-text-muted uppercase tracking-wider bg-white dark:bg-zinc-900">Time</th>
+                <th className="px-3 py-2 text-left font-semibold text-text-muted uppercase tracking-wider text-[10px]">Model</th>
+                <th className="px-3 py-2 text-right font-semibold text-text-muted uppercase tracking-wider text-[10px]">Token</th>
+                <th className="px-3 py-2 text-right font-semibold text-text-muted uppercase tracking-wider text-[10px]">Cost</th>
+                <th className="px-3 py-2 text-right font-semibold text-text-muted uppercase tracking-wider text-[10px]">Time</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-zinc-900">
+            <tbody>
               {requests.map((req, i) => (
-                <tr key={i} className="border-b border-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                <tr key={i} className="border-b border-border/60 hover:bg-bg-subtle/60 transition-colors">
                   <td className="px-3 py-2">
-                    <div className="font-medium truncate max-w-[150px]">{req.model || "Unknown"}</div>
+                    <div className="font-medium truncate max-w-[150px] text-foreground">{req.model || "Unknown"}</div>
                     <div className="text-[10px] text-text-muted truncate max-w-[150px]">{req.provider || "Unknown"}</div>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {req.tokens ? fmtTokens(req.tokens) : "-"}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium text-green-600">
+                  <td className="px-3 py-2 text-right font-medium text-green-700 dark:text-green-400 tabular-nums">
                     {req.cost ? fmtCost(req.cost) : "$0.0000"}
                   </td>
-                  <td className="px-3 py-2 text-right text-text-muted text-[10px]">
+                  <td className="px-3 py-2 text-right text-text-muted text-[10px] tabular-nums whitespace-nowrap">
                     {req.time || "-"}
                   </td>
                 </tr>
@@ -396,6 +408,13 @@ export default function DashboardPageClient({ machineId }) {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-9 w-24" />
+        </div>
         <CardSkeleton />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <CardSkeleton />
@@ -411,31 +430,39 @@ export default function DashboardPageClient({ machineId }) {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <Button variant="secondary" icon="refresh" onClick={fetchDashboardData}>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-[13px] text-text-muted mt-0.5">Live overview of your AI router</p>
+        </div>
+        <Button variant="outline" size="sm" icon="refresh" onClick={fetchDashboardData}>
           Refresh
         </Button>
       </div>
 
       {/* Endpoint Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-white">
-              <span className="material-symbols-outlined">api</span>
+      <Card padding="lg" className="border-primary/20 bg-primary/[0.04]">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-primary-foreground shadow-soft shrink-0">
+              <span className="material-symbols-outlined text-[20px]">api</span>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">API Endpoint</h2>
-              <p className="text-sm text-text-muted">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground tracking-tight">API Endpoint</h2>
+              <p className="text-[12px] text-text-muted flex items-center gap-1.5 mt-0.5">
                 {tunnelEnabled ? "Tunnel Active" : "Local Server"}
-                {tunnelEnabled && <span className="ml-2 text-green-600">● Online</span>}
+                {tunnelEnabled && (
+                  <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                    <span className="size-1.5 rounded-full bg-green-500 animate-pulse-soft" />
+                    Online
+                  </span>
+                )}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-text-muted">Require API Key</span>
-              <Toggle checked={requireApiKey} onChange={() => handleRequireApiKey(!requireApiKey)} />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-card">
+              <span className="text-[12px] text-text-muted">Require API Key</span>
+              <Toggle size="sm" checked={requireApiKey} onChange={() => handleRequireApiKey(!requireApiKey)} />
             </div>
             {tunnelEnabled ? (
               <Button
@@ -444,7 +471,7 @@ export default function DashboardPageClient({ machineId }) {
                 icon="cloud_off"
                 onClick={handleDisableTunnel}
                 disabled={tunnelLoading}
-                className="text-red-600 border-red-300 hover:bg-red-50"
+                className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 dark:border-red-500/30"
               >
                 Disable Tunnel
               </Button>
@@ -459,17 +486,18 @@ export default function DashboardPageClient({ machineId }) {
                 {tunnelLoading ? "Starting..." : "Enable Tunnel"}
               </Button>
             )}
-            <Link href="/dashboard/endpoint" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors">
-              Configure
-            </Link>
+            <Button asChild size="sm" variant="outline" icon="settings">
+              <Link href="/dashboard/endpoint">Configure</Link>
+            </Button>
           </div>
         </div>
 
         <div className="flex gap-2">
-          <Input 
-            value={currentEndpoint} 
-            readOnly 
-            className={`flex-1 font-mono text-sm ${tunnelEnabled ? "border-green-500/50" : ""}`}
+          <Input
+            value={currentEndpoint}
+            readOnly
+            className="flex-1"
+            inputClassName={`font-mono text-[13px] ${tunnelEnabled ? "border-green-500/40 focus-visible:ring-green-500/30" : ""}`}
           />
           <Button
             variant="secondary"
@@ -514,12 +542,12 @@ export default function DashboardPageClient({ machineId }) {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Usage Chart */}
-        <Card className="lg:col-span-2 p-4">
+        <Card padding="md" className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Usage Overview</h3>
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <h3 className="text-sm font-semibold text-foreground">Usage Overview</h3>
+            <div className="flex items-center gap-2 text-[11px] text-text-muted">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-primary" />
+                <span className="size-2 rounded-full bg-primary" />
                 Tokens
               </span>
             </div>
@@ -528,8 +556,8 @@ export default function DashboardPageClient({ machineId }) {
             <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradTokens" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#ea580c" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
@@ -554,7 +582,7 @@ export default function DashboardPageClient({ machineId }) {
               <Area
                 type="monotone"
                 dataKey="tokens"
-                stroke="#6366f1"
+                stroke="#ea580c"
                 strokeWidth={2}
                 fill="url(#gradTokens)"
               />
@@ -563,8 +591,8 @@ export default function DashboardPageClient({ machineId }) {
         </Card>
 
         {/* Provider Share Donut */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Provider Share</h3>
+        <Card padding="md">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Provider Share</h3>
           {providerShareData.length === 0 ? (
             <div className="h-[250px] flex items-center justify-center text-text-muted text-sm">
               No provider data
@@ -610,8 +638,8 @@ export default function DashboardPageClient({ machineId }) {
       {/* Analytics Row — Top Models + Token Split + Cost */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Models — Donut */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Top Models</h3>
+        <Card padding="md">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Top Models</h3>
           {modelData.length === 0 ? (
             <div className="h-[280px] flex items-center justify-center text-text-muted text-sm">
               No model data yet
@@ -657,8 +685,8 @@ export default function DashboardPageClient({ machineId }) {
         </Card>
 
         {/* Token Split — CSS progress bars + stats */}
-        <Card className="p-4 flex flex-col">
-          <h3 className="font-semibold mb-4">Token Breakdown</h3>
+        <Card padding="md" className="flex flex-col">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Token Breakdown</h3>
           {!stats?.totalPromptTokens && !stats?.totalCompletionTokens ? (
             <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
               No token data yet
@@ -673,39 +701,39 @@ export default function DashboardPageClient({ machineId }) {
               <div className="flex-1 flex flex-col justify-center gap-5">
                 {/* Total */}
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-text-main">{fmtTokens(total)}</p>
-                  <p className="text-xs text-text-muted mt-1">Total Tokens</p>
+                  <p className="text-3xl font-semibold text-foreground tabular-nums tracking-tight">{fmtTokens(total)}</p>
+                  <p className="text-[11px] text-text-muted uppercase tracking-wide mt-1">Total Tokens</p>
                 </div>
 
                 {/* Split bar */}
                 <div>
-                  <div className="flex h-4 rounded-full overflow-hidden bg-bg-subtle">
-                    <div className="bg-[#6366f1] transition-all duration-500" style={{ width: `${inputPct}%` }} />
-                    <div className="bg-[#10b981] transition-all duration-500" style={{ width: `${outputPct}%` }} />
+                  <div className="flex h-3 rounded-full overflow-hidden bg-bg-subtle">
+                    <div className="bg-blue-500 transition-all duration-500" style={{ width: `${inputPct}%` }} />
+                    <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${outputPct}%` }} />
                   </div>
-                  <div className="flex justify-between mt-2">
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" />
+                  <div className="flex justify-between mt-2 text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-blue-500" />
                       <span className="text-text-muted">Input</span>
-                      <span className="font-semibold">{inputPct}%</span>
+                      <span className="font-semibold text-foreground tabular-nums">{inputPct}%</span>
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <span className="font-semibold">{outputPct}%</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-semibold text-foreground tabular-nums">{outputPct}%</span>
                       <span className="text-text-muted">Output</span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                      <span className="size-2 rounded-full bg-emerald-500" />
                     </span>
                   </div>
                 </div>
 
                 {/* Detail numbers */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-[#6366f1]/5">
-                    <p className="text-lg font-bold text-[#6366f1]">{fmtTokens(input)}</p>
-                    <p className="text-[10px] text-text-muted mt-0.5">Input Tokens</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="text-center p-3 rounded-lg border border-blue-500/20 bg-blue-500/[0.06]">
+                    <p className="text-base font-semibold text-blue-700 dark:text-blue-400 tabular-nums">{fmtTokens(input)}</p>
+                    <p className="text-[10px] text-text-muted uppercase tracking-wide mt-0.5">Input</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-[#10b981]/5">
-                    <p className="text-lg font-bold text-[#10b981]">{fmtTokens(output)}</p>
-                    <p className="text-[10px] text-text-muted mt-0.5">Output Tokens</p>
+                  <div className="text-center p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06]">
+                    <p className="text-base font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">{fmtTokens(output)}</p>
+                    <p className="text-[10px] text-text-muted uppercase tracking-wide mt-0.5">Output</p>
                   </div>
                 </div>
               </div>
@@ -714,16 +742,16 @@ export default function DashboardPageClient({ machineId }) {
         </Card>
 
         {/* Cost Over Time Chart */}
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Cost Overview</h3>
-            <div className="flex items-center gap-3 text-xs text-text-muted">
+            <h3 className="text-sm font-semibold text-foreground">Cost Overview</h3>
+            <div className="flex items-center gap-3 text-[11px] text-text-muted">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+                <span className="size-2 rounded-full bg-emerald-500" />
                 Cost
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#6366f1]" />
+                <span className="size-2 rounded-full bg-blue-500" />
                 Tokens
               </span>
             </div>
@@ -808,16 +836,16 @@ export default function DashboardPageClient({ machineId }) {
       {/* Analytics Row — Success Rate + Latency + Cost by Provider */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Success / Error Rate */}
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Success Rate</h3>
-            <div className="flex items-center gap-3 text-xs text-text-muted">
+            <h3 className="text-sm font-semibold text-foreground">Success Rate</h3>
+            <div className="flex items-center gap-3 text-[11px] text-text-muted">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+                <span className="size-2 rounded-full bg-emerald-500" />
                 Success
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
+                <span className="size-2 rounded-full bg-red-500" />
                 Errors
               </span>
             </div>
@@ -856,10 +884,10 @@ export default function DashboardPageClient({ machineId }) {
         </Card>
 
         {/* Average Latency */}
-        <Card className="p-4">
+        <Card padding="md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Avg Latency</h3>
-            <span className="text-xs text-text-muted">ms</span>
+            <h3 className="text-sm font-semibold text-foreground">Avg Latency</h3>
+            <span className="text-[11px] text-text-muted">ms</span>
           </div>
           {latencyData.length === 0 || latencyData.every((d) => d.avgLatency === 0) ? (
             <div className="h-[250px] flex items-center justify-center text-text-muted text-sm">
@@ -905,8 +933,8 @@ export default function DashboardPageClient({ machineId }) {
         </Card>
 
         {/* Cost by Provider */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Cost by Provider</h3>
+        <Card padding="md">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Cost by Provider</h3>
           {costByProviderData.length === 0 ? (
             <div className="h-[250px] flex items-center justify-center text-text-muted text-sm">
               No cost data yet
@@ -916,15 +944,15 @@ export default function DashboardPageClient({ machineId }) {
               {costByProviderData.map((p, i) => {
                 const maxCost = costByProviderData[0]?.cost || 1;
                 const pct = maxCost > 0 ? (p.cost / maxCost) * 100 : 0;
-                const colors = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+                const colors = ["#ea580c", "#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#ef4444"];
                 const color = colors[i % colors.length];
                 return (
                   <div key={p.name}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-text-main truncate max-w-[140px]">{p.name}</span>
-                      <span className="text-xs font-mono text-text-muted">${p.cost.toFixed(4)}</span>
+                      <span className="text-[12px] font-medium text-foreground truncate max-w-[140px]">{p.name}</span>
+                      <span className="text-[12px] font-mono text-text-muted tabular-nums">${p.cost.toFixed(4)}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-black/[0.04] dark:bg-white/[0.06] overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%`, backgroundColor: color }}
@@ -946,25 +974,29 @@ export default function DashboardPageClient({ machineId }) {
         </div>
 
         {/* Quick Actions */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Quick Actions</h3>
-          <div className="space-y-2">
-            <Link href="/dashboard/providers" className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors">
-              <span className="material-symbols-outlined text-sm">dns</span>
-              Manage Providers
-            </Link>
-            <Link href="/dashboard/api-keys" className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors">
-              <span className="material-symbols-outlined text-sm">vpn_key</span>
-              Manage API Keys
-            </Link>
-            <Link href="/dashboard/combos" className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors">
-              <span className="material-symbols-outlined text-sm">layers</span>
-              Configure Combos
-            </Link>
-            <Link href="/dashboard/usage" className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors">
-              <span className="material-symbols-outlined text-sm">bar_chart</span>
-              View Detailed Usage
-            </Link>
+        <Card padding="md">
+          <h3 className="text-sm font-semibold mb-3 text-foreground">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { href: "/dashboard/providers", icon: "dns", label: "Providers", desc: "Connections" },
+              { href: "/dashboard/api-keys", icon: "vpn_key", label: "API Keys", desc: "Manage keys" },
+              { href: "/dashboard/combos", icon: "layers", label: "Combos", desc: "Fallback chains" },
+              { href: "/dashboard/usage", icon: "bar_chart", label: "Usage", desc: "Detailed stats" },
+            ].map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className="group flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-bg-subtle/40 transition-[border-color,background-color] duration-150"
+              >
+                <span className="flex items-center justify-center size-8 rounded-md bg-primary/[0.08] text-primary shrink-0 group-hover:bg-primary/[0.14] transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">{a.icon}</span>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-foreground truncate">{a.label}</p>
+                  <p className="text-[11px] text-text-muted truncate">{a.desc}</p>
+                </div>
+              </Link>
+            ))}
           </div>
         </Card>
       </div>

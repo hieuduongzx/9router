@@ -44,47 +44,47 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay - Darker for better contrast */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+      {/* Overlay */}
       <div
-        className="absolute inset-0 bg-background/95 backdrop-blur-md"
+        className="absolute inset-0 bg-background/70 backdrop-blur-md"
         onClick={closeOnOverlay ? onClose : undefined}
       />
 
       {/* Modal content */}
       <div
         className={cn(
-          "relative w-full bg-card",
-          "border-2 border-border",
-          "rounded-xl shadow-2xl shadow-foreground/10",
-          "animate-in fade-in zoom-in-95 duration-200",
+          "relative w-full bg-card text-card-foreground",
+          "border border-border",
+          "rounded-xl shadow-float",
+          "animate-slide-up",
           sizes[size],
           className
         )}
       >
         {/* Header */}
         {(title || showTrafficLights) && (
-          <div className="flex items-center justify-between p-2 border-b border-border-subtle">
-            <div className="flex items-center">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center min-w-0">
               {/* Traffic lights — desktop only */}
               {showTrafficLights && (
-                <div className="hidden md:flex items-center gap-2 mr-4 ml-2">
+                <div className="hidden md:flex items-center gap-2 mr-4 shrink-0">
                   <Tooltip text="Close" position="top" color="#FF5F56">
                     <button
                       onClick={onClose}
                       aria-label="Close"
                       title="Close"
-                      className="w-4 h-4 rounded-full bg-[#FF5F56] hover:brightness-90 transition-all cursor-pointer flex items-center justify-center group/dot"
+                      className="w-3 h-3 rounded-full bg-[#FF5F56] hover:brightness-90 transition-all cursor-pointer flex items-center justify-center group/dot"
                     >
-                      <span className="text-[9px] font-bold text-white opacity-0 group-hover/dot:opacity-100 transition-opacity leading-none">✕</span>
+                      <span className="text-[8px] font-bold text-black/60 opacity-0 group-hover/dot:opacity-100 transition-opacity leading-none">✕</span>
                     </button>
                   </Tooltip>
-                  <div className="w-4 h-4 rounded-full bg-[#3a3a3a]/20 dark:bg-white/15 cursor-not-allowed" />
-                  <div className="w-4 h-4 rounded-full bg-[#3a3a3a]/20 dark:bg-white/15 cursor-not-allowed" />
+                  <div className="w-3 h-3 rounded-full bg-text-muted/30 cursor-not-allowed" />
+                  <div className="w-3 h-3 rounded-full bg-text-muted/30 cursor-not-allowed" />
                 </div>
               )}
               {title && (
-                <h2 className="text-base font-black tracking-wide text-foreground uppercase">
+                <h2 className="text-sm font-semibold tracking-tight text-foreground truncate">
                   {title}
                 </h2>
               )}
@@ -93,7 +93,7 @@ export default function Modal({
             <button
               onClick={onClose}
               aria-label="Close"
-              className="md:hidden p-1.5 rounded-[10px] text-text-muted hover:bg-surface-2 hover:text-text-main transition-colors"
+              className="md:hidden p-1.5 rounded-md text-text-muted hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
@@ -101,13 +101,13 @@ export default function Modal({
         )}
 
         {/* Body */}
-<div className="p-6 max-h-[calc(80vh-140px)] overflow-y-auto">
+        <div className="p-6 max-h-[calc(80vh-140px)] overflow-y-auto custom-scrollbar">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t-2 border-border">
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border bg-bg-subtle/30 rounded-b-xl">
             {footer}
           </div>
         )}
@@ -144,7 +144,7 @@ export function ConfirmModal({
         </>
       }
     >
-      <p className="text-foreground/80 font-medium">{message}</p>
+      <p className="text-foreground/85 text-sm leading-relaxed">{message}</p>
     </Modal>
   );
 }

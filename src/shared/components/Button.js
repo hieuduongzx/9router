@@ -1,45 +1,62 @@
 "use client";
 
+import { Children, cloneElement, isValidElement } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-// Button variants with solid colors (no gradients)
+// Button — token-driven so it follows the theme automatically.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sm font-medium transition-all duration-200 rounded-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+  [
+    "inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium rounded-md",
+    "transition-[background-color,color,box-shadow,transform] duration-150 ease-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.985]",
+    "select-none",
+  ].join(" "),
   {
     variants: {
       variant: {
-        // Primary - Black solid (đen đơn giản)
-        default: "bg-black text-white shadow-md hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200",
-        
-        // Destructive - Red solid
-        destructive: "bg-red-500 text-white shadow-md hover:bg-red-600",
-        
-        // Outline - đen
-        outline: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 dark:border-zinc-600 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800",
-        
-        // Secondary - Light gray
-        secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
-        
-        // Ghost - Transparent
-        ghost: "text-slate-600 hover:text-black hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800",
-        
-        // Link - đen
-        link: "text-slate-700 underline-offset-4 hover:underline dark:text-slate-300",
-        
-        // Blue variant - cho accent
-        blue: "bg-blue-500 text-white shadow-md hover:bg-blue-600",
-        
-        // Legacy aliases
-        danger: "bg-red-500 text-white shadow-md hover:bg-red-600",
-        primary: "bg-black text-white shadow-md hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200",
+        // Primary — high-contrast inverted surface (matches dashboard accent style)
+        default:
+          "bg-foreground text-background shadow-soft hover:bg-foreground/90 active:bg-foreground/85",
+        primary:
+          "bg-foreground text-background shadow-soft hover:bg-foreground/90 active:bg-foreground/85",
+
+        // Accent — primary brand color
+        accent:
+          "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 active:bg-primary/85",
+        blue:
+          "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 active:bg-primary/85",
+
+        // Destructive
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90 active:bg-destructive/85",
+        danger:
+          "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90 active:bg-destructive/85",
+
+        // Outline — bordered, transparent fill
+        outline:
+          "border border-border bg-transparent text-foreground hover:bg-muted hover:border-border/80",
+
+        // Secondary — soft fill
+        secondary:
+          "bg-muted text-foreground hover:bg-bg-hover",
+
+        // Ghost — transparent
+        ghost:
+          "text-text-muted hover:text-foreground hover:bg-muted",
+
+        // Link
+        link:
+          "text-primary underline-offset-4 hover:underline px-0",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-7 px-3 text-xs",
-        md: "h-10 px-5",
-        lg: "h-11 px-6",
+        default: "h-9 px-4 text-sm",
+        sm: "h-8 px-3 text-[13px]",
+        xs: "h-7 px-2.5 text-xs",
+        md: "h-10 px-5 text-sm",
+        lg: "h-11 px-6 text-[15px]",
         icon: "h-9 w-9",
       },
     },
@@ -50,28 +67,57 @@ const buttonVariants = cva(
   }
 );
 
-function Button({ className, variant = "default", size = "default", asChild = false, icon, iconRight, loading, fullWidth, children, ...props }) {
-  const Comp = asChild ? Slot : "button";
-
+function renderInner(loading, icon, children, iconRight) {
   return (
-    <Comp
-      className={cn(
-        buttonVariants({ variant, size, className }),
-        fullWidth && "w-full"
-      )}
-      disabled={props.disabled || loading}
-      {...props}
-    >
+    <>
       {loading ? (
-        <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-[16px] leading-none">progress_activity</span>
       ) : icon ? (
-        <span className="material-symbols-outlined text-sm">{icon}</span>
+        <span className="material-symbols-outlined text-[16px] leading-none">{icon}</span>
       ) : null}
       {children}
       {iconRight && !loading && (
-        <span className="material-symbols-outlined text-sm">{iconRight}</span>
+        <span className="material-symbols-outlined text-[16px] leading-none">{iconRight}</span>
       )}
-    </Comp>
+    </>
+  );
+}
+
+function Button({ className, variant = "default", size = "default", asChild = false, icon, iconRight, loading, fullWidth, children, ...props }) {
+  const classes = cn(buttonVariants({ variant, size, className }), fullWidth && "w-full");
+
+  // When asChild=true, Slot expects exactly one element child. We must merge
+  // the icon/iconRight/loading content INTO that child rather than as siblings.
+  if (asChild) {
+    const child = isValidElement(children) ? Children.only(children) : null;
+    if (!child) {
+      // Fallback: render as a plain button if asChild was used without a single
+      // valid element child.
+      return (
+        <button className={classes} disabled={props.disabled || loading} {...props}>
+          {renderInner(loading, icon, children, iconRight)}
+        </button>
+      );
+    }
+    return (
+      <Slot className={classes} {...props}>
+        {cloneElement(
+          child,
+          { "aria-disabled": props.disabled || loading || undefined },
+          renderInner(loading, icon, child.props.children, iconRight)
+        )}
+      </Slot>
+    );
+  }
+
+  return (
+    <button
+      className={classes}
+      disabled={props.disabled || loading}
+      {...props}
+    >
+      {renderInner(loading, icon, children, iconRight)}
+    </button>
   );
 }
 

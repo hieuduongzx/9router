@@ -110,17 +110,30 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg p-4 relative overflow-hidden">
       {/* Faint grid background */}
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
+      {/* Soft accent glow */}
+      <div
+        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] rounded-full pointer-events-none opacity-30 dark:opacity-20"
+        aria-hidden="true"
+        style={{
+          background: "radial-gradient(circle at center, rgba(249,115,22,0.18), transparent 60%)",
+        }}
+      />
       <div className="relative z-10 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">9Router</h1>
-          <p className="text-text-muted">
-            {authMode === "oidc" && oidcConfigured
-              ? "Sign in with your OIDC provider to access the dashboard"
-              : "Enter your password to access the dashboard"}
-          </p>
+        <div className="text-center mb-8 flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center size-12 rounded-xl bg-gradient-to-br from-[#f97815] to-[#c2590a] shadow-pop ring-1 ring-black/5">
+            <span className="material-symbols-outlined text-white text-[26px]">hub</span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">9Router</h1>
+            <p className="text-[13px] text-text-muted mt-1">
+              {authMode === "oidc" && oidcConfigured
+                ? "Sign in with your OIDC provider to access the dashboard"
+                : "Enter your password to access the dashboard"}
+            </p>
+          </div>
         </div>
 
-        <Card>
+        <Card padding="lg" elev>
           <div className="flex flex-col gap-4">
             {oidcAvailable && (
               <Button type="button" variant="primary" className="w-full" onClick={handleOidcLogin}>
