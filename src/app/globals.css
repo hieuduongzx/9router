@@ -7,107 +7,107 @@
    ======================================== */
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* Brand accent — Api2K / 9Router orange */
-  --brand: #f97316;
-  --brand-light: #fb923c;
-  --brand-soft: #ffedd5;
-  --brand-300: #fdba74;
-  --brand-600: #ea580c;
-  --brand-700: #c2410c;
+  /* Brand accent — neutral mono (Api2K is monochrome by design).
+     Kept as aliases for legacy components that still reference --brand-*. */
+  --brand: #0a0a0a;
+  --brand-light: #262626;
+  --brand-soft: #f5f5f5;
+  --brand-300: #d4d4d4;
+  --brand-600: #171717;
+  --brand-700: #0a0a0a;
 
-  /* Primary Accent - Soft Blue (kept as info accent) */
-  --accent-blue: #3b82f6;
+  /* Status / informational accents (used for charts, badges, status pills) */
+  --accent-blue: #2563eb;
   --accent-blue-light: #60a5fa;
-  --accent-blue-soft: #dbeafe;
+  --accent-blue-soft: #eff6ff;
 
-  /* Secondary Accents */
-  --accent-green: #22c55e;
+  --accent-green: #16a34a;
   --accent-green-light: #86efac;
-  --accent-green-soft: #dcfce7;
+  --accent-green-soft: #f0fdf4;
 
-  --accent-yellow: #f59e0b;
+  --accent-yellow: #d97706;
   --accent-yellow-light: #fcd34d;
-  --accent-yellow-soft: #fef3c7;
+  --accent-yellow-soft: #fffbeb;
 
-  --accent-purple: #8b5cf6;
+  --accent-purple: #7c3aed;
   --accent-purple-light: #c4b5fd;
-  --accent-purple-soft: #ede9fe;
+  --accent-purple-soft: #f5f3ff;
 
-  --accent-pink: #ec4899;
+  --accent-pink: #db2777;
   --accent-pink-light: #f9a8d4;
-  --accent-pink-soft: #fce7f3;
+  --accent-pink-soft: #fdf2f8;
 
-  --accent-orange: #f97316;
-  --accent-orange-soft: #ffedd5;
+  --accent-orange: #ea580c;
+  --accent-orange-soft: #fff7ed;
 
-  /* Background — neutral light */
-  --background: #fafaf9;
-  --foreground: #1c1917;
+  /* Surfaces — neutral, near-white */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
 
   --card: #ffffff;
-  --card-foreground: #1c1917;
+  --card-foreground: #0a0a0a;
 
   --popover: #ffffff;
-  --popover-foreground: #1c1917;
+  --popover-foreground: #0a0a0a;
 
-  /* Primary - Brand orange */
-  --primary: #ea580c;
-  --primary-foreground: #ffffff;
+  /* Primary — solid black (shadcn new-york style) */
+  --primary: #0a0a0a;
+  --primary-foreground: #fafafa;
 
-  --secondary: #f5f5f4;
-  --secondary-foreground: #44403c;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
 
-  --muted: #f5f5f4;
-  --muted-foreground: #78716c;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
 
-  --accent: #fff7ed;
-  --accent-foreground: #9a3412;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
 
   --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #fafafa;
 
-  --border: #e7e5e4;
-  --input: #e7e5e4;
-  --ring: #ea580c;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #0a0a0a;
 
   /* Sidebar */
-  --sidebar: #fafaf9;
-  --sidebar-foreground: #57534e;
-  --sidebar-primary: #ea580c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fff7ed;
-  --sidebar-accent-foreground: #9a3412;
-  --sidebar-border: #e7e5e4;
-  --sidebar-ring: #ea580c;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #404040;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0a0a0a;
 
-  /* Legacy 9router tokens — aliases for the shadcn-style tokens above */
-  --text: #1c1917;
-  --text-main: #1c1917;
-  --text-primary: #1c1917;
-  --text-muted: #57534e;
-  --text-subtle: #a8a29e;
+  /* Legacy aliases — exposed so older components don't break */
+  --text: #0a0a0a;
+  --text-main: #0a0a0a;
+  --text-primary: #0a0a0a;
+  --text-muted: #525252;
+  --text-subtle: #a3a3a3;
 
   --surface: #ffffff;
-  --surface-foreground: #1c1917;
-  --surface-2: #f5f5f4;
+  --surface-foreground: #0a0a0a;
+  --surface-2: #f5f5f5;
 
-  --bg: #fafaf9;
-  --bg-subtle: #f5f5f4;
-  --bg-hover: #e7e5e4;
-  --bg-alt: #f5f5f4;
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-hover: #f5f5f5;
+  --bg-alt: #fafafa;
   --bg-elevated: #ffffff;
 
-  --vibrancy: rgba(255, 255, 255, 0.78);
-  --vibrancy-subtle: rgba(255, 255, 255, 0.55);
+  --vibrancy: rgba(255, 255, 255, 0.72);
+  --vibrancy-subtle: rgba(255, 255, 255, 0.5);
 
-  /* Elevation tokens */
+  /* Elevation tokens — quiet, shadcn-grade */
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.06), 0 2px 6px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 12px 28px -8px rgb(0 0 0 / 0.10), 0 6px 12px -4px rgb(0 0 0 / 0.06);
-  --shadow-glow: 0 0 0 1px rgb(234 88 12 / 0.20), 0 4px 14px -2px rgb(234 88 12 / 0.20);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 20px -6px rgb(0 0 0 / 0.08), 0 4px 8px -3px rgb(0 0 0 / 0.05);
+  --shadow-glow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.10);
 
   /* Motion tokens */
   --duration-instant: 80ms;
@@ -118,78 +118,78 @@
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* Status Colors */
-  --status-backlog: #8b5cf6;
-  --status-todo: #f59e0b;
-  --status-in-progress: #eab308;
-  --status-done: #22c55e;
-  --status-canceled: #ef4444;
+  --status-backlog: #7c3aed;
+  --status-todo: #d97706;
+  --status-in-progress: #ca8a04;
+  --status-done: #16a34a;
+  --status-canceled: #dc2626;
 }
 
 /* Dark theme */
 .dark {
   --background: #0a0a0a;
-  --foreground: #fafaf9;
+  --foreground: #fafafa;
 
-  --card: #171717;
-  --card-foreground: #fafaf9;
+  --card: #0a0a0a;
+  --card-foreground: #fafafa;
 
-  --popover: #171717;
-  --popover-foreground: #fafaf9;
+  --popover: #0a0a0a;
+  --popover-foreground: #fafafa;
 
-  --primary: #fb923c;
-  --primary-foreground: #1c1917;
+  --primary: #fafafa;
+  --primary-foreground: #0a0a0a;
 
-  --secondary: #262626;
-  --secondary-foreground: #e5e5e5;
+  --secondary: #171717;
+  --secondary-foreground: #fafafa;
 
-  --muted: #262626;
-  --muted-foreground: #a8a29e;
+  --muted: #171717;
+  --muted-foreground: #a3a3a3;
 
-  --accent: #2a1810;
-  --accent-foreground: #fdba74;
+  --accent: #171717;
+  --accent-foreground: #fafafa;
 
   --destructive: #ef4444;
-  --destructive-foreground: #fafaf9;
+  --destructive-foreground: #fafafa;
 
-  --border: #292524;
-  --input: #292524;
-  --ring: #fb923c;
+  --border: #262626;
+  --input: #262626;
+  --ring: #d4d4d4;
 
-  --sidebar: #0c0c0c;
-  --sidebar-foreground: #a8a29e;
-  --sidebar-primary: #fb923c;
-  --sidebar-primary-foreground: #1c1917;
-  --sidebar-accent: #2a1810;
-  --sidebar-accent-foreground: #fdba74;
-  --sidebar-border: #1f1d1c;
-  --sidebar-ring: #fb923c;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #a3a3a3;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #1f1f1f;
+  --sidebar-ring: #d4d4d4;
 
-  /* Legacy 9router tokens (dark) */
-  --text: #fafaf9;
-  --text-main: #fafaf9;
-  --text-primary: #fafaf9;
-  --text-muted: #a8a29e;
-  --text-subtle: #78716c;
+  /* Legacy aliases (dark) */
+  --text: #fafafa;
+  --text-main: #fafafa;
+  --text-primary: #fafafa;
+  --text-muted: #a3a3a3;
+  --text-subtle: #737373;
 
-  --surface: #171717;
-  --surface-foreground: #fafaf9;
-  --surface-2: #1f1d1c;
+  --surface: #0a0a0a;
+  --surface-foreground: #fafafa;
+  --surface-2: #171717;
 
   --bg: #0a0a0a;
-  --bg-subtle: #171717;
-  --bg-hover: #292524;
+  --bg-subtle: #0f0f0f;
+  --bg-hover: #1f1f1f;
   --bg-alt: #171717;
-  --bg-elevated: #1f1d1c;
+  --bg-elevated: #171717;
 
-  --vibrancy: rgba(23, 23, 23, 0.78);
-  --vibrancy-subtle: rgba(23, 23, 23, 0.55);
+  --vibrancy: rgba(10, 10, 10, 0.72);
+  --vibrancy-subtle: rgba(10, 10, 10, 0.5);
 
   /* Elevation tokens (dark) */
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.30);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.40), 0 1px 2px -1px rgb(0 0 0 / 0.30);
-  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 6px -2px rgb(0 0 0 / 0.35);
-  --shadow-lg: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 6px 12px -4px rgb(0 0 0 / 0.40);
-  --shadow-glow: 0 0 0 1px rgb(251 146 60 / 0.30), 0 6px 18px -2px rgb(251 146 60 / 0.30);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.40);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 10px 20px -6px rgb(0 0 0 / 0.55), 0 4px 8px -3px rgb(0 0 0 / 0.40);
+  --shadow-glow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.45);
 }
 
 @theme {
@@ -222,7 +222,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Legacy 9router tokens — exposed as Tailwind utilities */
+  /* Legacy aliases — exposed as Tailwind utilities for older components */
   --color-text: var(--text);
   --color-text-main: var(--text-main);
   --color-text-primary: var(--text-primary);

@@ -9,7 +9,7 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS,
 import { getModelsByProviderId } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
-import ModelRow from "./ModelRow";
+import ModelListView from "../components/ModelListView";
 import PassthroughModelsSection from "./PassthroughModelsSection";
 import CompatibleModelsSection from "./CompatibleModelsSection";
 import ConnectionRow from "./ConnectionRow";
@@ -871,111 +871,109 @@ export default function ProviderDetailPage() {
         fullModel,
       }));
 
+    const canTest = connections.length > 0 || isFreeNoAuth;
+
+    // Build unified list items for the searchable + sortable view.
+    const listItems = [
+      ...customModels.map((model) => ({
+        id: model.id,
+        fullModel: `${providerDisplayAlias}/${model.id}`,
+        name: undefined,
+        isCustom: true,
+        isFree: false,
+        testStatus: modelTestResults[model.id],
+        onTest: canTest ? () => handleTestModel(model.id) : undefined,
+        onRemove: () => handleDeleteAlias(model.alias),
+        removeTitle: "Remove custom model",
+      })),
+      ...displayModels.map((model) => ({
+        id: model.id,
+        fullModel: `${providerDisplayAlias}/${model.id}`,
+        name: model.name,
+        isCustom: false,
+        isFree: model.isFree,
+        testStatus: modelTestResults[model.id],
+        onTest: canTest ? () => handleTestModel(model.id) : undefined,
+        onRemove: () => handleDisableModel(model.id),
+        removeTitle: "Disable this model",
+      })),
+    ];
+
     return (
-      <div className="flex flex-wrap gap-3">
-        {/* Custom models first */}
-        {customModels.map((model) => (
-          <ModelRow
-            key={model.id}
-            model={{ id: model.id }}
-            fullModel={`${providerDisplayAlias}/${model.id}`}
-            alias={model.alias}
-            copied={copied}
-            onCopy={copy}
-            onSetAlias={() => {}}
-            onDeleteAlias={() => handleDeleteAlias(model.alias)}
-            testStatus={modelTestResults[model.id]}
-            onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
-            isTesting={testingModelId === model.id}
-            isCustom
-            isFree={false}
-          />
-        ))}
+      <div className="flex flex-col gap-4">
+        <ModelListView
+          items={listItems}
+          copied={copied}
+          onCopy={copy}
+          testingModelId={testingModelId}
+          emptyText="No models yet — add a custom model below."
+        />
 
-        {displayModels.map((model) => {
-          const fullModel = `${providerStorageAlias}/${model.id}`;
-          const oldFormatModel = `${providerId}/${model.id}`;
-          const existingAlias = Object.entries(modelAliases).find(
-            ([, m]) => m === fullModel || m === oldFormatModel
-          )?.[0];
-          return (
-            <ModelRow
-              key={model.id}
-              model={model}
-              fullModel={`${providerDisplayAlias}/${model.id}`}
-              alias={existingAlias}
-              copied={copied}
-              onCopy={copy}
-              onSetAlias={(alias) => handleSetAlias(model.id, alias, providerStorageAlias)}
-              onDeleteAlias={() => handleDeleteAlias(existingAlias)}
-              testStatus={modelTestResults[model.id]}
-              onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
-              isTesting={testingModelId === model.id}
-              isFree={model.isFree}
-              onDisable={() => handleDisableModel(model.id)}
-            />
-          );
-        })}
+        {/* Add model button + suggested + disabled — keep below the list */}
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => setShowAddCustomModel(true)}
+            className="inline-flex items-center justify-center gap-1.5 self-start rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+          >
+            <span className="material-symbols-outlined text-sm">add</span>
+            Add custom model
+          </button>
 
-        {/* Add model button — inline, same style as model chips */}
-        <button
-          onClick={() => setShowAddCustomModel(true)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-2 text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5 sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
-          Add Model
-        </button>
+          {/* Suggested models from provider API — show only models not yet added */}
+          {suggestedModels.length > 0 && (() => {
+            const addedFullModels = new Set(Object.values(modelAliases));
+            const hardcodedIds = new Set(models.map((m) => m.id));
+            const notAdded = suggestedModels.filter(
+              (m) => !addedFullModels.has(`${providerStorageAlias}/${m.id}`) && !hardcodedIds.has(m.id)
+            );
+            if (notAdded.length === 0) return null;
+            return (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Suggested ({notAdded.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {notAdded.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={async () => {
+                        const alias = m.id.split("/").pop();
+                        await handleSetAlias(m.id, alias, providerStorageAlias);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                      title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
+                    >
+                      <span className="material-symbols-outlined text-[12px]">add</span>
+                      {m.id.split("/").pop()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
-        {/* Suggested models from provider API — show only models not yet added */}
-        {suggestedModels.length > 0 && (() => {
-          const addedFullModels = new Set(Object.values(modelAliases));
-          const hardcodedIds = new Set(models.map((m) => m.id));
-          const notAdded = suggestedModels.filter(
-            (m) => !addedFullModels.has(`${providerStorageAlias}/${m.id}`) && !hardcodedIds.has(m.id)
-          );
-          if (notAdded.length === 0) return null;
-          return (
-            <div className="w-full mt-2">
-              <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
-              <div className="flex flex-wrap gap-2">
-                {notAdded.map((m) => (
+          {/* Disabled models — restorable */}
+          {disabledDisplayModels.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Disabled ({disabledDisplayModels.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {disabledDisplayModels.map((m) => (
                   <button
                     key={m.id}
-                    onClick={async () => {
-                      const alias = m.id.split("/").pop();
-                      await handleSetAlias(m.id, alias, providerStorageAlias);
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                    title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
+                    onClick={() => handleEnableModel(m.id)}
+                    className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                    title="Restore model"
                   >
-                    <span className="material-symbols-outlined text-[13px]">add</span>
-                    {m.id.split("/").pop()}
+                    <span className="material-symbols-outlined text-[12px]">restart_alt</span>
+                    {m.id}
                   </button>
                 ))}
               </div>
             </div>
-          );
-        })()}
-
-        {/* Disabled models — restorable */}
-        {disabledDisplayModels.length > 0 && (
-          <div className="w-full mt-2">
-            <p className="text-xs text-text-muted mb-2">Disabled models ({disabledDisplayModels.length}):</p>
-            <div className="flex flex-wrap gap-2">
-              {disabledDisplayModels.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleEnableModel(m.id)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                  title="Restore model"
-                >
-                  <span className="material-symbols-outlined text-[13px]">add</span>
-                  {m.id}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };

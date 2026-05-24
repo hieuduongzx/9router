@@ -130,8 +130,8 @@ export default function Sidebar({ onClose }) {
         {/* Logo */}
         <div className="px-5 py-4 flex flex-col gap-3">
           <Link href="/dashboard" className="group flex items-center gap-3">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-gradient-to-br from-[#f97815] to-[#c2590a] shadow-sm ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-[1.04]">
-              <span className="material-symbols-outlined text-white text-[20px]">hub</span>
+            <div className="flex items-center justify-center size-9 rounded-lg bg-foreground text-background ring-1 ring-border/40 transition-transform duration-200 group-hover:scale-[1.04]">
+              <span className="text-[12px] font-bold tracking-tight">2K</span>
             </div>
             <div className="flex flex-col leading-tight">
               <h1 className="text-[15px] font-semibold tracking-tight text-text-main">
@@ -271,7 +271,7 @@ export default function Sidebar({ onClose }) {
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
         onConfirm={handleUpdate}
-        title="Update 9Router"
+        title="Update Api2K"
         message={`Show install command for v${updateInfo?.latestVersion || ""}? You can copy it and shutdown to install manually.`}
         confirmText="Show Command"
         cancelText="Cancel"
@@ -363,7 +363,7 @@ function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdow
           <span className="material-symbols-outlined text-[24px]">content_copy</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Update 9Router{latestVersion ? ` to v${latestVersion}` : ""}</h2>
+          <h2 className="text-lg font-semibold">Update Api2K{latestVersion ? ` to v${latestVersion}` : ""}</h2>
           <p className="text-xs text-white/60">
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."

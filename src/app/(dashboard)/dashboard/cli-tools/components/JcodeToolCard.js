@@ -37,7 +37,7 @@ export default function JcodeToolCard({
 
   const getConfigStatus = () => {
     if (!jcodeStatus?.installed) return null;
-    if (!jcodeStatus?.has9Router) return "not_configured";
+    if (!jcodeStatus?.hasApi2K) return "not_configured";
     const currentProvider = jcodeStatus.config?.providers?.["9router"];
     if (!currentProvider) return "not_configured";
     return matchKnownEndpoint(currentProvider.base_url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
@@ -128,7 +128,7 @@ export default function JcodeToolCard({
     try {
       const keyToUse = selectedApiKey?.trim()
         || (apiKeys?.length > 0 ? apiKeys[0].key : null)
-        || (!cloudEnabled ? "sk_9router" : null);
+        || (!cloudEnabled ? "sk_api2k" : null);
 
       const res = await fetch("/api/cli-tools/jcode-settings", {
         method: "POST",
@@ -182,7 +182,7 @@ export default function JcodeToolCard({
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_9router" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_api2k" : "<API_KEY_FROM_DASHBOARD>");
 
     const configToml = `[providers.9router]
 type = "openai-compatible"
@@ -250,7 +250,7 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
                     <code className="block mt-2 p-2 bg-black/20 rounded text-xs font-mono">
                       curl -fsSL https://raw.githubusercontent.com/1jehuang/jcode/master/scripts/install.sh | bash
                     </code>
-                    <p className="text-sm text-text-muted mt-2">Manual configuration is still available if 9router is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted mt-2">Manual configuration is still available if Api2K is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
@@ -347,7 +347,7 @@ id = "${selectedModel || "cc/claude-opus-4-7"}"`;
                 <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={!selectedModel} loading={applying}>
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!jcodeStatus?.has9Router} loading={restoring}>
+                <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!jcodeStatus?.hasApi2K} loading={restoring}>
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

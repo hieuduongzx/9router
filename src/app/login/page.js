@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, Button, Input } from "@/shared/components";
+import { Logo } from "@/components/ui/logo";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -97,35 +98,25 @@ export default function LoginPage() {
   // Show loading state while checking password
   if (hasPassword === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-text-muted mt-4">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
+          <p className="text-muted-foreground mt-4">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
       {/* Faint grid background */}
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
-      {/* Soft accent glow */}
-      <div
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] rounded-full pointer-events-none opacity-30 dark:opacity-20"
-        aria-hidden="true"
-        style={{
-          background: "radial-gradient(circle at center, rgba(249,115,22,0.18), transparent 60%)",
-        }}
-      />
       <div className="relative z-10 w-full max-w-md">
-        <div className="text-center mb-8 flex flex-col items-center gap-3">
-          <div className="flex items-center justify-center size-12 rounded-xl bg-gradient-to-br from-[#f97815] to-[#c2590a] shadow-pop ring-1 ring-black/5">
-            <span className="material-symbols-outlined text-white text-[26px]">hub</span>
-          </div>
+        <div className="text-center mb-8 flex flex-col items-center gap-4">
+          <Logo size="xl" />
           <div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">9Router</h1>
-            <p className="text-[13px] text-text-muted mt-1">
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Api2K</h1>
+            <p className="text-[13px] text-muted-foreground mt-1">
               {authMode === "oidc" && oidcConfigured
                 ? "Sign in with your OIDC provider to access the dashboard"
                 : "Enter your password to access the dashboard"}
@@ -152,7 +143,7 @@ export default function LoginPage() {
                 )}
 
                 {authMode === "both" && oidcConfigured && (
-                  <p className="text-xs text-text-muted text-center">
+                  <p className="text-xs text-muted-foreground text-center">
                     Password and OIDC login are both enabled.
                   </p>
                 )}
@@ -174,8 +165,8 @@ export default function LoginPage() {
                     </p>
                   )}
                   {resetHint && (
-                    <p className="text-xs text-text-muted">
-                      Forgot password? Open <code className="bg-sidebar px-1 rounded">9router</code> CLI on the host → <b>Settings</b> → <b>Reset Password to Default</b>.
+                    <p className="text-xs text-muted-foreground">
+                      Forgot password? Open <code className="bg-muted px-1 rounded">api2k</code> CLI on the host → <b>Settings</b> → <b>Reset Password to Default</b>.
                     </p>
                   )}
                 </div>
@@ -190,11 +181,11 @@ export default function LoginPage() {
                   {retryAfter > 0 ? `Wait ${retryAfter}s` : "Login"}
                 </Button>
 
-                <p className="text-xs text-center text-text-muted mt-2">
-                  Default password is <code className="bg-sidebar px-1 rounded">123456</code>
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  Default password is <code className="bg-muted px-1 rounded">123456</code>
                 </p>
                 {hasPassword === false && (
-                  <p className="text-xs text-center text-text-muted">
+                  <p className="text-xs text-center text-muted-foreground">
                     No custom password is set yet. The default password above will work until you change it.
                   </p>
                 )}

@@ -2,7 +2,7 @@ import pkg from "../../../package.json" with { type: "json" };
 
 // App configuration
 export const APP_CONFIG = {
-  name: "9Router",
+  name: "Api2K",
   description: "Universal AI Gateway",
   version: pkg.version,
 };
