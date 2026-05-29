@@ -7,31 +7,77 @@ import { proxyAwareFetch } from "../utils/proxyFetch.js";
 let _xaiServiceSingleton = null;
 async function refreshXaiToken(refreshToken, log) {
   if (!refreshToken) return null;
-  try {
-    if (!_xaiServiceSingleton) {
-      const mod = await import("../../src/lib/oauth/services/xai.js");
-      _xaiServiceSingleton = new mod.XaiService();
+  return dedupRefresh("xai", refreshToken, async () => {
+    try {
+      if (!_xaiServiceSingleton) {
+        const mod = await import("../../src/lib/oauth/services/xai.js");
+        _xaiServiceSingleton = new mod.XaiService();
+      }
+      const tokens = await _xaiServiceSingleton.refreshAccessToken(refreshToken);
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || refreshToken,
+        expiresIn: tokens.expires_in,
+        idToken: tokens.id_token,
+      };
+    } catch (e) {
+      log?.warn?.("TOKEN_REFRESH", `xai refresh failed: ${e?.message || e}`);
+      const msg = String(e?.message || "");
+      if (msg.includes("invalid_grant") || msg.includes("invalid_request")) {
+        return { error: "invalid_grant" };
+      }
+      return null;
     }
-    const tokens = await _xaiServiceSingleton.refreshAccessToken(refreshToken);
-    return {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token || refreshToken,
-      expiresIn: tokens.expires_in,
-      idToken: tokens.id_token,
-    };
-  } catch (e) {
-    log?.warn?.("TOKEN_REFRESH", `xai refresh failed: ${e?.message || e}`);
-    const msg = String(e?.message || "");
-    if (msg.includes("invalid_grant") || msg.includes("invalid_request")) {
-      return { error: "invalid_grant" };
-    }
-    return null;
-  }
+  }, log);
 }
 
 // Default token expiry buffer (refresh if expires within 5 minutes)
 export const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
+// Dedup: cache in-flight promise + recent result to prevent refresh_token_reused (Auth0 family revoke)
+const REFRESH_RESULT_TTL_MS = 10_000;
+const refreshDedupCache = new Map();
+
+async function dedupRefresh(provider, oldToken, fn, log) {
+  if (!oldToken) return fn();
+  const key = `${provider}:${oldToken}`;
+  const hit = refreshDedupCache.get(key);
+  if (hit) {
+    if (hit.promise) {
+      log?.info?.("TOKEN_REFRESH", `Reusing in-flight refresh for ${provider}`);
+      return hit.promise;
+    }
+    if (hit.expiresAt > Date.now()) {
+      log?.info?.("TOKEN_REFRESH", `Reusing recent refresh result for ${provider}`);
+      return hit.result;
+    }
+    refreshDedupCache.delete(key);
+  }
+  const promise = (async () => {
+    try {
+      const result = await fn();
+      refreshDedupCache.set(key, { result, expiresAt: Date.now() + REFRESH_RESULT_TTL_MS });
+      return result;
+    } catch (err) {
+      refreshDedupCache.delete(key);
+      throw err;
+    }
+  })();
+  refreshDedupCache.set(key, { promise });
+  return promise;
+}
+
+// Check if refresh result indicates unrecoverable error (caller should stop retry, force re-auth)
+export function isUnrecoverableRefreshError(result) {
+  return (
+    result &&
+    typeof result === "object" &&
+    (result.error === "unrecoverable_refresh_error" ||
+      result.error === "refresh_token_reused" ||
+      result.error === "invalid_request" ||
+      result.error === "invalid_grant")
+  );
+}
 // Get provider-specific refresh lead time, falls back to default buffer
 export function getRefreshLeadMs(provider) {
   return REFRESH_LEAD_MS[provider] || TOKEN_EXPIRY_BUFFER_MS;
@@ -53,6 +99,7 @@ export async function refreshAccessToken(provider, refreshToken, credentials, lo
     return null;
   }
 
+  return dedupRefresh(provider, refreshToken, async () => {
   try {
     const response = await fetch(config.refreshUrl, {
       method: "POST",
@@ -96,12 +143,15 @@ export async function refreshAccessToken(provider, refreshToken, credentials, lo
     });
     return null;
   }
+  }, log);
 }
 
 /**
  * Specialized refresh for Claude OAuth tokens
  */
 export async function refreshClaudeOAuthToken(refreshToken, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh("claude", refreshToken, async () => {
   try {
     const response = await fetch(OAUTH_ENDPOINTS.anthropic.token, {
       method: "POST",
@@ -129,12 +179,15 @@ export async function refreshClaudeOAuthToken(refreshToken, log) {
     log?.error?.("TOKEN_REFRESH", `Network error refreshing Claude token: ${error.message}`);
     return null;
   }
+  }, log);
 }
 
 /**
  * Specialized refresh for Google providers (Gemini, Antigravity)
  */
 export async function refreshGoogleToken(refreshToken, clientId, clientSecret, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh(`google:${clientId}`, refreshToken, async () => {
   try {
     const response = await fetch(OAUTH_ENDPOINTS.google.token, {
       method: "POST",
@@ -163,12 +216,15 @@ export async function refreshGoogleToken(refreshToken, clientId, clientSecret, l
     log?.error?.("TOKEN_REFRESH", `Network error refreshing Google token: ${error.message}`);
     return null;
   }
+  }, log);
 }
 
 /**
  * Specialized refresh for Qwen OAuth tokens
  */
 export async function refreshQwenToken(refreshToken, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh("qwen", refreshToken, async () => {
   const endpoint = OAUTH_ENDPOINTS.qwen.token;
 
   try {
@@ -217,12 +273,15 @@ export async function refreshQwenToken(refreshToken, log) {
 
   log?.error?.("TOKEN_REFRESH", "Failed to refresh Qwen token");
   return null;
+  }, log);
 }
 
 /**
  * Specialized refresh for Codex (OpenAI) OAuth tokens
  */
 export async function refreshCodexToken(refreshToken, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh("codex", refreshToken, async () => {
   try {
   const response = await fetch(OAUTH_ENDPOINTS.openai.token, {
     method: "POST",
@@ -264,6 +323,7 @@ export async function refreshCodexToken(refreshToken, log) {
     log?.error?.("TOKEN_REFRESH", `Network error refreshing Codex token: ${error.message}`);
     return null;
   }
+  }, log);
 }
 
 /**
@@ -271,6 +331,8 @@ export async function refreshCodexToken(refreshToken, log) {
  * Supports both AWS SSO OIDC (Builder ID/IDC) and Social Auth (Google/GitHub)
  */
 export async function refreshKiroToken(refreshToken, providerSpecificData, log, proxyOptions = null) {
+  if (!refreshToken) return null;
+  return dedupRefresh("kiro", refreshToken, async () => {
   const authMethod = providerSpecificData?.authMethod;
   const clientId = providerSpecificData?.clientId;
   const clientSecret = providerSpecificData?.clientSecret;
@@ -355,12 +417,15 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
     refreshToken: tokens.refreshToken || refreshToken,
     expiresIn: tokens.expiresIn,
   };
+  }, log);
 }
 
 /**
  * Specialized refresh for iFlow OAuth tokens
  */
 export async function refreshIflowToken(refreshToken, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh("iflow", refreshToken, async () => {
   const basicAuth = btoa(`${PROVIDERS.iflow.clientId}:${PROVIDERS.iflow.clientSecret}`);
 
   const response = await fetch(OAUTH_ENDPOINTS.iflow.token, {
@@ -400,12 +465,15 @@ export async function refreshIflowToken(refreshToken, log) {
     refreshToken: tokens.refresh_token || refreshToken,
     expiresIn: tokens.expires_in,
   };
+  }, log);
 }
 
 /**
  * Specialized refresh for GitHub Copilot OAuth tokens
  */
 export async function refreshGitHubToken(refreshToken, log) {
+  if (!refreshToken) return null;
+  return dedupRefresh("github", refreshToken, async () => {
   const params = {
     grant_type: "refresh_token",
     refresh_token: refreshToken,
@@ -446,12 +514,15 @@ export async function refreshGitHubToken(refreshToken, log) {
     refreshToken: tokens.refresh_token || refreshToken,
     expiresIn: tokens.expires_in,
   };
+  }, log);
 }
 
 /**
  * Refresh GitHub Copilot token using GitHub access token
  */
 export async function refreshCopilotToken(githubAccessToken, log) {
+  if (!githubAccessToken) return null;
+  return dedupRefresh("copilot", githubAccessToken, async () => {
   try {
     const response = await fetch("https://api.github.com/copilot_internal/v2/token", {
       headers: {
@@ -490,6 +561,7 @@ export async function refreshCopilotToken(githubAccessToken, log) {
     });
     return null;
   }
+  }, log);
 }
 
 /**
@@ -500,7 +572,11 @@ export async function getAccessToken(provider, credentials, log) {
     log?.warn?.("TOKEN_REFRESH", `No refresh token available for provider: ${provider}`);
     return null;
   }
+// Dedup is handled inside each refreshXxxToken function
+  return _getAccessTokenInternal(provider, credentials, log);
+}
 
+async function _getAccessTokenInternal(provider, credentials, log) {
   switch (provider) {
     case "gemini":
     case "gemini-cli":
