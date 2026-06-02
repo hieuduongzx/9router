@@ -5,9 +5,31 @@ import { buildTtsProviderModels } from "./ttsModels.js";
 // Key = alias (cc, cx, gc, qw, if, ag, gh for OAuth; id for API Key)
 // Field "provider" for special cases (e.g. AntiGravity models that call different backends)
 
+const CODEX_REVIEW_SUFFIX = "-review";
+
+function withCodexReviewModels(models) {
+  return models.flatMap((model) => {
+    if ((model.type || "llm") !== "llm" || model.id.endsWith(CODEX_REVIEW_SUFFIX)) {
+      return [model];
+    }
+
+    return [
+      model,
+      {
+        ...model,
+        id: `${model.id}${CODEX_REVIEW_SUFFIX}`,
+        name: `${model.name} Review`,
+        upstreamModelId: model.upstreamModelId || model.id,
+        quotaFamily: "review",
+      },
+    ];
+  });
+}
+
 export const PROVIDER_MODELS = {
   // OAuth Providers (using alias)
   cc: [  // Claude Code
+    { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
     { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
     { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
     { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
@@ -15,9 +37,10 @@ export const PROVIDER_MODELS = {
     { id: "claude-sonnet-4-5-20250929", name: "Claude 4.5 Sonnet" },
     { id: "claude-haiku-4-5-20251001", name: "Claude 4.5 Haiku" },
   ],
-  cx: [  // OpenAI Codex
+  cx: withCodexReviewModels([  // OpenAI Codex
     { id: "gpt-5.5", name: "GPT 5.5" },
     { id: "gpt-5.4", name: "GPT 5.4" },
+    { id: "gpt-5.4-mini", name: "GPT 5.4 Mini" },
     // GPT 5.3 Codex - all thinking levels
     { id: "gpt-5.3-codex", name: "GPT 5.3 Codex" },
     { id: "gpt-5.3-codex-xhigh", name: "GPT 5.3 Codex (xHigh)" },
@@ -25,23 +48,12 @@ export const PROVIDER_MODELS = {
     { id: "gpt-5.3-codex-low", name: "GPT 5.3 Codex (Low)" },
     { id: "gpt-5.3-codex-none", name: "GPT 5.3 Codex (None)" },
     { id: "gpt-5.3-codex-spark", name: "GPT 5.3 Codex Spark" },
-    // Mini - medium and high only
-    { id: "gpt-5.1-codex-mini", name: "GPT 5.1 Codex Mini" },
-    { id: "gpt-5.1-codex-mini-high", name: "GPT 5.1 Codex Mini (High)" },
-    // Other models
-    { id: "gpt-5.2-codex", name: "GPT 5.2 Codex" },
-    { id: "gpt-5.2", name: "GPT 5.2" },
-    { id: "gpt-5.1-codex-max", name: "GPT 5.1 Codex Max" },
-    { id: "gpt-5.1-codex", name: "GPT 5.1 Codex" },
-    { id: "gpt-5.1", name: "GPT 5.1" },
-    { id: "gpt-5-codex", name: "GPT 5 Codex" },
-    { id: "gpt-5-codex-mini", name: "GPT 5 Codex Mini" },
     // Image models (uses image_generation tool, requires Plus/Pro plan)
     { id: "gpt-5.5-image", name: "GPT 5.5 Image", type: "image", capabilities: ["text2img", "edit"], params: ["size", "quality", "background", "image_detail", "output_format"] },
     { id: "gpt-5.4-image", name: "GPT 5.4 Image", type: "image", capabilities: ["text2img", "edit"], params: ["size", "quality", "background", "image_detail", "output_format"] },
     { id: "gpt-5.3-image", name: "GPT 5.3 Image", type: "image", capabilities: ["text2img", "edit"], params: ["size", "quality", "background", "image_detail", "output_format"] },
     { id: "gpt-5.2-image", name: "GPT 5.2 Image", type: "image", capabilities: ["text2img", "edit"], params: ["size", "quality", "background", "image_detail", "output_format"] },
-  ],
+  ]),
   gc: [  // Gemini CLI
     { id: "gemini-3-flash-preview", name: "Gemini 3 Flash Preview" },
     { id: "gemini-3-pro-preview", name: "Gemini 3 Pro Preview" },
@@ -132,6 +144,21 @@ export const PROVIDER_MODELS = {
     { id: "claude-haiku-4.5-agentic", name: "Claude Haiku 4.5 (Agentic)" },
     { id: "claude-sonnet-4.5-thinking-agentic", name: "Claude Sonnet 4.5 (Thinking + Agentic)" },
     { id: "claude-haiku-4.5-thinking-agentic", name: "Claude Haiku 4.5 (Thinking + Agentic)" },
+  ],
+  qd: [  // Qoder - tier + frontier models (server-published catalog)
+    // Tier models — pick a quality/cost tradeoff
+    { id: "auto", name: "Qoder Auto" },
+    { id: "ultimate", name: "Qoder Ultimate" },
+    { id: "performance", name: "Qoder Performance" },
+    { id: "efficient", name: "Qoder Efficient" },
+    { id: "lite", name: "Qoder Lite" },
+    // Frontier models — pin a specific backing model
+    { id: "qmodel", name: "Qwen 3.6 Plus (Qoder)" },
+    { id: "dmodel", name: "DeepSeek V4 Pro (Qoder)" },
+    { id: "dfmodel", name: "DeepSeek V4 Flash (Qoder)" },
+    { id: "gm51model", name: "GLM 5.1 (Qoder)" },
+    { id: "kmodel", name: "Kimi K2.6 (Qoder)" },
+    { id: "mmodel", name: "MiniMax M2.7 (Qoder)" },
   ],
   cu: [  // Cursor IDE
     { id: "default", name: "Auto (Server Picks)" },
@@ -379,13 +406,11 @@ export const PROVIDER_MODELS = {
     { id: "Doubao-Seed-2.0-pro", name: "Doubao-Seed-2.0-pro" },
     { id: "Doubao-Seed-2.0-lite", name: "Doubao-Seed-2.0-lite" },
     { id: "Doubao-Seed-Code", name: "Doubao-Seed-Code" },
+    { id: "DeepSeek-V4-Flash", name: "DeepSeek-V4-Flash" },
+    { id: "DeepSeek-V4-Pro", name: "DeepSeek-V4-Pro" },
     { id: "GLM-5.1", name: "GLM-5.1" },
     { id: "MiniMax-M2.7", name: "MiniMax-M2.7" },
     { id: "Kimi-K2.6", name: "Kimi-K2.6" },
-    { id: "MiniMax-M2.5", name: "MiniMax-M2.5" },
-    { id: "Kimi-K2.5", name: "Kimi-K2.5" },
-    { id: "GLM-4.7", name: "GLM-4.7" },
-    { id: "DeepSeek-V3.2", name: "DeepSeek-V3.2" },
   ],
   "cloudflare-ai": [
     { id: "@cf/moonshotai/kimi-k2.6", name: "Kimi K2.6" },
@@ -801,6 +826,22 @@ export function getModelTargetFormat(aliasOrId, modelId) {
   return found?.targetFormat || null;
 }
 
+export function getModelUpstreamId(aliasOrId, modelId) {
+  const models = PROVIDER_MODELS[aliasOrId];
+  const found = models?.find(m => m.id === modelId);
+  if (found?.upstreamModelId) return found.upstreamModelId;
+  if (aliasOrId === "cx" && typeof modelId === "string" && modelId.endsWith(CODEX_REVIEW_SUFFIX)) {
+    return modelId.slice(0, -CODEX_REVIEW_SUFFIX.length);
+  }
+  return modelId;
+}
+
+export function getModelQuotaFamily(aliasOrId, modelId) {
+  const models = PROVIDER_MODELS[aliasOrId];
+  const found = models?.find(m => m.id === modelId);
+  return found?.quotaFamily || "normal";
+}
+
 // OAuth providers that use short aliases (everything else: alias = id)
 const OAUTH_ALIASES = {
   claude: "cc",
@@ -816,6 +857,7 @@ const OAUTH_ALIASES = {
   kilocode: "kc",
   cline: "cl",
   opencode: "oc",
+  qoder: "qd",
   vertex: "vertex",
   "vertex-partner": "vertex-partner",
   "opencode-zen": "oz",

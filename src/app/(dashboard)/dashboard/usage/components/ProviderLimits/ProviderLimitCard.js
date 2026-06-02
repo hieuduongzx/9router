@@ -43,6 +43,7 @@ export default function ProviderLimitCard({
       antigravity: "#4285F4",
       codex: "#10A37F",
       kiro: "#FF9900",
+      qoder: "#EC4899",
       claude: "#D97757",
       "gemini-cli": "#4285F4",
     };
