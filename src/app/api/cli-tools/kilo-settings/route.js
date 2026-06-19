@@ -42,7 +42,7 @@ const readJson = async (filePath) => {
   }
 };
 
-const has9RouterConfig = (auth) => {
+const hasApi2KConfig = (auth) => {
   if (!auth) return false;
   const entry = auth["openai-compatible"] || auth["9router"];
   if (!entry) return false;
@@ -60,7 +60,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       settings: { auth: auth ? Object.keys(auth) : [] },
-      has9Router: has9RouterConfig(auth),
+      hasApi2K: hasApi2KConfig(auth),
       authPath: getAuthPath(),
     });
   } catch (error) {

@@ -167,7 +167,7 @@ export function hasValidUsage(usage) {
 }
 
 /**
- * Extract usage from any format (Claude, OpenAI, Gemini, Responses API)
+ * Extract usage from any format (Claude, OpenAI, Gemini, Ollama, Responses API)
  */
 export function extractUsage(chunk) {
   if (!chunk || typeof chunk !== "object") return null;

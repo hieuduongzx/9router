@@ -55,18 +55,23 @@ export function handleStreamingResponse({ providerResponse, provider, model, sou
   const transformedBody = pipeWithDisconnect(providerResponse, transformStream, streamController, onAbortTerminal, stallTimeoutMs);
 
   const streamDetailId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-  saveRequestDetail(buildRequestDetail({
-    provider, model, connectionId,
-    latency: { ttft: 0, total: Date.now() - requestStartTime },
-    tokens: { prompt_tokens: 0, completion_tokens: 0 },
-    request: extractRequestConfig(body, stream),
-    providerRequest: finalBody || translatedBody || null,
-    providerResponse: "[Streaming - raw response not captured]",
-    response: { content: "[Streaming in progress...]", thinking: null, type: "streaming" },
-    status: "success"
-  }, { id: streamDetailId })).catch(err => {
-    console.error("[RequestDetail] Failed to save streaming request:", err.message);
-  });
+  (async () => {
+    try {
+      const detail = await buildRequestDetail({
+        provider, model, connectionId,
+        latency: { ttft: 0, total: Date.now() - requestStartTime },
+        tokens: { prompt_tokens: 0, completion_tokens: 0 },
+        request: extractRequestConfig(body, stream),
+        providerRequest: finalBody || translatedBody || null,
+        providerResponse: "[Streaming - raw response not captured]",
+        response: { content: "[Streaming in progress...]", thinking: null, type: "streaming" },
+        status: "success"
+      }, { id: streamDetailId });
+      await saveRequestDetail(detail);
+    } catch (err) {
+      console.error("[RequestDetail] Failed to save streaming request:", err.message);
+    }
+  })();
 
   return {
     success: true,
@@ -88,18 +93,23 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
     const safeContent = contentObj?.content || "[Empty streaming response]";
     const safeThinking = contentObj?.thinking || null;
 
-    saveRequestDetail(buildRequestDetail({
-      provider, model, connectionId,
-      latency,
-      tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
-      request: extractRequestConfig(body, stream),
-      providerRequest: finalBody || translatedBody || null,
-      providerResponse: safeContent,
-      response: { content: safeContent, thinking: safeThinking, type: "streaming" },
-      status: "success"
-    }, { id: streamDetailId })).catch(err => {
-      console.error("[RequestDetail] Failed to update streaming content:", err.message);
-    });
+    (async () => {
+      try {
+        const detail = await buildRequestDetail({
+          provider, model, connectionId,
+          latency,
+          tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
+          request: extractRequestConfig(body, stream),
+          providerRequest: finalBody || translatedBody || null,
+          providerResponse: safeContent,
+          response: { content: safeContent, thinking: safeThinking, type: "streaming" },
+          status: "success"
+        }, { id: streamDetailId });
+        await saveRequestDetail(detail);
+      } catch (err) {
+        console.error("[RequestDetail] Failed to update streaming content:", err.message);
+      }
+    })();
 
     saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, label: "STREAM USAGE" });
   };

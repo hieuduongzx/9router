@@ -5,7 +5,6 @@ import Card from "@/shared/components/Card";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import Badge from "@/shared/components/Badge";
 import QuotaProgressBar from "./QuotaProgressBar";
-import { calculatePercentage } from "./utils";
 
 const planVariants = {
   free: "default",
@@ -46,6 +45,7 @@ export default function ProviderLimitCard({
       kiro: "#FF9900",
       qoder: "#EC4899",
       claude: "#D97757",
+      "gemini-cli": "#4285F4",
     };
     return colors[provider?.toLowerCase()] || "#6B7280";
   };
@@ -149,11 +149,20 @@ export default function ProviderLimitCard({
       {!loading && !error && !message && quotas?.length > 0 && (
         <div className="space-y-4">
           {quotas.map((quota, index) => {
-            // For Antigravity, use remainingPercentage if available, otherwise calculate
-            const percentage =
-              quota.remainingPercentage !== undefined
-                ? Math.round(((quota.total - quota.used) / quota.total) * 100)
-                : calculatePercentage(quota.used, quota.total);
+            // Calculate remaining percentage (what's LEFT, not what's used)
+            // Priority: 1. API remainingPercentage, 2. Calculate from used/total
+            let percentage;
+            if (quota.remainingPercentage !== undefined && quota.remainingPercentage !== null) {
+              // Use API-provided percentage directly (it's already the REMAINING %)
+              percentage = Math.round(quota.remainingPercentage);
+            } else if (quota.total > 0) {
+              // Calculate: (remaining / total) * 100
+              const remaining = quota.total - quota.used;
+              percentage = Math.round((remaining / quota.total) * 100);
+            } else {
+              percentage = 0;
+            }
+            
             const unlimited = quota.total === 0 || quota.total === null;
 
             return (

@@ -114,6 +114,7 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
   const [customModels, setCustomModels] = useState([]);
   const [modelTestResults, setModelTestResults] = useState({});
   const [testingModelId, setTestingModelId] = useState(null);
+  const [testingAllModels, setTestingAllModels] = useState(false);
   const [testError, setTestError] = useState("");
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [connections, setConnections] = useState([]);
@@ -183,24 +184,6 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
     } catch (e) { console.log("delete custom model error:", e); }
   };
 
-  const handleTestModel = async (modelId) => {
-    if (testingModelId) return;
-    setTestingModelId(modelId);
-    try {
-      const res = await fetch("/api/models/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: `${providerAlias}/${modelId}`, kind: kindFilter }),
-      });
-      const data = await res.json();
-      setModelTestResults((prev) => ({ ...prev, [modelId]: data.ok ? "ok" : "error" }));
-      setTestError(data.ok ? "" : (data.error || "Model not reachable"));
-    } catch {
-      setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
-      setTestError("Network error");
-    } finally { setTestingModelId(null); }
-  };
-
   // Built-in models — filter by kindFilter if provided
   const allBuiltIn = getModelsByProviderId(providerId);
   const builtInModels = kindFilter
@@ -218,12 +201,78 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
   );
 
   const displayModels = builtInModels;
+  const availableModelIds = [...displayModels.map((m) => m.id), ...myCustomModels.map((m) => m.id)];
+
+  const runModelTest = async (modelId) => {
+    const res = await fetch("/api/models/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: `${providerAlias}/${modelId}`, kind: kindFilter }),
+    });
+    const data = await res.json();
+    setModelTestResults((prev) => ({ ...prev, [modelId]: data.ok ? "ok" : "error" }));
+    return data;
+  };
+
+  const handleTestModel = async (modelId) => {
+    if (testingModelId || testingAllModels) return;
+    setTestingModelId(modelId);
+    try {
+      const data = await runModelTest(modelId);
+      setTestError(data.ok ? "" : (data.error || "Model not reachable"));
+    } catch {
+      setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
+      setTestError("Network error");
+    } finally { setTestingModelId(null); }
+  };
+
+  const handleTestAllModels = async () => {
+    if (testingModelId || testingAllModels || availableModelIds.length === 0) return;
+    setTestingAllModels(true);
+    setTestError("");
+    try {
+      const res = await fetch("/api/models/test-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          models: availableModelIds.map((modelId) => ({ id: modelId, model: `${providerAlias}/${modelId}`, kind: kindFilter })),
+        }),
+      });
+      const data = await res.json();
+      const results = data.results || [];
+      setModelTestResults((prev) => ({
+        ...prev,
+        ...Object.fromEntries(results.map((result) => [result.id, result.ok ? "ok" : "error"])),
+      }));
+      const firstFailed = results.find((result) => !result.ok);
+      const firstError = firstFailed ? `${firstFailed.id}: ${firstFailed.error || "Model not reachable"}` : "";
+      setTestError(firstError);
+      if (!res.ok && !firstError) setTestError(data.error || "Test all failed");
+    } catch {
+      setModelTestResults((prev) => ({
+        ...prev,
+        ...Object.fromEntries(availableModelIds.map((modelId) => [modelId, "error"])),
+      }));
+      setTestError("Network error");
+    } finally {
+      setTestingAllModels(false);
+    }
+  };
 
   return (
     <>
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Models{kindFilter ? ` — ${kindFilter.toUpperCase()}` : ""}</h2>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={testingAllModels ? "progress_activity" : "science"}
+            onClick={handleTestAllModels}
+            disabled={testingAllModels || !!testingModelId || availableModelIds.length === 0}
+          >
+            {testingAllModels ? "Testing..." : "Test All"}
+          </Button>
         </div>
         {testError && <p className="text-xs text-red-500 mb-3 break-words">{testError}</p>}
 
@@ -242,8 +291,8 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
                 onSetAlias={(alias) => handleSetAlias(model.id, alias)}
                 onDeleteAlias={() => handleDeleteAlias(existingAlias)}
                 testStatus={modelTestResults[model.id]}
-                onTest={connections.length > 0 ? () => handleTestModel(model.id) : undefined}
-                isTesting={testingModelId === model.id}
+                onTest={() => handleTestModel(model.id)}
+                isTesting={testingAllModels || testingModelId === model.id}
                 isFree={model.isFree}
               />
             );
@@ -259,8 +308,8 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
               onSetAlias={() => {}}
               onDeleteAlias={() => handleDeleteCustomModel(model.id)}
               testStatus={modelTestResults[model.id]}
-              onTest={connections.length > 0 ? () => handleTestModel(model.id) : undefined}
-              isTesting={testingModelId === model.id}
+              onTest={() => handleTestModel(model.id)}
+              isTesting={testingAllModels || testingModelId === model.id}
               isCustom
             />
           ))}

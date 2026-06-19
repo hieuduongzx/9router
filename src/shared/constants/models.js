@@ -8,9 +8,7 @@ export {
   getModelTargetFormat,
   getModelStrip,
   PROVIDER_ID_TO_ALIAS,
-  getModelsByProviderId,
-  getModelUpstreamId,
-  getModelQuotaFamily
+  getModelsByProviderId
 } from "open-sse/config/providerModels.js";
 
 import { AI_PROVIDERS, isOpenAICompatibleProvider } from "./providers.js";

@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/shared/utils/cn";
-import Button from "./Button";
 
 export default function Pagination({
   currentPage,
@@ -37,114 +36,94 @@ export default function Pagination({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2",
+        "flex items-center justify-between px-4 py-2.5",
         className
       )}
     >
-      {/* Info text */}
-      {totalItems > 0 && (
-        <div className="text-sm text-text-muted">
-          Showing <span className="font-medium text-text-main">{startItem}</span> to{" "}
-          <span className="font-medium text-text-main">{endItem}</span> of{" "}
-          <span className="font-medium text-text-main">{totalItems}</span> results
-        </div>
-      )}
+      {/* Left — compact info */}
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] text-text-muted tabular-nums">
+          {startItem}–{endItem} <span className="text-text-muted/50">of</span> {totalItems}
+        </span>
 
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-        {/* Page size selector */}
+        {/* Page size */}
         {onPageSizeChange && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">Rows:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className={cn(
-                "h-9 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
-                "text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20",
-                "cursor-pointer"
-              )}
-              style={{ colorScheme: 'auto' }}
-            >
-              {[10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="w-9 px-0"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-            </Button>
-
-            {pageNumbers[0] > 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onPageChange(1)}
-                  className="w-9 px-0 hidden sm:inline-flex"
-                >
-                  1
-                </Button>
-                {pageNumbers[0] > 2 && (
-                  <span className="text-text-muted px-1 hidden sm:inline">...</span>
-                )}
-              </>
-            )}
-
-            {pageNumbers.map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "primary" : "ghost"}
-                size="sm"
-                onClick={() => onPageChange(page)}
-                className={cn(
-                  "w-9 px-0",
-                  currentPage === page ? "inline-flex" : "hidden sm:inline-flex"
-                )}
-              >
-                {page}
-              </Button>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="h-7 px-1.5 rounded-md border border-border bg-transparent text-[12px] text-text-muted focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
+          >
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / page
+              </option>
             ))}
-
-            {pageNumbers[pageNumbers.length - 1] < totalPages && (
-              <>
-                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
-                  <span className="text-text-muted px-1 hidden sm:inline">...</span>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onPageChange(totalPages)}
-                  className="w-9 px-0 hidden sm:inline-flex"
-                >
-                  {totalPages}
-                </Button>
-              </>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="w-9 px-0"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-            </Button>
-          </div>
+          </select>
         )}
       </div>
+
+      {/* Right — page nav */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-0.5">
+          <PageBtn
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+          </PageBtn>
+
+          {pageNumbers[0] > 1 && (
+            <>
+              <PageBtn onClick={() => onPageChange(1)}>1</PageBtn>
+              {pageNumbers[0] > 2 && <span className="text-text-muted/40 text-[11px] px-1">···</span>}
+            </>
+          )}
+
+          {pageNumbers.map((page) => (
+            <PageBtn
+              key={page}
+              active={currentPage === page}
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </PageBtn>
+          ))}
+
+          {pageNumbers[pageNumbers.length - 1] < totalPages && (
+            <>
+              {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+                <span className="text-text-muted/40 text-[11px] px-1">···</span>
+              )}
+              <PageBtn onClick={() => onPageChange(totalPages)}>{totalPages}</PageBtn>
+            </>
+          )}
+
+          <PageBtn
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+          </PageBtn>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PageBtn({ children, active, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-md text-[12px] font-medium transition-colors",
+        active
+          ? "bg-foreground text-background"
+          : "text-text-muted hover:text-foreground hover:bg-muted",
+        disabled && "opacity-30 pointer-events-none"
+      )}
+    >
+      {children}
+    </button>
   );
 }

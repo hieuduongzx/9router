@@ -75,7 +75,11 @@ export default function MitmPageClient() {
   const mitmTools = Object.entries(MITM_TOOLS);
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-1 sm:px-0">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold text-text-main sm:text-2xl">MITM</h1>
+        <p className="text-sm text-text-muted">Route supported IDE traffic through Api2K with local DNS interception.</p>
+      </div>
       <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
         <span className="material-symbols-outlined text-[16px] text-yellow-500 mt-0.5 shrink-0">warning</span>
         <p className="text-xs text-red-600 dark:text-yellow-400 leading-relaxed">
@@ -101,8 +105,6 @@ export default function MitmPageClient() {
             serverRunning={mitmStatus.running}
             dnsActive={mitmStatus.dnsStatus?.[toolId] || false}
             hasCachedPassword={mitmStatus.hasCachedPassword || false}
-            needsSudoPassword={mitmStatus.needsSudoPassword !== false}
-            isWin={mitmStatus.isWin === true}
             apiKeys={apiKeys}
             activeProviders={getActiveProviders()}
             hasActiveProviders={hasActiveProviders()}

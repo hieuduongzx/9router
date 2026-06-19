@@ -13,8 +13,7 @@ const STRIP_HEADERS = new Set([
 ]);
 
 /**
- * Send body to 9Router at the given path and return the fetch Response object.
- * Optionally forwards client headers (stripped of hop-by-hop / overridden keys).
+ * Send body to Api2K at the given path and return the fetch Response object
  */
 async function fetchRouter(openaiBody, path = "/v1/chat/completions", clientHeaders = {}) {
   const forwarded = {};

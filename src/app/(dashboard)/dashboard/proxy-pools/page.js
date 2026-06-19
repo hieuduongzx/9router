@@ -580,7 +580,7 @@ export default function ProxyPoolsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-          <div className="relative" ref={relayMenuRef}>
+<div className="relative" ref={relayMenuRef}>
             <Button
               size="sm"
               variant="secondary"
@@ -632,7 +632,7 @@ export default function ProxyPoolsPage() {
           <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
             Batch Import
           </Button>
-          <Button size="sm" icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
+          <Button icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
         </div>
       </div>
 

@@ -4,23 +4,10 @@ export const dynamic = "force-dynamic";
 
 initConsoleLogCapture();
 
-export async function GET(request) {
+export async function GET() {
   const encoder = new TextEncoder();
   const emitter = getConsoleEmitter();
-  const state = { closed: false, send: null, sendClear: null, keepalive: null };
-
-  // Idempotent: safe to call from request.signal abort, cancel(), or enqueue failure.
-  const cleanup = () => {
-    if (state.closed) return;
-    state.closed = true;
-    if (state.send) emitter.off("line", state.send);
-    if (state.sendClear) emitter.off("clear", state.sendClear);
-    if (state.keepalive) clearInterval(state.keepalive);
-  };
-
-  // request.signal fires reliably on client disconnect; ReadableStream.cancel()
-  // is not always invoked in Next.js, which caused listeners to accumulate.
-  request.signal.addEventListener("abort", cleanup, { once: true });
+  const state = { closed: false, send: null, keepalive: null };
 
   const stream = new ReadableStream({
     start(controller) {
@@ -36,7 +23,7 @@ export async function GET(request) {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "line", line })}\n\n`));
         } catch {
-          cleanup();
+          state.closed = true;
         }
       };
 
@@ -46,7 +33,7 @@ export async function GET(request) {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "clear" })}\n\n`));
         } catch {
-          cleanup();
+          state.closed = true;
         }
       };
 
@@ -59,13 +46,17 @@ export async function GET(request) {
         try {
           controller.enqueue(encoder.encode(": ping\n\n"));
         } catch {
-          cleanup();
+          state.closed = true;
+          clearInterval(state.keepalive);
         }
       }, 25000);
     },
 
     cancel() {
-      cleanup();
+      state.closed = true;
+      emitter.off("line", state.send);
+      emitter.off("clear", state.sendClear);
+      clearInterval(state.keepalive);
     },
   });
 

@@ -66,6 +66,25 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
     if (choice?.finish_reason) finishReason = choice.finish_reason;
     if (chunk?.usage && typeof chunk.usage === "object") usage = chunk.usage;
 
+    // Gemini format (usageMetadata)
+    if (!usage && chunk?.usageMetadata) {
+      const um = chunk.usageMetadata;
+      usage = {
+        prompt_tokens: um.promptTokenCount || 0,
+        completion_tokens: um.candidatesTokenCount || 0,
+        total_tokens: um.totalTokenCount || 0
+      };
+      if (um.thoughtsTokenCount > 0) {
+        usage.completion_tokens_details = { reasoning_tokens: um.thoughtsTokenCount };
+      }
+      console.log("[DEBUG] Extracted Gemini usageMetadata:", usage);
+    }
+
+    // Debug logging for chunks with usage
+    if (chunk?.usageMetadata || chunk?.usage) {
+      console.log("[DEBUG] Chunk has usage data:", JSON.stringify({ usageMetadata: chunk?.usageMetadata, usage: chunk?.usage }).slice(0, 200));
+    }
+
     // Accumulate tool_calls from streaming deltas
     if (Array.isArray(delta.tool_calls)) {
       for (const tc of delta.tool_calls) {
@@ -129,13 +148,18 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, pr
       const { msgItem, textContent } = pickAssistantMessageForChatCompletion(jsonResponse.output);
       const totalLatency = Date.now() - requestStartTime;
 
-      saveRequestDetail(buildRequestDetail({
-        ...ctx,
-        latency: { ttft: totalLatency, total: totalLatency },
-        tokens: { prompt_tokens: usage.input_tokens || 0, completion_tokens: usage.output_tokens || 0 },
-        response: { content: textContent, thinking: null, finish_reason: jsonResponse.status || "unknown" },
-        status: "success"
-      }, { endpoint: clientRawRequest?.endpoint || null })).catch(() => {});
+      (async () => {
+        try {
+          const detail = await buildRequestDetail({
+            ...ctx,
+            latency: { ttft: totalLatency, total: totalLatency },
+            tokens: { prompt_tokens: usage.input_tokens || 0, completion_tokens: usage.output_tokens || 0 },
+            response: { content: textContent, thinking: null, finish_reason: jsonResponse.status || "unknown" },
+            status: "success"
+          }, { endpoint: clientRawRequest?.endpoint || null });
+          await saveRequestDetail(detail);
+        } catch {}
+      })();
 
       // Client is Responses API → return as-is
       if (sourceFormat === FORMATS.OPENAI_RESPONSES) {
@@ -203,17 +227,22 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, pr
     saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint });
 
     const totalLatency = Date.now() - requestStartTime;
-    saveRequestDetail(buildRequestDetail({
-      ...ctx,
-      latency: { ttft: totalLatency, total: totalLatency },
-      tokens: usage,
-      response: {
-        content: parsed.choices?.[0]?.message?.content || null,
-        thinking: parsed.choices?.[0]?.message?.reasoning_content || null,
-        finish_reason: parsed.choices?.[0]?.finish_reason || "unknown"
-      },
-      status: "success"
-    }, { endpoint: clientRawRequest?.endpoint || null })).catch(() => {});
+    (async () => {
+      try {
+        const detail = await buildRequestDetail({
+          ...ctx,
+          latency: { ttft: totalLatency, total: totalLatency },
+          tokens: usage,
+          response: {
+            content: parsed.choices?.[0]?.message?.content || null,
+            thinking: parsed.choices?.[0]?.message?.reasoning_content || null,
+            finish_reason: parsed.choices?.[0]?.finish_reason || "unknown"
+          },
+          status: "success"
+        }, { endpoint: clientRawRequest?.endpoint || null });
+        await saveRequestDetail(detail);
+      } catch {}
+    })();
 
     // Strip reasoning_content only when content is non-empty.
     // When content is empty (e.g. thinking models that used all tokens for reasoning),

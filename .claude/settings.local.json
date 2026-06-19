@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"A:\\\\Dev\\\\Github\\\\9router\\\\src\\\\app\\\\\\(dashboard\\)\\\\dashboard\\\\usage\" /s /b)",
+      "Bash(dir \"A:\\\\Dev\\\\Github\\\\9router\\\\src\\\\app\\\\\\(dashboard\\)\\\\dashboard\\\\usage\")",
+      "Read(//c/Users/hieul/.claude/plans/**)",
+      "Bash(mkdir -p \"C:/Users/hieul/.claude/plans\")",
+      "Bash(python3 -c ':*)",
+      "Bash(node:*)",
+      "Bash(npx next:*)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(git merge *)"
+    ]
+  }
+}

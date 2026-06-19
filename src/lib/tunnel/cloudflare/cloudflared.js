@@ -238,28 +238,17 @@ export async function spawnCloudflared(tunnelToken) {
       }
     });
 
-    child.on("exit", (code, signal) => {
+    child.on("exit", (code) => {
       cloudflaredProcess = null;
       clearPid();
       const wasConnected = resolved; // true = already connected successfully
       if (!resolved) {
         resolved = true;
         clearTimeout(timeout);
-        // Collect stderr output for better error diagnosis
-        let stderrOutput = "";
-        if (child.stderr && !child.stderr.destroyed) {
-          // Try to read any buffered stderr (may not have all output but helps with common errors)
-          stderrOutput = " Check cloudflared logs for details.";
+        if (connectionCount === 0) {
+          reject(new Error(`cloudflared exited with code ${code}`));
+          return;
         }
-        if (code === 1) {
-          // Common exit code 1 issues: invalid token, auth failure, network issues
-          reject(new Error(`cloudflared exited with code ${code}${stderrOutput} Ensure your tunnel token is valid and network is reachable.`));
-        } else if (code === 2) {
-          reject(new Error(`cloudflared exited with code ${code}${stderrOutput} Check if required arguments are correct.`));
-        } else {
-          reject(new Error(`cloudflared exited with code ${code}${stderrOutput}`));
-        }
-        return;
       }
       // Watchdog (initializeApp) handles recovery — no auto-reconnect here
       if (intentionalKill) { intentionalKill = false; return; }
@@ -371,7 +360,7 @@ export async function spawnQuickTunnel(localPort, onUrlUpdate) {
       reject(err);
     });
 
-    child.on("exit", (code, signal) => {
+    child.on("exit", (code) => {
       cloudflaredProcess = null;
       clearPid();
       // Deliberate kill (restart/disable) — exit silently, no error noise

@@ -43,26 +43,48 @@ export function extractUsageFromResponse(responseBody) {
     };
   }
 
-  // Gemini format
-  if (responseBody.usageMetadata) {
+  // Gemini format (direct or wrapped in response object)
+  const geminiUsage = responseBody.usageMetadata || responseBody.response?.usageMetadata;
+  if (geminiUsage) {
     return {
-      prompt_tokens: responseBody.usageMetadata.promptTokenCount || 0,
-      completion_tokens: responseBody.usageMetadata.candidatesTokenCount || 0,
-      reasoning_tokens: responseBody.usageMetadata.thoughtsTokenCount
+      prompt_tokens: geminiUsage.promptTokenCount || 0,
+      completion_tokens: geminiUsage.candidatesTokenCount || 0,
+      reasoning_tokens: geminiUsage.thoughtsTokenCount
+    };
+  }
+
+  // Ollama format: prompt_eval_count (input), eval_count (output)
+  if (responseBody.prompt_eval_count !== undefined || responseBody.eval_count !== undefined) {
+    return {
+      prompt_tokens: responseBody.prompt_eval_count || 0,
+      completion_tokens: responseBody.eval_count || 0,
+      total_tokens: (responseBody.prompt_eval_count || 0) + (responseBody.eval_count || 0)
     };
   }
 
   return null;
 }
 
-export function buildRequestDetail(base, overrides = {}) {
+export async function buildRequestDetail(base, overrides = {}) {
+  // Calculate cost if tokens are provided
+  let cost = base.cost || 0;
+  if (base.tokens && !base.cost) {
+    try {
+      cost = await calculateCost(base.provider, base.model, base.tokens);
+    } catch (err) {
+      console.error("[buildRequestDetail] Failed to calculate cost:", err.message);
+    }
+  }
+
   return {
+    id: base.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     provider: base.provider || "unknown",
     model: base.model || "unknown",
     connectionId: base.connectionId || undefined,
     timestamp: new Date().toISOString(),
     latency: base.latency || { ttft: 0, total: 0 },
     tokens: base.tokens || { prompt_tokens: 0, completion_tokens: 0 },
+    cost,
     request: base.request,
     providerRequest: base.providerRequest || null,
     providerResponse: base.providerResponse || null,

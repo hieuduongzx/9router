@@ -79,26 +79,31 @@ export default function RequestLogger() {
               </thead>
               <tbody className="divide-y divide-border/50">
                 {logs.map((log, i) => {
-                  const parts = log.split(" | ");
-                  if (parts.length < 7) return null;
+                  // Support both parsed objects and raw strings
+                  const parts = typeof log === "string" ? log.split(" | ") : null;
+                  const entry = parts
+                    ? { time: parts[0], model: parts[1], provider: parts[2], account: parts[3], tokensSent: parts[4], tokensReceived: parts[5], statusRaw: parts[6] }
+                    : { time: log.time, model: log.model, provider: log.provider, account: log.account, tokensSent: String(log.tokensSent || 0), tokensReceived: String(log.tokensReceived || 0), statusRaw: log.statusRaw || (log.status === "success" ? "OK" : log.status === "pending" ? "PENDING" : "FAILED") };
 
-                  const status = parts[6];
+                  if (parts && parts.length < 7) return null;
+
+                  const status = entry.statusRaw;
                   const isPending = status.includes("PENDING");
                   const isFailed = status.includes("FAILED");
                   const isSuccess = status.includes("OK");
 
                   return (
                     <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''}`}>
-                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{parts[0]}</td>
-                      <td className="px-3 py-1.5 border-r border-border font-medium">{parts[1]}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{entry.time}</td>
+                      <td className="px-3 py-1.5 border-r border-border font-medium">{entry.model}</td>
                       <td className="px-3 py-1.5 border-r border-border">
                         <span className="px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold">
-                          {parts[2]}
+                          {entry.provider}
                         </span>
                       </td>
-                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={parts[3]}>{parts[3]}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{parts[4]}</td>
-                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{parts[5]}</td>
+                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={entry.account}>{entry.account}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{entry.tokensSent}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{entry.tokensReceived}</td>
                       <td className={`px-3 py-1.5 font-bold ${isSuccess ? 'text-success' :
                           isFailed ? 'text-error' :
                             'text-primary animate-pulse'
