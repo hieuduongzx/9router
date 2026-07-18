@@ -24,6 +24,7 @@
 
 ## Improvements
 - **Perf**: skip inactive background services on startup
+- **Dashboard**: combine endpoint controls with live metrics, 60-day/all-time filters, hourly traffic, model mix, recent requests, and provider health
 
 ## Docs
 - README: Persian YouTube tutorial

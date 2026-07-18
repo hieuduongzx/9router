@@ -177,7 +177,7 @@ const getPageInfo = (pathname) => {
   if (pathname === "/dashboard" || pathname === "/dashboard/")
     return {
       title: "Home",
-      description: "API endpoint configuration",
+      description: "Traffic, cost, and provider health at a glance",
       icon: "home",
       breadcrumbs: [],
     };

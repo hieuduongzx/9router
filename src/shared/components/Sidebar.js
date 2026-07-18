@@ -68,13 +68,8 @@ export default function Sidebar({ onClose }) {
   }, []);
 
   const isActive = (href, exact = false) => {
-    // Home also highlights for legacy /dashboard/endpoint route
-    if (exact || href === "/dashboard") {
-      return (
-        pathname === "/dashboard" ||
-        pathname === "/dashboard/" ||
-        pathname.startsWith("/dashboard/endpoint")
-      );
+    if (exact) {
+      return pathname === href || pathname === `${href}/`;
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
