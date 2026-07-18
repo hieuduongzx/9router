@@ -10,7 +10,6 @@ import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Button from "./Button";
 import { ConfirmModal } from "./Modal";
-import NineRemotePromoModal from "./NineRemotePromoModal";
 
 // const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
@@ -18,7 +17,8 @@ const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
 const navItems = [
-  { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
+  { href: "/dashboard", label: "Home", icon: "home", exact: true },
+  { href: "/dashboard/api-keys", label: "API Keys", icon: "vpn_key" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
   // { href: "/dashboard/basic-chat", label: "Basic Chat", icon: "chat" }, // Hidden
   { href: "/dashboard/combos", label: "Combos", icon: "layers" },
@@ -42,7 +42,6 @@ const systemItems = [
 export default function Sidebar({ onClose }) {
   const pathname = usePathname();
   const [mediaOpen, setMediaOpen] = useState(false);
-  const [showRemoteModal, setShowRemoteModal] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -68,11 +67,16 @@ export default function Sidebar({ onClose }) {
       .catch(() => {});
   }, []);
 
-  const isActive = (href) => {
-    if (href === "/dashboard/endpoint") {
-      return pathname === "/dashboard" || pathname.startsWith("/dashboard/endpoint");
+  const isActive = (href, exact = false) => {
+    // Home also highlights for legacy /dashboard/endpoint route
+    if (exact || href === "/dashboard") {
+      return (
+        pathname === "/dashboard" ||
+        pathname === "/dashboard/" ||
+        pathname.startsWith("/dashboard/endpoint")
+      );
     }
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   // Open manual update panel (no countdown yet — user must click Copy to trigger shutdown)
@@ -165,7 +169,7 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
               className={cn(
                 "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                isActive(item.href)
+                isActive(item.href, item.exact)
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
@@ -173,7 +177,7 @@ export default function Sidebar({ onClose }) {
               <span
                 className={cn(
                   "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : "group-hover:text-primary transition-colors"
+                  isActive(item.href, item.exact) ? "fill-1" : "group-hover:text-primary transition-colors"
                 )}
               >
                 {item.icon}
@@ -291,20 +295,6 @@ export default function Sidebar({ onClose }) {
               ) : null;
             })}
 
-            {/* Remote */}
-            <button
-              onClick={() => setShowRemoteModal(true)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group w-full",
-                "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span className="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors">
-                computer
-              </span>
-              <span className="text-[13px] font-medium">Remote</span>
-            </button>
-
             {/* Settings */}
             <Link
               href="/dashboard/profile"
@@ -330,9 +320,6 @@ export default function Sidebar({ onClose }) {
         </nav>
 
       </aside>
-
-      {/* Remote Promo Modal */}
-      <NineRemotePromoModal isOpen={showRemoteModal} onClose={() => setShowRemoteModal(false)} />
 
       {/* Update Confirmation Modal */}
       <ConfirmModal

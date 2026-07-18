@@ -249,33 +249,33 @@ export default function RequestDetailsTab() {
 
       <Card padding="none">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px]">
+          <table className="w-full min-w-[880px] text-xs leading-tight">
             <thead>
-              <tr className="border-b border-black/5 dark:border-white/5">
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Timestamp</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Model</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Provider</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Input Tokens</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Cached</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Cache Creation</th>
-                <th className="text-right p-4 text-sm font-semibold text-text-main">Output Tokens</th>
-                <th className="text-left p-4 text-sm font-semibold text-text-main">Latency</th>
-                <th className="text-center p-4 text-sm font-semibold text-text-main">Action</th>
+              <tr className="border-b border-black/5 dark:border-white/5 bg-black/[0.015] dark:bg-white/[0.015]">
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Timestamp</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Model</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Provider</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Input</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Cached</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Cache Create</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Output</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Latency</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted">Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-text-muted">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                  <td colSpan="9" className="px-2.5 py-6 text-center text-xs text-text-muted">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
                       Loading...
                     </div>
                   </td>
                 </tr>
               ) : details.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-text-muted">
+                  <td colSpan="9" className="px-2.5 py-6 text-center text-xs text-text-muted">
                     No request details found
                   </td>
                 </tr>
@@ -285,43 +285,42 @@ export default function RequestDetailsTab() {
                     key={`${detail.id}-${index}`}
                     className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
                   >
-                    <td className="whitespace-nowrap p-4 text-sm text-text-main">
+                    <td className="whitespace-nowrap px-2.5 py-1 text-xs text-text-main tabular-nums">
                       {new Date(detail.timestamp).toLocaleString()}
                     </td>
-                    <td className="max-w-[260px] truncate p-4 font-mono text-sm text-text-main">
+                    <td className="max-w-[200px] truncate px-2.5 py-1 font-mono text-xs text-text-main" title={detail.model}>
                       {detail.model}
                     </td>
-                    <td className="max-w-[180px] truncate p-4 text-sm text-text-main">
-                       <span className="font-medium">
-                         {getProviderName(detail.provider, providerNameCache)}
-                       </span>
-                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
+                    <td className="max-w-[140px] truncate px-2.5 py-1 text-xs font-medium text-text-main" title={getProviderName(detail.provider, providerNameCache)}>
+                      {getProviderName(detail.provider, providerNameCache)}
+                    </td>
+                    <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs text-text-main tabular-nums">
                       {getInputTokens(detail.tokens).toLocaleString()}
                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
+                    <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs text-text-main tabular-nums">
                       {getCachedTokens(detail.tokens) > 0 ? getCachedTokens(detail.tokens).toLocaleString() : "—"}
                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
+                    <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs text-text-main tabular-nums">
                       {getCacheCreationTokens(detail.tokens) > 0 ? getCacheCreationTokens(detail.tokens).toLocaleString() : "—"}
                     </td>
-                    <td className="p-4 text-sm text-text-main text-right font-mono">
+                    <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs text-text-main tabular-nums">
                       {detail.tokens?.completion_tokens?.toLocaleString() || 0}
                     </td>
-                    <td className="p-4 text-sm text-text-muted">
-                      <div className="flex flex-col gap-0.5">
-                        <div>TTFT: <span className="font-mono">{detail.latency?.ttft || 0}ms</span></div>
-                        <div>Total: <span className="font-mono">{detail.latency?.total || 0}ms</span></div>
-                      </div>
+                    <td className="whitespace-nowrap px-2.5 py-1 text-xs text-text-muted">
+                      <span className="font-mono tabular-nums" title={`TTFT ${detail.latency?.ttft || 0}ms · Total ${detail.latency?.total || 0}ms`}>
+                        {detail.latency?.ttft || 0}ms
+                        <span className="mx-1 text-text-muted/50">·</span>
+                        {detail.latency?.total || 0}ms
+                      </span>
                     </td>
-                    <td className="p-4 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
+                    <td className="px-2.5 py-1 text-center">
+                      <button
+                        type="button"
                         onClick={() => handleViewDetail(detail)}
+                        className="inline-flex h-6 items-center rounded border border-border px-2 text-[11px] font-medium text-text-main hover:bg-bg-hover transition-colors"
                       >
                         Detail
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 ))

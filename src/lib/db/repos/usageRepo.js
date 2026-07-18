@@ -343,7 +343,41 @@ function loadDaysInRange(adapter, maxDays) {
   return adapter.all(`SELECT dateKey, data FROM usageDaily WHERE dateKey >= ?`, [cutoffKey]);
 }
 
-export async function getUsageStats(period = "all") {
+/** Period → ISO cutoff (null = no lower bound / all time). */
+function getPeriodCutoffIso(period) {
+  if (period === "all") return null;
+  if (period === "today") {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return startOfDay.toISOString();
+  }
+  const days = { "24h": 1, "7d": 7, "30d": 30, "60d": 60 };
+  const n = days[period];
+  if (!n) return null;
+  if (period === "24h") return new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
+  return new Date(Date.now() - n * 86400000).toISOString();
+}
+
+/**
+ * apiKeyFilter: null = all keys; "__local__" = no key; string = exact key value.
+ * Returns { clause, params } for appending after WHERE / AND.
+ */
+function buildApiKeyClause(apiKeyFilter, { leadingAnd = true } = {}) {
+  if (apiKeyFilter == null || apiKeyFilter === "") {
+    return { clause: "", params: [] };
+  }
+  const prefix = leadingAnd ? " AND " : "";
+  if (apiKeyFilter === "__local__") {
+    return { clause: `${prefix}(apiKey IS NULL OR apiKey = '')`, params: [] };
+  }
+  if (apiKeyFilter === "__none__") {
+    return { clause: `${prefix}1=0`, params: [] };
+  }
+  return { clause: `${prefix}apiKey = ?`, params: [apiKeyFilter] };
+}
+
+export async function getUsageStats(period = "all", options = {}) {
+  const apiKeyFilter = options.apiKeyFilter ?? null;
   const db = await getAdapter();
 
   const [{ getProviderConnections }, { getApiKeys }, { getProviderNodes }] = await Promise.all([
@@ -369,7 +403,11 @@ export async function getUsageStats(period = "all") {
   for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id, createdAt: k.createdAt };
 
   // recentRequests from live history (last 100 entries enough for 20 deduped)
-  const recentRows = db.all(`SELECT timestamp, provider, model, tokens, status FROM usageHistory ORDER BY id DESC LIMIT 100`);
+  const recentAk = buildApiKeyClause(apiKeyFilter, { leadingAnd: false });
+  const recentSql = recentAk.clause
+    ? `SELECT timestamp, provider, model, tokens, status, apiKey FROM usageHistory WHERE ${recentAk.clause} ORDER BY id DESC LIMIT 200`
+    : `SELECT timestamp, provider, model, tokens, status, apiKey FROM usageHistory ORDER BY id DESC LIMIT 100`;
+  const recentRows = db.all(recentSql, recentAk.params);
   const seen = new Set();
   const recentRequests = recentRows
     .map((r) => {
@@ -428,9 +466,10 @@ export async function getUsageStats(period = "all") {
     bucketMap[ts] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
     stats.last10Minutes.push(bucketMap[ts]);
   }
+  const last10Ak = buildApiKeyClause(apiKeyFilter);
   const recent10 = db.all(
-    `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
-    [tenMinutesAgo.toISOString(), now.toISOString()]
+    `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?${last10Ak.clause}`,
+    [tenMinutesAgo.toISOString(), now.toISOString(), ...last10Ak.params]
   );
   for (const r of recent10) {
     const tt = new Date(r.timestamp).getTime();
@@ -443,11 +482,14 @@ export async function getUsageStats(period = "all") {
     }
   }
 
-  const useDailySummary = period !== "24h" && period !== "today";
+  // Daily summary is fast but not filterable by API key accurately for all dimensions.
+  // When an API key filter is active, always aggregate from usageHistory.
+  const useDailySummary = !apiKeyFilter && period !== "24h" && period !== "today";
 
   if (useDailySummary) {
+    // "all" → maxDays null → load every usageDaily row (stats API already accepts "all")
     const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
-    const maxDays = periodDays[period] || null;
+    const maxDays = period === "all" ? null : (periodDays[period] || null);
     const dayRows = loadDaysInRange(db, maxDays);
 
     for (const dr of dayRows) {
@@ -564,18 +606,26 @@ export async function getUsageStats(period = "all") {
       if (stats.byEndpoint[endpointKey] && new Date(ts) > new Date(stats.byEndpoint[endpointKey].lastUsed)) stats.byEndpoint[endpointKey].lastUsed = ts;
     }
   } else {
-    // 24h / today: live history
-    let cutoff;
-    if (period === "today") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      cutoff = startOfDay.toISOString();
-    } else {
-      cutoff = new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
+    // 24h / today / (any period with apiKey filter): live history
+    const cutoff = getPeriodCutoffIso(period);
+    const conds = [];
+    const params = [];
+    if (cutoff) {
+      conds.push("timestamp >= ?");
+      params.push(cutoff);
     }
+    if (apiKeyFilter === "__local__") {
+      conds.push("(apiKey IS NULL OR apiKey = '')");
+    } else if (apiKeyFilter === "__none__") {
+      conds.push("1=0");
+    } else if (apiKeyFilter) {
+      conds.push("apiKey = ?");
+      params.push(apiKeyFilter);
+    }
+    const where = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
     const filtered = db.all(
-      `SELECT timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, tokens FROM usageHistory WHERE timestamp >= ?`,
-      [cutoff]
+      `SELECT timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, tokens FROM usageHistory${where}`,
+      params
     );
 
     for (const r of filtered) {
@@ -658,7 +708,30 @@ export async function getUsageStats(period = "all") {
   return stats;
 }
 
-export async function getChartData(period = "7d") {
+function queryHistoryChartRows(db, startIso, apiKeyFilter) {
+  const conds = [];
+  const params = [];
+  if (startIso) {
+    conds.push("timestamp >= ?");
+    params.push(startIso);
+  }
+  if (apiKeyFilter === "__local__") {
+    conds.push("(apiKey IS NULL OR apiKey = '')");
+  } else if (apiKeyFilter === "__none__") {
+    conds.push("1=0");
+  } else if (apiKeyFilter) {
+    conds.push("apiKey = ?");
+    params.push(apiKeyFilter);
+  }
+  const where = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
+  return db.all(
+    `SELECT timestamp, promptTokens, completionTokens, cost, apiKey FROM usageHistory${where}`,
+    params
+  );
+}
+
+export async function getChartData(period = "7d", options = {}) {
+  const apiKeyFilter = options.apiKeyFilter ?? null;
   const db = await getAdapter();
   const now = Date.now();
 
@@ -672,10 +745,7 @@ export async function getChartData(period = "7d") {
     const labelFn = (ts) => new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
 
-    const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
-      [new Date(startTime).toISOString()]
-    );
+    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
     for (const r of rows) {
       const t = new Date(r.timestamp).getTime();
       if (t < startTime || t >= endTime) continue;
@@ -695,10 +765,7 @@ export async function getChartData(period = "7d") {
     const startTime = now - bucketCount * bucketMs;
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
 
-    const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
-      [new Date(startTime).toISOString()]
-    );
+    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
     for (const r of rows) {
       const t = new Date(r.timestamp).getTime();
       if (t < startTime || t > now) continue;
@@ -709,14 +776,84 @@ export async function getChartData(period = "7d") {
     return buckets;
   }
 
-  const bucketCount = period === "7d" ? 7 : period === "30d" ? 30 : 60;
+  // Multi-day: with API key filter use history buckets; otherwise usageDaily summaries
+  const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
+  const isAll = period === "all";
+  const bucketCount = isAll ? null : (periodDays[period] || 60);
   const today = new Date();
   const labelFn = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  if (apiKeyFilter) {
+    const cutoff = getPeriodCutoffIso(period);
+    const rows = queryHistoryChartRows(db, cutoff, apiKeyFilter);
+    const dayMap = {};
+    for (const r of rows) {
+      const d = new Date(r.timestamp);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!dayMap[dateKey]) dayMap[dateKey] = { promptTokens: 0, completionTokens: 0, cost: 0 };
+      dayMap[dateKey].promptTokens += r.promptTokens || 0;
+      dayMap[dateKey].completionTokens += r.completionTokens || 0;
+      dayMap[dateKey].cost += r.cost || 0;
+    }
+    if (isAll) {
+      const keys = Object.keys(dayMap).sort();
+      if (keys.length === 0) return [];
+      const [y0, m0, d0] = keys[0].split("-").map(Number);
+      const start = new Date(y0, m0 - 1, d0);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(today);
+      end.setHours(0, 0, 0, 0);
+      const out = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const dayData = dayMap[dateKey];
+        out.push({
+          label: labelFn(d),
+          tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
+          cost: dayData ? (dayData.cost || 0) : 0,
+        });
+      }
+      return out;
+    }
+    return Array.from({ length: bucketCount }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (bucketCount - 1 - i));
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dayData = dayMap[dateKey];
+      return {
+        label: labelFn(d),
+        tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
+        cost: dayData ? (dayData.cost || 0) : 0,
+      };
+    });
+  }
 
   // Build map of dateKey → day data
   const dayRows = loadDaysInRange(db, bucketCount);
   const dayMap = {};
   for (const r of dayRows) dayMap[r.dateKey] = parseJson(r.data, {});
+
+  if (isAll) {
+    // Span from earliest stored day through today so gaps show as zeros
+    const keys = Object.keys(dayMap).sort();
+    if (keys.length === 0) return [];
+    const [y0, m0, d0] = keys[0].split("-").map(Number);
+    const start = new Date(y0, m0 - 1, d0);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(today);
+    end.setHours(0, 0, 0, 0);
+    const out = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dayData = dayMap[dateKey];
+      out.push({
+        label: labelFn(d),
+        tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
+        cost: dayData ? (dayData.cost || 0) : 0,
+      });
+    }
+    return out;
+  }
 
   return Array.from({ length: bucketCount }, (_, i) => {
     const d = new Date(today);

@@ -200,6 +200,33 @@ function normalizeSearxng(data, _query, _searchType) {
   return { results, totalResults: results.length };
 }
 
+/** TinyFish Search — https://docs.tinyfish.ai/search-api */
+function normalizeTinyfish(data, _query, _searchType) {
+  const now = new Date().toISOString();
+  const items = Array.isArray(data.results) ? data.results : [];
+  const results = items.map((item, idx) => {
+    const fetchText =
+      typeof item.fetch === "string"
+        ? item.fetch
+        : item.fetch && typeof item.fetch === "object"
+          ? item.fetch.text || item.fetch.content || item.fetch.markdown || null
+          : null;
+    return makeResult("tinyfish", {
+      title: item.title,
+      url: item.url,
+      snippet: item.snippet || "",
+      published_at: item.date || null,
+      author: Array.isArray(item.authors) ? item.authors.join(", ") : item.publisher || null,
+      image_url: item.thumbnail_url || null,
+      source_type: item.site_name || null,
+      full_text: fetchText,
+      text_format: fetchText ? "markdown" : undefined,
+    }, idx, now);
+  });
+  const total = typeof data.total_results === "number" ? data.total_results : results.length;
+  return { results, totalResults: total };
+}
+
 const NORMALIZERS = {
   "serper": normalizeSerper,
   "brave-search": normalizeBrave,
@@ -211,6 +238,7 @@ const NORMALIZERS = {
   "searchapi": normalizeSearchApi,
   "youcom": normalizeYouCom,
   "searxng": normalizeSearxng,
+  "tinyfish": normalizeTinyfish,
 };
 
 /**

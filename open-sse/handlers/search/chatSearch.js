@@ -12,6 +12,157 @@ const searchEndpoint = (id, model) =>
 const REQUEST_TIMEOUT_MS = 15000;
 const DEFAULT_MAX_RESULTS = 10;
 
+/** Push a citation-like object if it has a URL. */
+function pushCitation(list, raw) {
+  if (!raw) return;
+  if (typeof raw === "string") {
+    if (/^https?:\/\//i.test(raw)) list.push({ url: raw, title: "", snippet: "" });
+    return;
+  }
+  const url = raw.url || raw.link || raw.uri || raw.href;
+  if (!url || typeof url !== "string") return;
+  list.push({
+    url,
+    title: raw.title || raw.name || "",
+    snippet: raw.snippet || raw.summary || raw.description || raw.text || "",
+  });
+}
+
+/** Walk arbitrary nested values looking for citation-shaped objects / URL lists. */
+function collectCitationShaped(value, out, depth = 0) {
+  if (!value || depth > 6) return;
+  if (typeof value === "string") {
+    pushCitation(out, value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectCitationShaped(v, out, depth + 1);
+    return;
+  }
+  if (typeof value !== "object") return;
+  // Prefer known keys
+  if (value.url || value.link || value.uri) {
+    pushCitation(out, value);
+  }
+  for (const [k, v] of Object.entries(value)) {
+    if (/citation|result|source|annotat/i.test(k)) {
+      collectCitationShaped(v, out, depth + 1);
+    } else if (k === "content" || k === "output" || k === "action" || k === "parts") {
+      collectCitationShaped(v, out, depth + 1);
+    }
+  }
+}
+
+/**
+ * Parse structured search hits from LLM text:
+ * 1) JSON array of {title,url,snippet}
+ * 2) Markdown links [title](url)
+ */
+function parseStructuredHitsFromText(text) {
+  if (!text || typeof text !== "string") return [];
+  const hits = [];
+
+  // Fenced or raw JSON array
+  const jsonMatch =
+    text.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/i) ||
+    text.match(/(\[\s*\{[\s\S]*?"url"[\s\S]*?\}\s*\])/);
+  if (jsonMatch) {
+    try {
+      const arr = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(arr)) {
+        for (const item of arr) pushCitation(hits, item);
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+  }
+
+  // Markdown links
+  const mdRe = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  let m;
+  while ((m = mdRe.exec(text)) !== null) {
+    hits.push({ url: m[2], title: m[1], snippet: "" });
+  }
+
+  // Bare URLs
+  if (!hits.length) {
+    const urlRe = /https?:\/\/[^\s)\]"'<>]+/g;
+    while ((m = urlRe.exec(text)) !== null) {
+      hits.push({ url: m[0].replace(/[.,;:]+$/, ""), title: "", snippet: "" });
+    }
+  }
+
+  const seen = new Set();
+  return hits.filter((h) => {
+    if (!h.url || seen.has(h.url)) return false;
+    seen.add(h.url);
+    return true;
+  });
+}
+
+/** Extract answer + citations from OpenAI Responses API `output[]` (xAI / Grok CLI). */
+function extractResponsesApiAnswer(data) {
+  const output = Array.isArray(data?.output) ? data.output : [];
+  let text = "";
+  const citations = [];
+
+  // Top-level citations (xAI SDK / Responses variants)
+  if (Array.isArray(data?.citations)) {
+    for (const c of data.citations) pushCitation(citations, c);
+  }
+  if (Array.isArray(data?.sources)) {
+    for (const c of data.sources) pushCitation(citations, c);
+  }
+
+  for (const item of output) {
+    const type = typeof item?.type === "string" ? item.type : "";
+
+    // Hosted web_search tool results (several shapes seen in the wild)
+    if (
+      type === "web_search_call" ||
+      type === "web_search" ||
+      type === "server_tool_use" ||
+      type.includes("web_search") ||
+      type.includes("search")
+    ) {
+      collectCitationShaped(item, citations);
+    }
+
+    // Message content + url_citation annotations
+    const parts = Array.isArray(item?.content) ? item.content : [];
+    for (const p of parts) {
+      if (typeof p?.text === "string") text += p.text;
+      if (typeof p === "string") text += p;
+      const anns = Array.isArray(p?.annotations) ? p.annotations : [];
+      for (const a of anns) {
+        pushCitation(citations, a?.url ? a : a?.url_citation || a);
+      }
+    }
+    if (typeof item?.text === "string") text += item.text;
+    if (Array.isArray(item?.annotations)) {
+      for (const a of item.annotations) {
+        pushCitation(citations, a?.url ? a : a?.url_citation || a);
+      }
+    }
+  }
+
+  // Fallback: structured JSON / markdown links in the model text
+  if (!citations.length && text) {
+    for (const h of parseStructuredHitsFromText(text)) pushCitation(citations, h);
+  }
+
+  // Dedupe by URL
+  const seen = new Set();
+  const unique = [];
+  for (const c of citations) {
+    if (!c?.url || seen.has(c.url)) continue;
+    seen.add(c.url);
+    unique.push(c);
+  }
+  const tokens = data?.usage?.total_tokens || data?.usage?.output_tokens || 0;
+  return { text, citations: unique, tokens };
+}
+
 /**
  * Normalize a citation entry into the unified result shape.
  * @param {{url:string, title?:string, snippet?:string}} c
@@ -112,38 +263,14 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => ({
       model,
       input: [{ role: "user", content: query }],
-      tools: [{ type: "web_search" }]
+      tools: [{ type: "web_search" }],
+      stream: false,
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`
     }),
-    extractAnswer: (data) => {
-      // /v1/responses returns output[] array of message/tool blocks
-      const output = Array.isArray(data?.output) ? data.output : [];
-      let text = "";
-      const citations = [];
-      for (const item of output) {
-        const parts = Array.isArray(item?.content) ? item.content : [];
-        for (const p of parts) {
-          if (typeof p?.text === "string") text += p.text;
-          const anns = Array.isArray(p?.annotations) ? p.annotations : [];
-          for (const a of anns) {
-            const c = normalizeCitation(a?.url ? a : a?.url_citation);
-            if (c) citations.push(c);
-          }
-        }
-      }
-      // Fallback: top-level citations array (some response variants)
-      if (!citations.length && Array.isArray(data?.citations)) {
-        for (const c of data.citations) {
-          const n = normalizeCitation(c);
-          if (n) citations.push(n);
-        }
-      }
-      const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
-    }
+    extractAnswer: extractResponsesApiAnswer,
   },
 
   kimi: {
@@ -376,7 +503,8 @@ export async function handleChatSearch({
   const headers = cfg.buildHeaders(token);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutMs = cfg.timeoutMs || REQUEST_TIMEOUT_MS;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let upstreamStart = Date.now();
   let resp;

@@ -1,6 +1,6 @@
 ---
 name: 9router-web-search
-description: Web search via 9Router /v1/search using Tavily / Exa / Brave / Serper / SearXNG / Google PSE / Linkup / SearchAPI / You.com / Perplexity. Use when the user wants to search the web, look up information, find articles, or query a search engine.
+description: Web search via 9Router /v1/search using Tavily / Exa / Brave / Serper / SearXNG / Google PSE / Linkup / SearchAPI / You.com / Perplexity / TinyFish. Use when the user wants to search the web, look up information, find articles, or query a search engine.
 ---
 
 # 9Router — Web Search
@@ -87,5 +87,7 @@ All accept `query` + `max_results`. Optional fields vary:
 | `searchapi` | country, language, pagination | — |
 | `youcom` | country, language, time_range, domain_filter, full_page | — |
 | `searxng` | language, time_range | Self-hosted, **noAuth** |
+| `tinyfish` | country→location, language, news/research_paper, time_range | Free Search API (`X-API-Key`) |
+| `xai` | chat-based via xAI Responses `web_search` | API key / OAuth |
 
 Provider IS the model — `"provider":"tavily" ≡ "model":"tavily"`.

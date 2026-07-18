@@ -198,9 +198,15 @@ const PERIODS = [
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
   { value: "60d", label: "60D" },
+  { value: "all", label: "All" },
 ];
 
-export default function UsageStats({ period: periodProp, setPeriod: setPeriodProp, hidePeriodSelector = false } = {}) {
+export default function UsageStats({
+  period: periodProp,
+  setPeriod: setPeriodProp,
+  apiKeyId: apiKeyIdProp = "all",
+  hidePeriodSelector = false,
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -218,6 +224,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const hasLoadedStats = useRef(false);
   const period = periodProp ?? periodLocal;
   const setPeriod = setPeriodProp ?? setPeriodLocal;
+  const apiKeyId = apiKeyIdProp || "all";
 
   // Fetch connected providers once, deduplicate by provider type
   // Always include noAuth free providers (e.g. opencode) regardless of connections
@@ -251,7 +258,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       .catch(() => {});
   }, []);
 
-  // Fetch filtered stats via REST when period changes
+  // Fetch filtered stats via REST when period / API key filter changes
   useEffect(() => {
     // First load: show full spinner; subsequent: show subtle fetching indicator
     if (isInitialLoad.current) {
@@ -261,7 +268,10 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       setFetching(true);
     }
 
-    fetch(`/api/usage/stats?period=${period}`)
+    const qs = new URLSearchParams({ period });
+    if (apiKeyId && apiKeyId !== "all") qs.set("apiKeyId", apiKeyId);
+
+    fetch(`/api/usage/stats?${qs}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data) {
@@ -274,7 +284,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         setLoading(false);
         setFetching(false);
       });
-  }, [period]);
+  }, [period, apiKeyId]);
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
   useEffect(() => {
@@ -446,7 +456,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       {/* Period selector (hidden when controlled by parent) */}
       {!hidePeriodSelector && (
         <div className="flex w-full items-center gap-2 sm:w-auto sm:self-end">
-          <div className="grid flex-1 grid-cols-5 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex sm:flex-none">
+          <div className="grid flex-1 grid-cols-3 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex sm:flex-none sm:grid-cols-6">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
@@ -480,8 +490,8 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         </div>
       )}
 
-      {/* Token / Cost chart - sync period */}
-      {loading ? spinner : <UsageChart period={period} />}
+      {/* Token / Cost chart - sync period + API key filter */}
+      {loading ? spinner : <UsageChart period={period} apiKeyId={apiKeyId} />}
 
       {/* Table with dropdown selector */}
       <div className="flex flex-col gap-3">
