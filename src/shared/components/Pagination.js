@@ -9,6 +9,7 @@ export default function Pagination({
   totalItems,
   onPageChange,
   onPageSizeChange,
+  pageSizeOptions = [10, 20, 50],
   className,
 }) {
   const totalPages = Math.ceil(totalItems / pageSize);
@@ -65,7 +66,7 @@ export default function Pagination({
               )}
               style={{ colorScheme: 'auto' }}
             >
-              {[10, 20, 50].map((size) => (
+              {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
                   {size}
                 </option>

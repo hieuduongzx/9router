@@ -1,12 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
-import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { DATA_DIR } from "@/lib/dataDir";
-import { getSettings } from "@/lib/localDb";
-
-const DEFAULT_PASSWORD = "123456";
+import { getUserById, verifyUserPassword } from "@/lib/db/repos/usersRepo";
 
 function loadJwtSecret() {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
@@ -37,11 +34,15 @@ export async function createDashboardAuthToken(claims = {}) {
     .sign(SECRET);
 }
 
+function hasSessionIdentity(payload) {
+  return payload?.authenticated === true && (!!payload.userId || payload.oidc === true);
+}
+
 export async function verifyDashboardAuthToken(token) {
   if (!token) return false;
   try {
-    await jwtVerify(token, SECRET);
-    return true;
+    const { payload } = await jwtVerify(token, SECRET);
+    return hasSessionIdentity(payload);
   } catch {
     return false;
   }
@@ -51,11 +52,19 @@ export async function getDashboardAuthSession(token) {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return payload;
+    return hasSessionIdentity(payload) ? payload : null;
   } catch {
     return null;
   }
 }
+export async function getDashboardAccount(request) {
+  const token = request?.cookies?.get?.("auth_token")?.value;
+  const session = await getDashboardAuthSession(token);
+  if (!session?.userId) return null;
+  const user = await getUserById(session.userId);
+  return user?.isActive ? user : null;
+}
+
 
 export async function setDashboardAuthCookie(cookieStore, request, claims = {}) {
   const token = await createDashboardAuthToken(claims);
@@ -72,11 +81,9 @@ export function clearDashboardAuthCookie(cookieStore) {
 }
 
 // Verify the current dashboard password (re-auth for sensitive actions).
-export async function verifyDashboardPassword(password) {
+export async function verifyDashboardPassword(password, token) {
   if (typeof password !== "string" || !password) return false;
-  const settings = await getSettings();
-  const storedHash = settings?.password;
-  if (storedHash) return bcrypt.compare(password, storedHash);
-  const initialPassword = process.env.INITIAL_PASSWORD || DEFAULT_PASSWORD;
-  return password === initialPassword;
+  const session = await getDashboardAuthSession(token);
+  if (!session?.userId) return false;
+  return verifyUserPassword(session.userId, password);
 }

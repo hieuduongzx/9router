@@ -16,6 +16,7 @@ const PERIOD_MS = { "24h": 86400000, "7d": 604800000, "30d": 2592000000, "60d": 
 
 // In-memory state shared across Next.js modules
 if (!global._pendingRequests) global._pendingRequests = { byModel: {}, byAccount: {} };
+if (!global._pendingRequestsByApiKey) global._pendingRequestsByApiKey = {};
 if (!global._lastErrorProvider) global._lastErrorProvider = { provider: "", ts: 0 };
 if (!global._statsEmitter) {
   global._statsEmitter = new EventEmitter();
@@ -27,6 +28,7 @@ if (!global._connectionMapCache) global._connectionMapCache = { map: {}, ts: 0 }
 if (!global._statsEmitTimers) global._statsEmitTimers = { pending: null, update: null };
 
 const pendingRequests = global._pendingRequests;
+const pendingRequestsByApiKey = global._pendingRequestsByApiKey;
 const lastErrorProvider = global._lastErrorProvider;
 const pendingTimers = global._pendingTimers;
 const recentRing = global._recentRing;
@@ -131,7 +133,7 @@ async function ensureRingInitialized() {
   } catch {}
 }
 
-async function calculateCost(provider, model, tokens) {
+export async function calculateRequestCost(provider, model, tokens) {
   if (!tokens || !provider || !model) return 0;
   try {
     const { getPricingForModel } = await import("./pricingRepo.js");
@@ -149,9 +151,10 @@ async function calculateCost(provider, model, tokens) {
   }
 }
 
-export function trackPendingRequest(model, provider, connectionId, started, error = false) {
+export function trackPendingRequest(model, provider, connectionId, started, error = false, apiKey = null) {
   const modelKey = provider ? `${model} (${provider})` : model;
-  const timerKey = `${connectionId}|${modelKey}`;
+  const apiKeyBucket = apiKey || "__local__";
+  const timerKey = `${connectionId}|${apiKeyBucket}|${modelKey}`;
 
   if (!pendingRequests.byModel[modelKey]) pendingRequests.byModel[modelKey] = 0;
   pendingRequests.byModel[modelKey] = Math.max(0, pendingRequests.byModel[modelKey] + (started ? 1 : -1));
@@ -169,13 +172,35 @@ export function trackPendingRequest(model, provider, connectionId, started, erro
     }
   }
 
+  if (!pendingRequestsByApiKey[apiKeyBucket]) pendingRequestsByApiKey[apiKeyBucket] = {};
+  if (!pendingRequestsByApiKey[apiKeyBucket][modelKey]) pendingRequestsByApiKey[apiKeyBucket][modelKey] = 0;
+  pendingRequestsByApiKey[apiKeyBucket][modelKey] = Math.max(
+    0,
+    pendingRequestsByApiKey[apiKeyBucket][modelKey] + (started ? 1 : -1),
+  );
+  if (pendingRequestsByApiKey[apiKeyBucket][modelKey] === 0) {
+    delete pendingRequestsByApiKey[apiKeyBucket][modelKey];
+    if (Object.keys(pendingRequestsByApiKey[apiKeyBucket]).length === 0) {
+      delete pendingRequestsByApiKey[apiKeyBucket];
+    }
+  }
+
   if (started) {
     clearTimeout(pendingTimers[timerKey]);
     pendingTimers[timerKey] = setTimeout(() => {
       delete pendingTimers[timerKey];
-      if (pendingRequests.byModel[modelKey] > 0) pendingRequests.byModel[modelKey] = 0;
-      if (connectionId && pendingRequests.byAccount[connectionId]?.[modelKey] > 0) {
-        pendingRequests.byAccount[connectionId][modelKey] = 0;
+      delete pendingRequests.byModel[modelKey];
+      if (connectionId && pendingRequests.byAccount[connectionId]) {
+        delete pendingRequests.byAccount[connectionId][modelKey];
+        if (Object.keys(pendingRequests.byAccount[connectionId]).length === 0) {
+          delete pendingRequests.byAccount[connectionId];
+        }
+      }
+      if (pendingRequestsByApiKey[apiKeyBucket]) {
+        delete pendingRequestsByApiKey[apiKeyBucket][modelKey];
+        if (Object.keys(pendingRequestsByApiKey[apiKeyBucket]).length === 0) {
+          delete pendingRequestsByApiKey[apiKeyBucket];
+        }
       }
       scheduleStatsEvent("pending");
     }, PENDING_TIMEOUT_MS);
@@ -189,7 +214,6 @@ export function trackPendingRequest(model, provider, connectionId, started, erro
     lastErrorProvider.ts = Date.now();
   }
 
-  // [PENDING] console line removed; lifecycle is visible via "▶" and "📊 done" lines
   scheduleStatsEvent("pending");
 }
 
@@ -243,7 +267,7 @@ export async function saveRequestUsage(entry) {
     const db = await getAdapter();
 
     if (!entry.timestamp) entry.timestamp = new Date().toISOString();
-    entry.cost = await calculateCost(entry.provider, entry.model, entry.tokens);
+    entry.cost = await calculateRequestCost(entry.provider, entry.model, entry.tokens);
 
     const tokens = entry.tokens || {};
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
@@ -359,14 +383,19 @@ function getPeriodCutoffIso(period) {
 }
 
 /**
- * apiKeyFilter: null = all keys; "__local__" = no key; string = exact key value.
- * Returns { clause, params } for appending after WHERE / AND.
+ * apiKeyFilter: null = all keys; "__local__" = no key; string = one exact key;
+ * string[] = any key in the account.
  */
 function buildApiKeyClause(apiKeyFilter, { leadingAnd = true } = {}) {
   if (apiKeyFilter == null || apiKeyFilter === "") {
     return { clause: "", params: [] };
   }
   const prefix = leadingAnd ? " AND " : "";
+  if (Array.isArray(apiKeyFilter)) {
+    if (apiKeyFilter.length === 0) return { clause: `${prefix}1=0`, params: [] };
+    const placeholders = apiKeyFilter.map(() => "?").join(", ");
+    return { clause: `${prefix}apiKey IN (${placeholders})`, params: apiKeyFilter };
+  }
   if (apiKeyFilter === "__local__") {
     return { clause: `${prefix}(apiKey IS NULL OR apiKey = '')`, params: [] };
   }
@@ -614,13 +643,10 @@ export async function getUsageStats(period = "all", options = {}) {
       conds.push("timestamp >= ?");
       params.push(cutoff);
     }
-    if (apiKeyFilter === "__local__") {
-      conds.push("(apiKey IS NULL OR apiKey = '')");
-    } else if (apiKeyFilter === "__none__") {
-      conds.push("1=0");
-    } else if (apiKeyFilter) {
-      conds.push("apiKey = ?");
-      params.push(apiKeyFilter);
+    const historyAk = buildApiKeyClause(apiKeyFilter, { leadingAnd: false });
+    if (historyAk.clause) {
+      conds.push(historyAk.clause);
+      params.push(...historyAk.params);
     }
     const where = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
     const filtered = db.all(
@@ -708,6 +734,126 @@ export async function getUsageStats(period = "all", options = {}) {
   return stats;
 }
 
+export async function getSystemUsageOverview(period = "today") {
+  const db = await getAdapter();
+  const cutoff = getPeriodCutoffIso(period);
+  const where = cutoff ? "WHERE uh.timestamp >= ?" : "";
+  const params = cutoff ? [cutoff] : [];
+
+  const summary = db.get(
+    `SELECT COUNT(*) AS requests,
+            COALESCE(SUM(uh.promptTokens), 0) AS promptTokens,
+            COALESCE(SUM(uh.completionTokens), 0) AS completionTokens,
+            COALESCE(SUM(uh.cost), 0) AS cost
+       FROM usageHistory uh ${where}`,
+    params,
+  ) || {};
+
+  const userRows = db.all(
+    `SELECT identity,
+            MAX(username) AS username,
+            MAX(email) AS email,
+            GROUP_CONCAT(DISTINCT apiKeyName) AS apiKeyNames,
+            COUNT(*) AS requests,
+            COALESCE(SUM(promptTokens), 0) AS promptTokens,
+            COALESCE(SUM(completionTokens), 0) AS completionTokens,
+            COALESCE(SUM(cost), 0) AS cost,
+            MAX(timestamp) AS lastRequest
+       FROM (
+         SELECT CASE
+                  WHEN u.id IS NOT NULL THEN u.id
+                  WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN '__local__'
+                  ELSE '__unassigned__'
+                END AS identity,
+                COALESCE(u.username, CASE WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN 'Local / system' ELSE 'Unassigned key' END) AS username,
+                COALESCE(u.email, '') AS email,
+                COALESCE(ak.name, CASE WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN 'No API key' ELSE 'Unknown key' END) AS apiKeyName,
+                uh.promptTokens,
+                uh.completionTokens,
+                uh.cost,
+                uh.timestamp
+           FROM usageHistory uh
+           LEFT JOIN apiKeys ak ON ak.key = uh.apiKey
+           LEFT JOIN users u ON u.id = ak.ownerUserId
+           ${where}
+       )
+      GROUP BY identity
+      ORDER BY requests DESC, username ASC`,
+    params,
+  );
+
+  const keyRows = db.all(
+    `SELECT ak.key, ak.name AS apiKeyName, u.id AS userId, u.username, u.email
+       FROM apiKeys ak
+       LEFT JOIN users u ON u.id = ak.ownerUserId`,
+  );
+  const keyMap = new Map(keyRows.map((row) => [row.key, row]));
+  const activeByIdentity = new Map();
+  for (const [key, models] of Object.entries(pendingRequestsByApiKey)) {
+    const keyInfo = keyMap.get(key);
+    const identity = keyInfo?.userId || (key === "__local__" ? "__local__" : "__unassigned__");
+    const active = Object.values(models).reduce((sum, count) => sum + count, 0);
+    if (active <= 0) continue;
+    const current = activeByIdentity.get(identity) || {
+      activeRequests: 0,
+      username: keyInfo?.username || (identity === "__local__" ? "Local / system" : "Unassigned key"),
+      email: keyInfo?.email || "",
+      apiKeyName: keyInfo?.apiKeyName || (identity === "__local__" ? "No API key" : "Unknown key"),
+    };
+    current.activeRequests += active;
+    activeByIdentity.set(identity, current);
+  }
+
+  const users = userRows.map((row) => ({
+    id: row.identity,
+    username: row.username,
+    email: row.email,
+    apiKeys: row.apiKeyNames ? row.apiKeyNames.split(",") : [],
+    requests: row.requests || 0,
+    activeRequests: activeByIdentity.get(row.identity)?.activeRequests || 0,
+    promptTokens: row.promptTokens || 0,
+    completionTokens: row.completionTokens || 0,
+    cost: row.cost || 0,
+    lastRequest: row.lastRequest,
+  }));
+  const knownUserIds = new Set(users.map((user) => user.id));
+  for (const [identity, active] of activeByIdentity) {
+    if (knownUserIds.has(identity)) continue;
+    users.push({
+      id: identity,
+      username: active.username,
+      email: active.email,
+      apiKeys: [active.apiKeyName],
+      requests: 0,
+      activeRequests: active.activeRequests,
+      promptTokens: 0,
+      completionTokens: 0,
+      cost: 0,
+      lastRequest: null,
+    });
+  }
+  users.sort((a, b) => b.activeRequests - a.activeRequests || b.requests - a.requests);
+
+  const { logs: recent } = await getRequestLogsPage({
+    period,
+    page: 1,
+    pageSize: 50,
+  });
+
+  return {
+    summary: {
+      requests: summary.requests || 0,
+      promptTokens: summary.promptTokens || 0,
+      completionTokens: summary.completionTokens || 0,
+      cost: summary.cost || 0,
+      activeRequests: users.reduce((sum, user) => sum + user.activeRequests, 0),
+      activeUsers: users.filter((user) => user.activeRequests > 0).length,
+    },
+    users,
+    recent,
+  };
+}
+
 function queryHistoryChartRows(db, startIso, apiKeyFilter) {
   const conds = [];
   const params = [];
@@ -715,13 +861,10 @@ function queryHistoryChartRows(db, startIso, apiKeyFilter) {
     conds.push("timestamp >= ?");
     params.push(startIso);
   }
-  if (apiKeyFilter === "__local__") {
-    conds.push("(apiKey IS NULL OR apiKey = '')");
-  } else if (apiKeyFilter === "__none__") {
-    conds.push("1=0");
-  } else if (apiKeyFilter) {
-    conds.push("apiKey = ?");
-    params.push(apiKeyFilter);
+  const historyAk = buildApiKeyClause(apiKeyFilter, { leadingAnd: false });
+  if (historyAk.clause) {
+    conds.push(historyAk.clause);
+    params.push(...historyAk.params);
   }
   const where = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
   return db.all(
@@ -876,32 +1019,120 @@ function formatLogDate(date = new Date()) {
 // No-op: request log is now derived from usageHistory table on read.
 export async function appendRequestLog() {}
 
+export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 30 } = {}) {
+  const db = await getAdapter();
+  const cutoff = getPeriodCutoffIso(period);
+  const where = cutoff ? "WHERE rd.timestamp >= ?" : "";
+  const params = cutoff ? [cutoff] : [];
+  const normalizedPageSize = Math.max(1, Math.min(100, Number(pageSize) || 30));
+  const requestedPage = Math.max(1, Number(page) || 1);
+  const countRow = db.get(
+    `SELECT COUNT(*) AS totalItems FROM requestDetails rd ${where}`,
+    params,
+  );
+  const totalItems = countRow?.totalItems || 0;
+  const totalPages = Math.ceil(totalItems / normalizedPageSize);
+  const normalizedPage = Math.min(requestedPage, Math.max(totalPages, 1));
+  const offset = (normalizedPage - 1) * normalizedPageSize;
+
+  const details = db.all(
+    `SELECT rd.id AS detailId, rd.timestamp, rd.provider, rd.model, rd.connectionId,
+            rd.apiKey, rd.status, ak.name AS apiKeyName, u.username, u.email
+       FROM requestDetails rd
+       LEFT JOIN apiKeys ak ON ak.key = rd.apiKey
+       LEFT JOIN users u ON u.id = ak.ownerUserId
+       ${where}
+      ORDER BY rd.timestamp DESC
+      LIMIT ? OFFSET ?`,
+    [...params, normalizedPageSize, offset],
+  );
+
+  const pagination = {
+    page: normalizedPage,
+    pageSize: normalizedPageSize,
+    totalItems,
+    totalPages,
+    hasNext: normalizedPage < totalPages,
+    hasPrev: normalizedPage > 1,
+  };
+  if (details.length === 0) return { logs: [], pagination };
+
+  const times = details.map((detail) => new Date(detail.timestamp).getTime()).filter(Number.isFinite);
+  const oldest = Math.min(...times) - 60_000;
+  const newest = Math.max(...times) + 60_000;
+  const usageRows = db.all(
+    `SELECT uh.timestamp, uh.provider, uh.model, uh.connectionId, uh.apiKey,
+            uh.promptTokens, uh.completionTokens, uh.cost,
+            ak.name AS apiKeyName, u.username, u.email
+       FROM usageHistory uh
+       LEFT JOIN apiKeys ak ON ak.key = uh.apiKey
+       LEFT JOIN users u ON u.id = ak.ownerUserId
+      WHERE uh.timestamp >= ? AND uh.timestamp <= ?
+      ORDER BY uh.timestamp DESC`,
+    [new Date(oldest).toISOString(), new Date(newest).toISOString()],
+  );
+  const usageByRequest = new Map();
+  const usageByRequestWithoutKey = new Map();
+  for (const row of usageRows) {
+    const baseParts = [row.provider || "", row.model || "", row.connectionId || ""];
+    const key = [...baseParts, row.apiKey || ""].join("\u001f");
+    const looseKey = baseParts.join("\u001f");
+    const bucket = usageByRequest.get(key) || [];
+    const looseBucket = usageByRequestWithoutKey.get(looseKey) || [];
+    bucket.push(row);
+    looseBucket.push(row);
+    usageByRequest.set(key, bucket);
+    usageByRequestWithoutKey.set(looseKey, looseBucket);
+  }
+
+  const logs = details.map((detail) => {
+    const baseParts = [
+      detail.provider || "",
+      detail.model || "",
+      detail.connectionId || "",
+    ];
+    const key = [...baseParts, detail.apiKey || ""].join("\u001f");
+    const detailTime = new Date(detail.timestamp).getTime();
+    const candidates = detail.apiKey
+      ? usageByRequest.get(key) || []
+      : usageByRequestWithoutKey.get(baseParts.join("\u001f")) || [];
+    let usage = null;
+    let nearestDelta = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+      const delta = Math.abs(new Date(candidate.timestamp).getTime() - detailTime);
+      if (delta < nearestDelta) {
+        usage = candidate;
+        nearestDelta = delta;
+      }
+    }
+    if (nearestDelta > 60_000) usage = null;
+
+    return {
+      detailId: detail.detailId,
+      timestamp: detail.timestamp,
+      model: detail.model || "-",
+      provider: detail.provider || "-",
+      username: detail.username || usage?.username || ((detail.apiKey || usage?.apiKey) ? "Unassigned key" : "Local / system"),
+      email: detail.email || usage?.email || "",
+      apiKeyName: detail.apiKeyName || usage?.apiKeyName || ((detail.apiKey || usage?.apiKey) ? "Unknown key" : "No API key"),
+      inputTokens: usage?.promptTokens || 0,
+      outputTokens: usage?.completionTokens || 0,
+      cost: Number.isFinite(usage?.cost) ? usage.cost : null,
+      status: detail.status || "-",
+    };
+  });
+
+  return { logs, pagination };
+}
+
 export async function getRecentLogs(limit = 200) {
   try {
-    const db = await getAdapter();
-    const rows = db.all(
-      `SELECT timestamp, provider, model, connectionId, promptTokens, completionTokens, status, tokens FROM usageHistory ORDER BY id DESC LIMIT ?`,
-      [limit],
-    );
-    if (!rows.length) return [];
-
-    const connMap = {};
-    try {
-      const { getProviderConnections } = await import("./connectionsRepo.js");
-      const connections = await getProviderConnections();
-      for (const c of connections) connMap[c.id] = c.name || c.email || "";
-    } catch {}
-
-    return rows.map((r) => {
-      const ts = formatLogDate(new Date(r.timestamp));
-      const p = r.provider?.toUpperCase() || "-";
-      const m = r.model || "-";
-      const account = connMap[r.connectionId] || (r.connectionId ? r.connectionId.slice(0, 8) : "-");
-      const tk = r.tokens ? parseJson(r.tokens, {}) : {};
-      const sent = r.promptTokens ?? tk.prompt_tokens ?? "-";
-      const received = r.completionTokens ?? tk.completion_tokens ?? "-";
-      return `${ts} | ${m} | ${p} | ${account} | ${sent} | ${received} | ${r.status || "-"}`;
+    const { logs } = await getRequestLogsPage({
+      period: "all",
+      page: 1,
+      pageSize: limit,
     });
+    return logs;
   } catch (e) {
     console.error("[usageRepo] getRecentLogs failed:", e.message);
     return [];

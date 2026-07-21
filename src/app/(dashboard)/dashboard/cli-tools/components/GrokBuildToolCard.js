@@ -20,10 +20,6 @@ export default function GrokBuildToolCard({
   activeProviders,
   cloudEnabled,
   initialStatus,
-  tunnelEnabled,
-  tunnelPublicUrl,
-  tailscaleEnabled,
-  tailscaleUrl,
 }) {
   const [grokStatus, setGrokStatus] = useState(initialStatus || null);
   const [checking, setChecking] = useState(false);
@@ -42,7 +38,7 @@ export default function GrokBuildToolCard({
     if (!grokStatus?.installed) return null;
     const cfg = grokStatus.settings?.model;
     if (!cfg?.base_url) return "not_configured";
-    if (matchKnownEndpoint(cfg.base_url, { tunnelPublicUrl, tailscaleUrl })) return "configured";
+    if (matchKnownEndpoint(cfg.base_url)) return "configured";
     return "other";
   };
 
@@ -179,8 +175,8 @@ default = "${MODEL_SLOT}"
 [model.${MODEL_SLOT}]
 model = "${modelId}"
 base_url = "${getEffectiveBaseUrl()}"
-name = "9Router"
-description = "Routed via 9Router gateway"
+name = "Router2k"
+description = "Routed via Router2k gateway"
 api_backend = "chat_completions"
 api_key = "${keyToUse}"
 `;
@@ -280,15 +276,9 @@ api_key = "${keyToUse}"
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <BaseUrlSelect
-                    value={customBaseUrl || getEffectiveBaseUrl()}
-                    onChange={setCustomBaseUrl}
-                    requiresExternalUrl={tool.requiresExternalUrl}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
-                  />
+                  <BaseUrlSelect value={customBaseUrl || getEffectiveBaseUrl()}
+                  onChange={setCustomBaseUrl}
+                  requiresExternalUrl={tool.requiresExternalUrl}  />
                 </div>
 
                 {grokStatus?.settings?.model?.base_url && (

@@ -2,6 +2,10 @@
 // Kept for backward compatibility with existing imports.
 export {
   getSettings, updateSettings, isCloudEnabled, getCloudUrl,
+  getPrimaryAdmin, getUserById, getUserByLogin, createUser, listUsers,
+  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance, deleteUserAccount,
+  verifyUserCredentials, verifyUserPassword, updateUserPassword,
+  hasSecureAdminAccount, resetRecoveryAdminCredentials,
   getProviderConnections, getProviderConnectionById,
   createProviderConnection, updateProviderConnection,
   deleteProviderConnection, deleteProviderConnectionsByProvider,
@@ -16,6 +20,7 @@ export {
   getModelAliases, setModelAlias, deleteModelAlias,
   getCustomModels, addCustomModel, deleteCustomModel,
   getMitmAlias, setMitmAliasAll,
-  getPricing, getPricingForModel, updatePricing, resetPricing, resetAllPricing,
+  getPricing, getPricingForModel, getModelPricingCatalog,
+  updatePricing, resetPricing, resetAllPricing,
   exportDb, importDb,
 } from "@/lib/db/index.js";

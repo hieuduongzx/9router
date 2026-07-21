@@ -219,6 +219,7 @@ export default function UsageStats({
   const [tableView, setTableView] = useState("model");
   const [viewMode, setViewMode] = useState("costs");
   const [providers, setProviders] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [periodLocal, setPeriodLocal] = useState("today");
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
@@ -226,33 +227,42 @@ export default function UsageStats({
   const setPeriod = setPeriodProp ?? setPeriodLocal;
   const apiKeyId = apiKeyIdProp || "all";
 
-  // Fetch connected providers once, deduplicate by provider type
-  // Always include noAuth free providers (e.g. opencode) regardless of connections
+  // Provider connection labels and the live gateway stream are control-plane
+  // data. Account users render static provider labels and account-scoped REST
+  // statistics without requesting administrator endpoints.
   useEffect(() => {
-    Promise.all([
-      fetch("/api/providers").then((r) => r.ok ? r.json() : null),
-      fetch("/api/provider-nodes").then((r) => r.ok ? r.json() : null),
-    ])
-      .then(([d, nodesData]) => {
-        // Build node name lookup for custom providers
-        const nodeNameMap = {};
-        for (const node of (nodesData?.nodes || [])) {
-          nodeNameMap[node.id] = node.name;
+    fetch("/api/auth/status", { cache: "no-store" })
+      .then((response) => response.json())
+      .then(async (auth) => {
+        const admin = auth.role === "admin";
+        setIsAdmin(admin);
+        if (!admin) {
+          setProviders(
+            Object.values(FREE_PROVIDERS)
+              .filter((provider) => provider.noAuth && isLLMProvider(provider.id))
+              .map((provider) => ({ provider: provider.id, name: provider.name })),
+          );
+          return;
         }
+
+        const [providerData, nodesData] = await Promise.all([
+          fetch("/api/providers").then((response) => response.ok ? response.json() : null),
+          fetch("/api/provider-nodes").then((response) => response.ok ? response.json() : null),
+        ]);
+        const nodeNameMap = {};
+        for (const node of (nodesData?.nodes || [])) nodeNameMap[node.id] = node.name;
+
         const seen = new Set();
-        const unique = (d?.connections || []).filter((c) => {
-          if (c.isActive === false) return false;
-          if (!isLLMProvider(c.provider)) return false;
-          if (seen.has(c.provider)) return false;
-          seen.add(c.provider);
-          return true;
-        }).map((c) => ({
-          ...c,
-          nodeName: nodeNameMap[c.provider] || null,
-        }));
+        const unique = (providerData?.connections || [])
+          .filter((connection) => {
+            if (connection.isActive === false || !isLLMProvider(connection.provider) || seen.has(connection.provider)) return false;
+            seen.add(connection.provider);
+            return true;
+          })
+          .map((connection) => ({ ...connection, nodeName: nodeNameMap[connection.provider] || null }));
         const noAuthProviders = Object.values(FREE_PROVIDERS)
-          .filter((p) => p.noAuth && !seen.has(p.id) && isLLMProvider(p.id))
-          .map((p) => ({ provider: p.id, name: p.name }));
+          .filter((provider) => provider.noAuth && !seen.has(provider.id) && isLLMProvider(provider.id))
+          .map((provider) => ({ provider: provider.id, name: provider.name }));
         setProviders([...unique, ...noAuthProviders]);
       })
       .catch(() => {});
@@ -288,6 +298,7 @@ export default function UsageStats({
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
   useEffect(() => {
+    if (!isAdmin) return undefined;
     const es = new EventSource("/api/usage/stream");
 
     es.onmessage = (e) => {
@@ -313,7 +324,7 @@ export default function UsageStats({
     es.onerror = () => setLoading(false);
 
     return () => es.close();
-  }, []);
+  }, [isAdmin]);
 
   const toggleSort = useCallback((tableType, field) => {
     const params = new URLSearchParams(searchParams.toString());

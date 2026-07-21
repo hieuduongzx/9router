@@ -12,56 +12,39 @@ export default function Toggle({
   className,
 }) {
   const sizes = {
-    sm: { track: "w-8 h-4", thumb: "size-3", translate: "translate-x-4" },
-    md: { track: "w-11 h-6", thumb: "size-5", translate: "translate-x-5" },
-    lg: { track: "w-14 h-7", thumb: "size-6", translate: "translate-x-7" },
-  };
-
-  const handleClick = () => {
-    if (!disabled && onChange) onChange(!checked);
+    sm: { track: "h-5 w-9", thumb: "size-4", on: "translate-x-4", off: "translate-x-0.5" },
+    md: { track: "h-6 w-11", thumb: "size-5", on: "translate-x-5", off: "translate-x-0.5" },
+    lg: { track: "h-7 w-14", thumb: "size-6", on: "translate-x-7", off: "translate-x-0.5" },
   };
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3",
-        disabled && "opacity-50 cursor-not-allowed",
-        className
-      )}
-    >
+    <div className={cn("flex items-center gap-3", disabled && "opacity-50", className)}>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         disabled={disabled}
-        onClick={handleClick}
+        onClick={() => !disabled && onChange?.(!checked)}
         className={cn(
-          "relative inline-flex shrink-0 cursor-pointer rounded-full",
-          "transition-colors duration-200 ease-in-out",
-          "focus:outline-none focus:ring-2 focus:ring-brand-500/30",
-          checked ? "bg-brand-500" : "bg-surface-3",
+          "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+          checked ? "bg-primary" : "bg-surface-3",
           sizes[size].track,
           disabled && "cursor-not-allowed"
         )}
       >
         <span
           className={cn(
-            "pointer-events-none inline-block rounded-full bg-white shadow-sm",
-            "transform transition duration-200 ease-in-out",
-            checked ? sizes[size].translate : "translate-x-0.5",
+            "pointer-events-none block rounded-full bg-white shadow-lg ring-0 transition-transform",
             sizes[size].thumb,
-            "mt-0.5"
+            checked ? sizes[size].on : sizes[size].off
           )}
         />
       </button>
       {(label || description) && (
-        <div className="flex flex-col">
-          {label && (
-            <span className="text-sm font-medium text-text-main">{label}</span>
-          )}
-          {description && (
-            <span className="text-xs text-text-muted">{description}</span>
-          )}
+        <div className="flex flex-col gap-0.5">
+          {label && <span className="text-sm font-medium leading-none text-text-main">{label}</span>}
+          {description && <span className="text-xs text-text-muted">{description}</span>}
         </div>
       )}
     </div>

@@ -4,13 +4,13 @@ import { killAppProcesses, spawnUpdaterAndExit } from "@/lib/appUpdater";
 export async function POST() {
   if (process.env.NODE_ENV !== "production") {
     return NextResponse.json(
-      { success: false, message: "Update is only available in production build (9router CLI)" },
+      { success: false, message: "Update is only available in production build (Router2k CLI)" },
       { status: 403 }
     );
   }
 
   try {
-    // Kill sibling processes (cloudflared, MITM, stray next-server) to release file locks on Windows
+    // Kill sibling processes (MITM, tray, stray next-server) to release file locks on Windows.
     await killAppProcesses();
   } catch { /* best effort */ }
 

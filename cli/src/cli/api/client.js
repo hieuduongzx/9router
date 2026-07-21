@@ -411,8 +411,8 @@ async function updateSettings(data) {
 }
 
 /**
- * Reset dashboard password to default (clears stored hash server-side)
- * @returns {Promise<Object>} { success }
+ * Generate a one-time password for the dashboard recovery administrator
+ * @returns {Promise<Object>} { success, data: { username, temporaryPassword } }
  */
 async function resetPassword() {
   return makeRequest("POST", "/api/auth/reset-password");
@@ -462,33 +462,6 @@ async function validateProviderNode(data) {
   return makeRequest("POST", "/api/provider-nodes/validate", data);
 }
 
-// ============================================================================
-// TUNNEL API
-// ============================================================================
-
-/**
- * Get tunnel status
- * @returns {Promise<Object>} { success, data: { enabled, tunnelUrl, shortId, running } }
- */
-async function getTunnelStatus() {
-  return makeRequest("GET", "/api/tunnel/status");
-}
-
-/**
- * Enable tunnel
- * @returns {Promise<Object>} { success, data: { tunnelUrl, shortId } }
- */
-async function enableTunnel() {
-  return makeRequest("POST", "/api/tunnel/enable");
-}
-
-/**
- * Disable tunnel
- * @returns {Promise<Object>} { success, data: { success } }
- */
-async function disableTunnel() {
-  return makeRequest("POST", "/api/tunnel/disable");
-}
 
 // ============================================================================
 // EXPORTS
@@ -538,10 +511,6 @@ module.exports = {
   updateSettings,
   resetPassword,
   
-  // Tunnel
-  getTunnelStatus,
-  enableTunnel,
-  disableTunnel,
   
   // Models
   getModels,

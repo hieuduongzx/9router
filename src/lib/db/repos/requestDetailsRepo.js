@@ -1,5 +1,6 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { calculateRequestCost } from "./usageRepo.js";
 
 const DEFAULT_MAX_RECORDS = 200;
 const DEFAULT_BATCH_SIZE = 20;
@@ -94,6 +95,7 @@ async function flushToDatabase() {
             status: item.status || null,
             latency: item.latency || {},
             tokens: item.tokens || {},
+            cost: Number.isFinite(item.cost) ? item.cost : 0,
             request: truncateField(item.request, config.maxJsonSize),
             providerRequest: truncateField(item.providerRequest, config.maxJsonSize),
             providerResponse: truncateField(item.providerResponse, config.maxJsonSize),
@@ -102,8 +104,8 @@ async function flushToDatabase() {
           };
 
           db.run(
-            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, status = excluded.status, data = excluded.data`,
-            [record.id, record.timestamp, record.provider, record.model, record.connectionId, record.status, stringifyJson(record)]
+            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, apiKey, status, data) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, apiKey = excluded.apiKey, status = excluded.status, data = excluded.data`,
+            [record.id, record.timestamp, record.provider, record.model, record.connectionId, item.apiKey || null, record.status, stringifyJson(record)]
           );
         }
 
@@ -127,6 +129,9 @@ export async function saveRequestDetail(detail) {
   const config = await getObservabilityConfig();
   if (!config.enabled) return;
 
+  if (!Number.isFinite(detail.cost)) {
+    detail.cost = await calculateRequestCost(detail.provider, detail.model, detail.tokens);
+  }
   writeBuffer.push(detail);
 
   // Trigger immediate flush if batch threshold reached.
@@ -142,6 +147,26 @@ export async function saveRequestDetail(detail) {
   }
 }
 
+function addApiKeyFilter(filter, conds, params) {
+  if (!Object.prototype.hasOwnProperty.call(filter, "apiKeys")) return;
+  const apiKeys = Array.isArray(filter.apiKeys) ? filter.apiKeys.filter(Boolean) : [];
+  if (apiKeys.length === 0) {
+    conds.push("1 = 0");
+    return;
+  }
+  conds.push(`apiKey IN (${apiKeys.map(() => "?").join(", ")})`);
+  params.push(...apiKeys);
+}
+
+async function withRequestCost(detail) {
+  if (!detail || Number.isFinite(detail.cost)) return detail;
+  if (!detail.provider || !detail.model || !detail.tokens) return detail;
+  return {
+    ...detail,
+    cost: await calculateRequestCost(detail.provider, detail.model, detail.tokens),
+  };
+}
+
 export async function getRequestDetails(filter = {}) {
   const db = await getAdapter();
   const conds = [];
@@ -153,6 +178,7 @@ export async function getRequestDetails(filter = {}) {
   if (filter.status) { conds.push("status = ?"); params.push(filter.status); }
   if (filter.startDate) { conds.push("timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
   if (filter.endDate) { conds.push("timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
+  addApiKeyFilter(filter, conds, params);
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const cntRow = db.get(`SELECT COUNT(*) as c FROM requestDetails ${where}`, params);
@@ -162,12 +188,11 @@ export async function getRequestDetails(filter = {}) {
   const pageSize = filter.pageSize || 50;
   const totalPages = Math.ceil(totalItems / pageSize);
   const offset = (page - 1) * pageSize;
-
   const rows = db.all(
     `SELECT data FROM requestDetails ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
-  const details = rows.map((r) => parseJson(r.data, {}));
+  const details = await Promise.all(rows.map((row) => withRequestCost(parseJson(row.data, {}))));
 
   return {
     details,
@@ -175,16 +200,22 @@ export async function getRequestDetails(filter = {}) {
   };
 }
 
-export async function getDistinctProviders() {
+export async function getDistinctProviders(filter = {}) {
   const db = await getAdapter();
-  const rows = db.all(`SELECT DISTINCT provider FROM requestDetails WHERE provider IS NOT NULL ORDER BY provider ASC`);
+  const conds = ["provider IS NOT NULL"];
+  const params = [];
+  addApiKeyFilter(filter, conds, params);
+  const rows = db.all(
+    `SELECT DISTINCT provider FROM requestDetails WHERE ${conds.join(" AND ")} ORDER BY provider ASC`,
+    params,
+  );
   return rows.map((r) => r.provider);
 }
 
 export async function getRequestDetailById(id) {
   const db = await getAdapter();
   const row = db.get(`SELECT data FROM requestDetails WHERE id = ?`, [id]);
-  return row ? parseJson(row.data, null) : null;
+  return row ? await withRequestCost(parseJson(row.data, null)) : null;
 }
 
 const _shutdownHandler = async () => {

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestDetails } from "@/lib/usageDb";
+import { getApiKeys } from "@/lib/localDb";
+import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
 /**
  * GET /api/usage/request-details
@@ -7,6 +9,8 @@ import { getRequestDetails } from "@/lib/usageDb";
  */
 export async function GET(request) {
   try {
+    const owner = await getDashboardAccount(request);
+    if (!owner) return NextResponse.json({ error: "Account login required" }, { status: 403 });
     const { searchParams } = new URL(request.url);
     
     const pageRaw = parseInt(searchParams.get("page"));
@@ -45,6 +49,11 @@ export async function GET(request) {
     if (status) filter.status = status;
     if (startDate) filter.startDate = startDate;
     if (endDate) filter.endDate = endDate;
+
+    if (owner.role !== "admin") {
+      const keys = await getApiKeys(owner.id);
+      filter.apiKeys = keys.map((key) => key.key);
+    }
     
     const result = await getRequestDetails(filter);
     

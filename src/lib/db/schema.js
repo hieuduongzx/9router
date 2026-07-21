@@ -3,7 +3,7 @@
 // pre-change safety backup in migrate.js: when the stored version is lower,
 // one lightweight DB backup is taken before applying schema changes. Forgetting
 // to bump only skips that backup — it does NOT break the additive auto-sync.
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 5;
 
 export const PRAGMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -30,6 +30,25 @@ export const TABLES = {
       id: "INTEGER PRIMARY KEY CHECK (id = 1)",
       data: "TEXT NOT NULL",
     },
+  },
+  users: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      username: "TEXT UNIQUE NOT NULL COLLATE NOCASE",
+      email: "TEXT UNIQUE NOT NULL COLLATE NOCASE",
+      passwordHash: "TEXT NOT NULL",
+      role: "TEXT NOT NULL CHECK (role IN ('admin', 'user'))",
+      isActive: "INTEGER NOT NULL DEFAULT 1",
+      mustChangePassword: "INTEGER NOT NULL DEFAULT 0",
+      creditCents: "INTEGER NOT NULL DEFAULT 0 CHECK (creditCents >= 0)",
+      createdAt: "TEXT NOT NULL",
+      updatedAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username COLLATE NOCASE)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email COLLATE NOCASE)",
+      "CREATE INDEX IF NOT EXISTS idx_users_role_active ON users(role, isActive)",
+    ],
   },
   providerConnections: {
     columns: {
@@ -81,10 +100,14 @@ export const TABLES = {
       key: "TEXT UNIQUE NOT NULL",
       name: "TEXT",
       machineId: "TEXT",
+      ownerUserId: "TEXT REFERENCES users(id) ON DELETE CASCADE",
       isActive: "INTEGER DEFAULT 1",
       createdAt: "TEXT NOT NULL",
     },
-    indexes: ["CREATE INDEX IF NOT EXISTS idx_ak_key ON apiKeys(key)"],
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_ak_key ON apiKeys(key)",
+      "CREATE INDEX IF NOT EXISTS idx_ak_owner ON apiKeys(ownerUserId, createdAt)",
+    ],
   },
   combos: {
     columns: {
@@ -142,6 +165,7 @@ export const TABLES = {
       provider: "TEXT",
       model: "TEXT",
       connectionId: "TEXT",
+      apiKey: "TEXT",
       status: "TEXT",
       data: "TEXT NOT NULL",
     },
@@ -150,6 +174,7 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_rd_provider ON requestDetails(provider)",
       "CREATE INDEX IF NOT EXISTS idx_rd_model ON requestDetails(model)",
       "CREATE INDEX IF NOT EXISTS idx_rd_conn ON requestDetails(connectionId)",
+      "CREATE INDEX IF NOT EXISTS idx_rd_api_key ON requestDetails(apiKey, timestamp DESC)",
     ],
   },
 };

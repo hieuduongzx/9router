@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createHash, randomUUID } from "node:crypto";
 import {
   exchangeOidcCode,
   fetchOidcDiscovery,
@@ -10,11 +11,50 @@ import {
   verifyOidcIdToken,
 } from "@/lib/auth/oidc";
 import { setDashboardAuthCookie } from "@/lib/auth/dashboardSession";
+import { createUser, getUserByLogin } from "@/lib/localDb";
 
 function clearOidcCookies(cookieStore) {
   cookieStore.delete("oidc_state");
   cookieStore.delete("oidc_nonce");
   cookieStore.delete("oidc_code_verifier");
+}
+
+async function resolveOidcAccount({ issuer, payload }) {
+  if (!payload.sub) throw new Error("OIDC identity is missing a subject");
+
+  // Never auto-link an OIDC identity to a password account by email: a
+  // provider-side email claim must not silently inherit local administrator
+  // access. The issuer + subject pair gets its own deterministic account.
+  const identityHash = createHash("sha256")
+    .update(`${issuer}\0${payload.sub}`)
+    .digest("hex")
+    .slice(0, 24);
+  const username = `oidc_${identityHash}`;
+  let account = await getUserByLogin(username);
+
+  if (!account) {
+    const claimedEmail = pickOidcEmail(payload);
+    const syntheticEmail = `oidc-${identityHash}@identity.local`;
+    try {
+      await createUser({
+        username,
+        email: claimedEmail || syntheticEmail,
+        password: randomUUID(),
+      });
+    } catch (error) {
+      if (error?.code !== "EMAIL_EXISTS" && error?.code !== "USERNAME_EXISTS") throw error;
+      if (error.code === "EMAIL_EXISTS") {
+        await createUser({ username, email: syntheticEmail, password: randomUUID() })
+          .catch((retryError) => {
+            if (retryError?.code !== "USERNAME_EXISTS") throw retryError;
+          });
+      }
+    }
+    account = await getUserByLogin(username);
+  }
+
+  if (!account?.isActive) throw new Error("This account is disabled");
+  return account;
 }
 
 export async function GET(request) {
@@ -71,9 +111,13 @@ export async function GET(request) {
       nonce: storedNonce,
     });
 
+    const account = await resolveOidcAccount({ issuer: discoveredIssuer, payload });
+
     clearOidcCookies(cookieStore);
     await setDashboardAuthCookie(cookieStore, request, {
       oidc: true,
+      userId: account.id,
+      role: account.role,
       oidcSub: payload.sub || null,
       oidcEmail: pickOidcEmail(payload) || null,
       oidcName: pickOidcDisplayName(payload),

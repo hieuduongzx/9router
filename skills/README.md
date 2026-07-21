@@ -32,7 +32,7 @@ Then ask normally — *"generate an image of a cat"*, *"transcribe this URL"*, e
 
 ```bash
 export NINEROUTER_URL="http://localhost:20128"   # local default, or your VPS / tunnel URL
-export NINEROUTER_KEY="sk-..."                   # from Dashboard → Keys (only if requireApiKey=true)
+export NINEROUTER_KEY="sk-..."                   # required; create it in Dashboard → API Keys
 ```
 
 Verify: `curl $NINEROUTER_URL/api/health` → `{"ok":true}`.

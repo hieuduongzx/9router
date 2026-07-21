@@ -8,6 +8,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 const originalDataDir = process.env.DATA_DIR;
 let tempDir;
 let sqliteDb;
+let adapter;
 
 beforeAll(async () => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-db-compare-"));
@@ -15,9 +16,11 @@ beforeAll(async () => {
   vi.resetModules();
   sqliteDb = await import("@/lib/db/index.js");
   await sqliteDb.initDb();
+  adapter = await (await import("@/lib/db/driver.js")).getAdapter();
 });
 
 afterAll(() => {
+  adapter?.close?.();
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
   if (originalDataDir === undefined) delete process.env.DATA_DIR;
   else process.env.DATA_DIR = originalDataDir;
@@ -38,6 +41,25 @@ describe("DB SQLite layer — public API parity", () => {
     const re = await sqliteDb.getSettings();
     expect(re.cloudEnabled).toBe(true);
     expect(re.customField).toBe("x");
+  });
+
+  it("drops retired remote-access settings", async () => {
+    const updated = await sqliteDb.updateSettings({
+      tunnelEnabled: true,
+      tunnelUrl: "https://router.example.com",
+      tunnelProvider: "cloudflare",
+      tailscaleEnabled: true,
+      tailscaleUrl: "https://router.tailnet.ts.net",
+      tunnelDashboardAccess: true,
+    });
+
+    expect(updated).not.toHaveProperty("tunnelEnabled");
+    expect(updated).not.toHaveProperty("tunnelUrl");
+    expect(updated).not.toHaveProperty("tunnelProvider");
+    expect(updated).not.toHaveProperty("tailscaleEnabled");
+    expect(updated).not.toHaveProperty("tailscaleUrl");
+    expect(updated).not.toHaveProperty("tunnelDashboardAccess");
+    expect(await sqliteDb.getSettings()).not.toHaveProperty("tunnelEnabled");
   });
 
   it("isCloudEnabled reflects settings", async () => {
@@ -63,6 +85,39 @@ describe("DB SQLite layer — public API parity", () => {
     const deleted = await sqliteDb.deleteApiKey(k.id);
     expect(deleted).toBe(true);
     expect(await sqliteDb.getApiKeyById(k.id)).toBeNull();
+  });
+
+  it("apiKeys: account ownership isolates list and mutations", async () => {
+    const ownerA = await sqliteDb.createUser({
+      username: "owner.a",
+      email: "owner.a@example.com",
+      password: "password-a",
+    });
+    const ownerB = await sqliteDb.createUser({
+      username: "owner.b",
+      email: "owner.b@example.com",
+      password: "password-b",
+    });
+    expect(ownerA.role).toBe("admin");
+    expect(ownerB.role).toBe("user");
+    const key = await sqliteDb.createApiKey("owner-a-key", "machine-abc", ownerA.id);
+
+    expect((await sqliteDb.getApiKeys(ownerA.id)).map((item) => item.id)).toContain(key.id);
+    expect((await sqliteDb.getApiKeys(ownerB.id)).map((item) => item.id)).not.toContain(key.id);
+    expect(await sqliteDb.getApiKeyById(key.id, ownerB.id)).toBeNull();
+    expect(await sqliteDb.updateApiKey(key.id, { isActive: false }, ownerB.id)).toBeNull();
+    expect(await sqliteDb.deleteApiKey(key.id, ownerB.id)).toBe(false);
+    expect(await sqliteDb.validateApiKey(key.key)).toBe(true);
+    expect(await sqliteDb.deleteApiKey(key.id, ownerA.id)).toBe(true);
+  });
+
+  it("admin recovery generates a one-time password", async () => {
+    const recovery = await sqliteDb.resetRecoveryAdminCredentials();
+    expect(recovery.user.username).toBe("owner.a");
+    expect(recovery.temporaryPassword).toHaveLength(24);
+    expect(recovery.temporaryPassword).not.toBe("admin");
+    expect(await sqliteDb.verifyUserCredentials("owner.a", recovery.temporaryPassword)).toBeTruthy();
+    expect(await sqliteDb.verifyUserCredentials("owner.a", "password-a")).toBeNull();
   });
 
   it("providerConnections: CRUD + reorder by priority", async () => {
@@ -267,6 +322,36 @@ describe("DB SQLite layer — public API parity", () => {
 
     const single = await sqliteDb.getPricingForModel("openai", "gpt-test");
     expect(single).toEqual({ input: 1, output: 2 });
+
+    const [defaultCatalogPrice] = await sqliteDb.getModelPricingCatalog([
+      { provider: "openai", model: "gpt-5" },
+    ]);
+    expect(defaultCatalogPrice).toMatchObject({
+      source: "default",
+      pricing: { input: 1.25, output: 10 },
+      defaultPricing: { input: 1.25, output: 10 },
+    });
+
+    await sqliteDb.updatePricing({
+      openai: {
+        "gpt-5": {
+          input: 9,
+          output: 18,
+          cached: 0.9,
+          reasoning: 18,
+          cache_creation: 9,
+        },
+      },
+    });
+    const [customCatalogPrice] = await sqliteDb.getModelPricingCatalog([
+      { provider: "openai", model: "gpt-5" },
+    ]);
+    expect(customCatalogPrice).toMatchObject({
+      source: "custom",
+      pricing: { input: 9, output: 18 },
+      defaultPricing: { input: 1.25, output: 10 },
+    });
+    await sqliteDb.resetPricing("openai", "gpt-5");
 
     await sqliteDb.resetPricing("openai", "gpt-test");
     expect((await sqliteDb.getPricing()).openai?.["gpt-test"]).toBeUndefined();

@@ -7,6 +7,16 @@ export {
   getSettings, updateSettings, isCloudEnabled, getCloudUrl, exportSettings,
 } from "./repos/settingsRepo.js";
 
+// Dashboard users
+export {
+  USER_ROLES,
+  publicUser, validateRegistrationInput, validateUserProfileInput,
+  getPrimaryAdmin, getUserById, getUserByLogin, createUser, listUsers,
+  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance, deleteUserAccount,
+  verifyUserCredentials, verifyUserPassword, updateUserPassword,
+  hasSecureAdminAccount, resetRecoveryAdminCredentials,
+} from "./repos/usersRepo.js";
+
 // Provider connections
 export {
   getProviderConnections, getProviderConnectionById,
@@ -47,7 +57,8 @@ export {
 
 // Pricing
 export {
-  getPricing, getPricingForModel, updatePricing, resetPricing, resetAllPricing,
+  getPricing, getPricingForModel, getModelPricingCatalog,
+  updatePricing, resetPricing, resetAllPricing,
 } from "./repos/pricingRepo.js";
 
 // Disabled models
@@ -58,8 +69,8 @@ export {
 // Usage
 export {
   statsEmitter, trackPendingRequest, getActiveRequests,
-  saveRequestUsage, getUsageHistory, getUsageStats, getChartData,
-  appendRequestLog, getRecentLogs,
+  saveRequestUsage, getUsageHistory, getUsageStats, getSystemUsageOverview, getChartData,
+  appendRequestLog, getRecentLogs, getRequestLogsPage,
 } from "./repos/usageRepo.js";
 
 // Request details

@@ -28,7 +28,6 @@ const tokenMocks = vi.hoisted(() => ({
 vi.mock("@/sse/services/auth.js", () => authMocks);
 vi.mock("@/sse/services/tokenRefresh.js", () => tokenMocks);
 vi.mock("@/lib/localDb", () => ({
-  getSettings: vi.fn(async () => ({ requireApiKey: false })),
   getComboByName: vi.fn(async () => null),
   getModelAliases: vi.fn(async () => ({})),
   getProviderNodes: vi.fn(async () => []),
@@ -63,6 +62,7 @@ beforeEach(() => {
   authMocks.markAccountUnavailable.mockClear();
   authMocks.clearAccountError.mockClear();
   tokenMocks.checkAndRefreshToken.mockClear();
+  authMocks.extractApiKey.mockReturnValue("sk-test");
 });
 
 afterEach(() => {

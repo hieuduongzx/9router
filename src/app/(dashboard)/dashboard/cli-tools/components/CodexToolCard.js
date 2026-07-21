@@ -7,7 +7,7 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 
-export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl }) {
+export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus }) {
   const [codexStatus, setCodexStatus] = useState(initialStatus || null);
   const [checkingCodex, setCheckingCodex] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -68,7 +68,7 @@ export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, api
     if (!codexStatus.config) return "not_configured";
     const parsed = codexStatus.config.match(/base_url\s*=\s*"([^"]+)"/);
     const currentUrl = parsed ? parsed[1] : "";
-    return matchKnownEndpoint(currentUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
+    return matchKnownEndpoint(currentUrl) ? "configured" : "other";
   };
 
   const configStatus = getConfigStatus();
@@ -164,12 +164,12 @@ export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, api
 
     const effectiveSubagentModel = subagentModel || selectedModel;
 
-    const configContent = `# 9Router Configuration for Codex CLI
+    const configContent = `# Router2k Configuration for Codex CLI
 model = "${selectedModel}"
 model_provider = "9router"
 
 [model_providers.9router]
-name = "9Router"
+name = "Router2k"
 base_url = "${getEffectiveBaseUrl()}"
 wire_api = "responses"
 
@@ -272,15 +272,9 @@ model = "${effectiveSubagentModel}"
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <BaseUrlSelect
-                    value={customBaseUrl || getDisplayUrl()}
-                    onChange={setCustomBaseUrl}
-                    requiresExternalUrl={tool.requiresExternalUrl}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
-                  />
+                  <BaseUrlSelect value={customBaseUrl || getDisplayUrl()}
+                  onChange={setCustomBaseUrl}
+                  requiresExternalUrl={tool.requiresExternalUrl}  />
                 </div>
 
                 {/* Current configured */}

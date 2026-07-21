@@ -30,12 +30,11 @@ export default function Select({
           onChange={onChange}
           disabled={disabled}
           className={cn(
-            "w-full py-2.5 px-3 pr-10 text-sm text-text-main",
-            "bg-surface-2 border border-transparent rounded-[10px] appearance-none",
-            "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/40",
-            "transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
+            "flex h-9 w-full appearance-none rounded-md border border-border bg-transparent px-3 py-1 pr-10 text-sm text-text-main shadow-sm",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50",
+            "transition-colors disabled:cursor-not-allowed disabled:opacity-50",
             "text-[16px] sm:text-sm",
-            error && "ring-1 ring-red-500 focus:ring-2 focus:ring-red-500/40 border-red-500/40",
+            error && "border-red-500 focus-visible:ring-red-500/30",
             selectClassName
           )}
           {...props}

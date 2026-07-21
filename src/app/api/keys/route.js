@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { getApiKeys, createApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
+import { resolveApiKeyOwner } from "@/lib/auth/apiKeyOwner";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/keys - List API keys
-export async function GET() {
+export async function GET(request) {
   try {
-    const keys = await getApiKeys();
+    const owner = await resolveApiKeyOwner(request);
+    if (!owner) return NextResponse.json({ error: "Account login required" }, { status: 403 });
+    const keys = await getApiKeys(owner.id);
     return NextResponse.json({ keys });
   } catch (error) {
     console.log("Error fetching keys:", error);
@@ -18,6 +21,8 @@ export async function GET() {
 // POST /api/keys - Create new API key
 export async function POST(request) {
   try {
+    const owner = await resolveApiKeyOwner(request);
+    if (!owner) return NextResponse.json({ error: "Account login required" }, { status: 403 });
     const body = await request.json();
     const { name } = body;
 
@@ -27,7 +32,7 @@ export async function POST(request) {
 
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
-    const apiKey = await createApiKey(name, machineId);
+    const apiKey = await createApiKey(name, machineId, owner.id);
 
     return NextResponse.json({
       key: apiKey.key,

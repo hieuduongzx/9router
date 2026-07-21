@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, ConfirmModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import SecurityWarning from "../endpoint/components/SecurityWarning";
 
 function maskKey(fullKey) {
   if (!fullKey || fullKey.length <= 10) return fullKey || "";
@@ -17,52 +16,25 @@ export default function ApiKeysPageClient() {
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
-  const [requireApiKey, setRequireApiKey] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState(new Set());
-  const [isRemoteHost, setIsRemoteHost] = useState(false);
   const { copied, copy } = useCopyToClipboard();
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsRemoteHost(!["localhost", "127.0.0.1", "::1"].includes(window.location.hostname));
-    }
-  }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const [keysRes, settingsRes] = await Promise.all([
-          fetch("/api/keys"),
-          fetch("/api/settings"),
-        ]);
-        if (keysRes.ok) {
-          const data = await keysRes.json();
+        const response = await fetch("/api/keys");
+        if (response.ok) {
+          const data = await response.json();
           setKeys(data.keys || []);
         }
-        if (settingsRes.ok) {
-          const data = await settingsRes.json();
-          setRequireApiKey(data.requireApiKey || false);
-        }
-      } catch (e) {
-        console.log("Error loading API keys page:", e);
+      } catch (error) {
+        console.log("Error loading API keys page:", error);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const handleRequireApiKey = async (value) => {
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requireApiKey: value }),
-      });
-      if (res.ok) setRequireApiKey(value);
-    } catch (error) {
-      console.log("Error updating requireApiKey:", error);
-    }
-  };
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;
@@ -135,6 +107,8 @@ export default function ApiKeysPageClient() {
     });
   };
 
+  const activeKeyCount = keys.filter((key) => key.isActive !== false).length;
+
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
@@ -145,114 +119,151 @@ export default function ApiKeysPageClient() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card id="require-api-key">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">vpn_key</span>
-            API Keys
-          </h2>
+      <Card id="api-keys" padding="none" className="overflow-hidden">
+        <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">vpn_key</span>
+              <h2 className="text-base font-semibold text-text-main">API keys</h2>
+            </div>
+            <p className="mt-1 text-sm text-text-muted">
+              Every AI request must include an active key.
+            </p>
+          </div>
           <Button icon="add" onClick={() => setShowAddModal(true)}>
-            Create Key
+            Create key
           </Button>
         </div>
 
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
-          <div>
-            <p className="font-medium">Require API key</p>
-            <p className="text-sm text-text-muted">
-              Requests without a valid key will be rejected
-            </p>
-          </div>
-          <Toggle
-            checked={requireApiKey}
-            onChange={() => handleRequireApiKey(!requireApiKey)}
-          />
-        </div>
-
-        {isRemoteHost && !requireApiKey && (
-          <div className="mb-4 -mt-2">
-            <SecurityWarning message="Endpoint is exposed without an API key." />
+        {keys.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-bg-subtle px-4 py-2.5 text-xs text-text-muted sm:px-5">
+            <span><strong className="font-semibold text-text-main">{keys.length}</strong> total</span>
+            <span><strong className="font-semibold text-success">{activeKeyCount}</strong> active</span>
+            <span><strong className="font-semibold text-text-main">{keys.length - activeKeyCount}</strong> paused</span>
           </div>
         )}
 
         {keys.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
-              <span className="material-symbols-outlined text-[32px]">vpn_key</span>
+          <div className="px-4 py-12 text-center">
+            <div className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-[26px]">vpn_key</span>
             </div>
-            <p className="text-text-main font-medium mb-1">No API keys yet</p>
-            <p className="text-sm text-text-muted mb-4">Create your first API key to get started</p>
+            <p className="mb-1 font-medium text-text-main">No API keys yet</p>
+            <p className="mb-4 text-sm text-text-muted">
+              Create a key before sending your first AI request.
+            </p>
             <Button icon="add" onClick={() => setShowAddModal(true)}>
-              Create Key
+              Create key
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col">
-            {keys.map((key) => (
-              <div
-                key={key.id}
-                className={`group flex items-center justify-between py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${key.isActive === false ? "opacity-60" : ""}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{key.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <code className="text-xs text-text-muted font-mono">
-                      {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
-                    </code>
-                    <button
-                      onClick={() => toggleKeyVisibility(key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                      title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+              <thead className="border-b border-border bg-bg-subtle/70 text-xs text-text-muted">
+                <tr>
+                  <th className="w-[22%] px-4 py-2.5 font-medium sm:px-5">Name</th>
+                  <th className="w-[36%] px-4 py-2.5 font-medium">Key</th>
+                  <th className="w-[16%] px-4 py-2.5 font-medium">Created</th>
+                  <th className="w-[12%] px-4 py-2.5 font-medium">Status</th>
+                  <th className="w-[14%] px-4 py-2.5 text-right font-medium sm:px-5">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {keys.map((key) => {
+                  const isActive = key.isActive !== false;
+                  const isVisible = visibleKeys.has(key.id);
+                  return (
+                    <tr
+                      key={key.id}
+                      className={`transition-colors hover:bg-primary/[0.03] ${isActive ? "" : "bg-bg-subtle/40"}`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => copy(key.key, key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {copied === key.id ? "check" : "content_copy"}
-                      </span>
-                    </button>
-                  </div>
-                  <p className="text-xs text-text-muted mt-1">
-                    Created {new Date(key.createdAt).toLocaleDateString()}
-                  </p>
-                  {key.isActive === false && (
-                    <p className="text-xs text-orange-500 mt-1">Paused</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Toggle
-                    size="sm"
-                    checked={key.isActive ?? true}
-                    onChange={(checked) => {
-                      if (key.isActive && !checked) {
-                        setConfirmState({
-                          title: "Pause API Key",
-                          message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                          onConfirm: async () => {
-                            setConfirmState(null);
-                            handleToggleKey(key.id, checked);
-                          },
-                        });
-                      } else {
-                        handleToggleKey(key.id, checked);
-                      }
-                    }}
-                    title={key.isActive ? "Pause key" : "Resume key"}
-                  />
-                  <button
-                    onClick={() => handleDeleteKey(key.id)}
-                    className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+                      <td className="px-4 py-3 sm:px-5">
+                        <span className={`block truncate font-medium ${isActive ? "text-text-main" : "text-text-muted"}`} title={key.name}>
+                          {key.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <code className="block min-w-0 flex-1 truncate font-mono text-xs text-text-muted" title={isVisible ? key.key : undefined}>
+                            {isVisible ? key.key : maskKey(key.key)}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => toggleKeyVisibility(key.id)}
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            title={isVisible ? "Hide key" : "Show key"}
+                            aria-label={isVisible ? `Hide ${key.name}` : `Show ${key.name}`}
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              {isVisible ? "visibility_off" : "visibility"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copy(key.key, key.id)}
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            title="Copy key"
+                            aria-label={`Copy ${key.name}`}
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              {copied === key.id ? "check" : "content_copy"}
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-text-muted">
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${
+                          isActive ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                        }`}>
+                          <span className={`size-1.5 rounded-full ${isActive ? "bg-success" : "bg-warning"}`} />
+                          {isActive ? "Active" : "Paused"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 sm:px-5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isActive) {
+                                setConfirmState({
+                                  title: "Pause API Key",
+                                  message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                                  onConfirm: async () => {
+                                    setConfirmState(null);
+                                    handleToggleKey(key.id, false);
+                                  },
+                                });
+                              } else {
+                                handleToggleKey(key.id, true);
+                              }
+                            }}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            title={isActive ? "Pause key" : "Resume key"}
+                            aria-label={isActive ? `Pause ${key.name}` : `Resume ${key.name}`}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              {isActive ? "pause_circle" : "play_circle"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteKey(key.id)}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-error transition-colors hover:bg-error/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30"
+                            title="Delete key"
+                            aria-label={`Delete ${key.name}`}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>

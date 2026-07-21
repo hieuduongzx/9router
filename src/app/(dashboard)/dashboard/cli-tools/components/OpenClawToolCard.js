@@ -17,10 +17,6 @@ export default function OpenClawToolCard({
   activeProviders,
   cloudEnabled,
   initialStatus,
-  tunnelEnabled,
-  tunnelPublicUrl,
-  tailscaleEnabled,
-  tailscaleUrl,
 }) {
   const [openclawStatus, setOpenclawStatus] = useState(initialStatus || null);
   const [checkingOpenclaw, setCheckingOpenclaw] = useState(false);
@@ -41,7 +37,7 @@ export default function OpenClawToolCard({
     if (!openclawStatus?.installed) return null;
     const currentProvider = openclawStatus.settings?.models?.providers?.["9router"];
     if (!currentProvider) return "not_configured";
-    return matchKnownEndpoint(currentProvider.baseUrl, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
+    return matchKnownEndpoint(currentProvider.baseUrl) ? "configured" : "other";
   };
 
   const configStatus = getConfigStatus();
@@ -284,15 +280,9 @@ export default function OpenClawToolCard({
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <BaseUrlSelect
-                    value={customBaseUrl || getDisplayUrl()}
-                    onChange={setCustomBaseUrl}
-                    requiresExternalUrl={tool.requiresExternalUrl}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
-                  />
+                  <BaseUrlSelect value={customBaseUrl || getDisplayUrl()}
+                  onChange={setCustomBaseUrl}
+                  requiresExternalUrl={tool.requiresExternalUrl}  />
                 </div>
 
                 {/* Current configured */}

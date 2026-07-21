@@ -3,18 +3,24 @@
 import { cn } from "@/shared/utils/cn";
 
 const variants = {
-  primary: "bg-brand-500 hover:bg-brand-600 text-white shadow-sm disabled:bg-surface-3 disabled:text-text-muted",
-  secondary: "bg-surface-2 hover:bg-surface-3 text-text-main border border-border disabled:opacity-50",
-  outline: "border border-border text-text-main hover:bg-surface-2 hover:border-brand-500/40",
-  ghost: "text-text-muted hover:bg-surface-2 hover:text-text-main",
-  danger: "bg-red-500 hover:bg-red-600 text-white shadow-sm disabled:bg-surface-3 disabled:text-text-muted",
-  success: "bg-green-600 hover:bg-green-700 text-white shadow-sm disabled:bg-surface-3 disabled:text-text-muted",
+  primary:
+    "bg-primary text-white shadow-sm hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-primary/30",
+  secondary:
+    "bg-surface-2 text-text-main border border-border shadow-sm hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-primary/20",
+  outline:
+    "border border-border bg-transparent text-text-main shadow-sm hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/20",
+  ghost:
+    "text-text-muted hover:bg-surface-2 hover:text-text-main",
+  danger:
+    "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-500/30",
+  success:
+    "bg-green-600 text-white shadow-sm hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-500/30",
 };
 
 const sizes = {
-  sm: "h-7 px-3 text-xs rounded-[8px]",
-  md: "h-9 px-4 text-sm rounded-[10px]",
-  lg: "h-11 px-6 text-sm rounded-[10px]",
+  sm: "h-8 px-3 text-xs rounded-md",
+  md: "h-9 px-4 text-sm rounded-md",
+  lg: "h-10 px-6 text-sm rounded-md",
 };
 
 export default function Button({
@@ -32,8 +38,8 @@ export default function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 ease-out cursor-pointer",
-        "active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors",
+        "focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         sizes[size],
         fullWidth && "w-full",

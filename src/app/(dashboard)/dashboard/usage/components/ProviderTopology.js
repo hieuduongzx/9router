@@ -14,6 +14,7 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 // Force-stop FE animation if a provider stays active longer than this
 const FE_ACTIVE_TIMEOUT_MS = 60000;
 const FE_ACTIVE_TICK_MS = 1000;
+const FIT_VIEW_OPTIONS = { padding: 0.2, duration: 200 };
 
 function getProviderConfig(providerId) {
   return AI_PROVIDERS[providerId] || { color: "#6b7280", name: providerId };
@@ -21,7 +22,7 @@ function getProviderConfig(providerId) {
 
 // Use local provider images from /public/providers/
 function getProviderImageUrl(providerId) {
-  return `/providers/${providerId}.png`;
+  return AI_PROVIDERS[providerId] ? `/providers/${providerId}.png` : null;
 }
 
 // Custom provider node - rectangle with image + name
@@ -47,7 +48,7 @@ function ProviderNode({ data }) {
         className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
         style={{ backgroundColor: `${color}15` }}
       >
-        {!imgError ? (
+        {imageUrl && !imgError ? (
           <img src={imageUrl} alt={label} className="w-6 h-6 rounded-sm object-contain" onError={() => setImgError(true)} />
         ) : (
           <span className="text-sm font-bold" style={{ color }}>{textIcon}</span>
@@ -77,7 +78,7 @@ ProviderNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Center 9Router node
+// Center Router2k node
 function RouterNode({ data }) {
   return (
     <div className="flex items-center justify-center px-5 py-3 rounded-xl border-2 border-primary bg-primary/5 shadow-md min-w-[130px]">
@@ -86,8 +87,8 @@ function RouterNode({ data }) {
       <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-0 !w-0 !h-0" />
       <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-0 !w-0 !h-0" />
 
-      <img src="/favicon.svg" alt="9Router" className="w-6 h-6 mr-2" />
-      <span className="text-sm font-bold text-primary">9Router</span>
+      <img src="/favicon.svg" alt="Router2k" className="w-6 h-6 mr-2" />
+      <span className="text-sm font-bold text-primary">Router2k</span>
       {data.activeCount > 0 && (
         <span className="ml-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-xs font-bold">
           {data.activeCount}
@@ -208,40 +209,44 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   const lastSet = useMemo(() => new Set(lastKey ? [lastKey] : []), [lastKey]);
   const errorSet = useMemo(() => new Set(errorKey ? [errorKey] : []), [errorKey]);
 
-  // Track firstSeen per active provider; drop provider if running too long (BE stuck)
+  // Track active providers outside render and expire stale animations.
   const firstSeenRef = useRef({});
-  const [tick, setTick] = useState(0);
+  const [visibleActiveKey, setVisibleActiveKey] = useState(activeKey);
 
   useEffect(() => {
-    const seen = firstSeenRef.current;
-    const now = Date.now();
-    for (const p of rawActiveSet) {
-      if (!seen[p]) seen[p] = now;
-    }
-    for (const p of Object.keys(seen)) {
-      if (!rawActiveSet.has(p)) delete seen[p];
-    }
+    const syncVisibleProviders = () => {
+      const seen = firstSeenRef.current;
+      const now = Date.now();
+      for (const provider of rawActiveSet) {
+        if (!seen[provider]) seen[provider] = now;
+      }
+      for (const provider of Object.keys(seen)) {
+        if (!rawActiveSet.has(provider)) delete seen[provider];
+      }
+      setVisibleActiveKey(
+        [...rawActiveSet]
+          .filter((provider) => now - seen[provider] < FE_ACTIVE_TIMEOUT_MS)
+          .sort()
+          .join(","),
+      );
+    };
+
+    const initialId = setTimeout(syncVisibleProviders, 0);
+    const intervalId = setInterval(syncVisibleProviders, FE_ACTIVE_TICK_MS);
+    return () => {
+      clearTimeout(initialId);
+      clearInterval(intervalId);
+    };
   }, [rawActiveSet]);
 
-  useEffect(() => {
-    if (rawActiveSet.size === 0) return;
-    const id = setInterval(() => setTick((t) => t + 1), FE_ACTIVE_TICK_MS);
-    return () => clearInterval(id);
-  }, [rawActiveSet]);
-
-  const activeSet = useMemo(() => {
-    const now = Date.now();
-    const filtered = new Set();
-    for (const p of rawActiveSet) {
-      const ts = firstSeenRef.current[p];
-      if (!ts || now - ts < FE_ACTIVE_TIMEOUT_MS) filtered.add(p);
-    }
-    return filtered;
-  }, [rawActiveSet, tick]);
+  const activeSet = useMemo(
+    () => new Set(visibleActiveKey ? visibleActiveKey.split(",") : []),
+    [visibleActiveKey],
+  );
 
   const { nodes, edges } = useMemo(
     () => buildLayout(providers, activeSet, lastSet, errorSet),
-    [providers, activeSet, lastKey, errorKey]
+    [providers, activeSet, lastSet, errorSet]
   );
 
   // Stable key — only remount when provider list changes
@@ -252,10 +257,9 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
 
   const rfInstance = useRef(null);
   const containerRef = useRef(null);
-  const fitOpts = { padding: 0.2, duration: 200 };
   const onInit = useCallback((instance) => {
     rfInstance.current = instance;
-    setTimeout(() => instance.fitView(fitOpts), 50);
+    setTimeout(() => instance.fitView(FIT_VIEW_OPTIONS), 50);
   }, []);
 
   // Re-fit on container resize
@@ -263,7 +267,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      if (rfInstance.current) rfInstance.current.fitView(fitOpts);
+      if (rfInstance.current) rfInstance.current.fitView(FIT_VIEW_OPTIONS);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -272,7 +276,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   // Re-fit when node count/layout changes
   useEffect(() => {
     if (rfInstance.current) {
-      const id = setTimeout(() => rfInstance.current.fitView(fitOpts), 50);
+      const id = setTimeout(() => rfInstance.current.fitView(FIT_VIEW_OPTIONS), 50);
       return () => clearTimeout(id);
     }
   }, [nodes.length]);
@@ -290,7 +294,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={fitOpts}
+          fitViewOptions={FIT_VIEW_OPTIONS}
           minZoom={0.1}
           maxZoom={2}
           onInit={onInit}

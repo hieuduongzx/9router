@@ -6,6 +6,7 @@ import Link from "next/link";
 import PropTypes from "prop-types";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import HeaderMenu from "@/shared/components/HeaderMenu";
+import AccountMenu from "@/shared/components/AccountMenu";
 import HeaderLanguage from "@/shared/components/HeaderLanguage";
 import ThemeToggle from "@/shared/components/ThemeToggle";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
@@ -82,11 +83,17 @@ const getPageInfo = (pathname) => {
       icon: "layers",
       breadcrumbs: [],
     };
+  if (pathname.includes("/activity"))
+    return {
+      title: "Activity",
+      description: "Monitor system-wide usage and request activity",
+      icon: "monitoring",
+      breadcrumbs: [],
+    };
   if (pathname.includes("/usage"))
     return {
-      title: "Usage & Analytics",
-      description:
-        "Monitor your API usage, token consumption, and request logs",
+      title: "Usage",
+      description: "Track your API usage and inspect request details",
       icon: "bar_chart",
       breadcrumbs: [],
     };
@@ -107,7 +114,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/mitm"))
     return {
       title: "MITM Proxy",
-      description: "Intercept CLI tool traffic and route through 9Router",
+      description: "Intercept CLI tool traffic and route through Router2k",
       icon: "security",
       breadcrumbs: [],
     };
@@ -135,8 +142,15 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/skills"))
     return {
       title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use 9Router — no install needed",
+      description: "Copy a link and paste to your AI to use Router2k — no install needed",
       icon: "extension",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/models"))
+    return {
+      title: "Models",
+      description: "Available routed models",
+      icon: "deployed_code",
       breadcrumbs: [],
     };
   if (pathname.includes("/api-keys"))
@@ -153,10 +167,24 @@ const getPageInfo = (pathname) => {
       icon: "api",
       breadcrumbs: [],
     };
-  if (pathname.includes("/profile"))
+  if (pathname.includes("/users"))
+    return {
+      title: "Accounts",
+      description: "Manage account access and roles",
+      icon: "manage_accounts",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/account"))
+    return {
+      title: "Profile",
+      description: "Identity, balance, usage, and sign-in security",
+      icon: "account_circle",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/settings"))
     return {
       title: "Settings",
-      description: "Manage your preferences",
+      description: "Manage system preferences and access",
       icon: "settings",
       breadcrumbs: [],
     };
@@ -187,7 +215,8 @@ const getPageInfo = (pathname) => {
 export default function Header({ onMenuClick, showMenuButton = true }) {
   const pathname = usePathname();
   const [displayName, setDisplayName] = useState("");
-  const [loginMethod, setLoginMethod] = useState("");
+  const [role, setRole] = useState("");
+  const [creditCents, setCreditCents] = useState(null);
 
   // Memoize page info to prevent unnecessary recalculations
   const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
@@ -203,19 +232,23 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         const data = await res.json();
         if (!cancelled) {
           setDisplayName(data?.displayName || data?.oidcName || data?.oidcEmail || "");
-          setLoginMethod(data?.loginMethod || "");
+          setRole(data?.role || "");
+          setCreditCents(Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null);
         }
       } catch {
         if (!cancelled) {
           setDisplayName("");
-          setLoginMethod("");
+          setRole("");
+          setCreditCents(null);
         }
       }
     }
 
     loadAuthStatus();
+    window.addEventListener("account-profile-updated", loadAuthStatus);
     return () => {
       cancelled = true;
+      window.removeEventListener("account-profile-updated", loadAuthStatus);
     };
   }, []);
 
@@ -231,7 +264,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   };
 
   return (
-    <header className="shrink-0 flex items-center justify-between gap-3 px-4 lg:px-8 pt-3 pb-2 border-b border-border-subtle bg-surface/60 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none z-20">
+    <header className="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-3 backdrop-blur-md lg:px-8">
       {/* Mobile menu button */}
       <div className="flex items-center gap-3 lg:hidden shrink-0">
         {showMenuButton && (
@@ -307,19 +340,11 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
 
       {/* Right actions */}
       <div className="flex items-center gap-1 shrink-0">
-        {displayName && loginMethod === "OIDC" && (
-          <div className="hidden sm:flex items-center max-w-[220px] px-3 py-1.5 rounded-full border border-border bg-surface/70 text-xs text-text-muted truncate">
-            <span className="material-symbols-outlined text-[14px] mr-1.5 text-primary">person</span>
-            <span className="truncate">{displayName}</span>
-            <span className="ml-2 shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-              OIDC
-            </span>
-          </div>
-        )}
+        <AccountMenu displayName={displayName} role={role} creditCents={creditCents} onLogout={handleLogout} />
         <HeaderSearch />
         <ThemeToggle />
         <HeaderLanguage />
-        <HeaderMenu onLogout={handleLogout} />
+        <HeaderMenu />
       </div>
     </header>
   );

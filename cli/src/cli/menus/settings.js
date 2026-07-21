@@ -13,10 +13,9 @@ const COLORS = {
   cyan: "\x1b[36m"
 };
 
-const DEFAULT_PASSWORD = "123456";
 
 /**
- * Show settings menu (tunnel + RTK + reset password)
+ * Show settings menu (token saving + account recovery)
  * @param {Array<string>} breadcrumb - Breadcrumb path
  */
 async function showSettingsMenu(breadcrumb = []) {
@@ -26,15 +25,7 @@ async function showSettingsMenu(breadcrumb = []) {
     headerContent: async (data) => {
       const lines = [];
 
-      // Tunnel section
-      const tunnel = data?.tunnel || {};
-      if (tunnel.enabled && tunnel.publicUrl) {
-        lines.push(`  Endpoint: ${COLORS.green}${tunnel.publicUrl}/v1${COLORS.reset}`);
-        lines.push(`  Tunnel:   ${COLORS.green}ON${COLORS.reset} ${COLORS.dim}(${tunnel.shortId})${COLORS.reset}`);
-      } else {
-        lines.push(`  Endpoint: http://localhost:20128/v1`);
-        lines.push(`  Tunnel:   ${COLORS.red}OFF${COLORS.reset} ${COLORS.dim}(local only)${COLORS.reset}`);
-      }
+      lines.push(`  Endpoint: http://localhost:20128/v1`);
 
       // RTK section
       const rtkOn = data?.settings?.rtkEnabled !== false;
@@ -50,24 +41,12 @@ async function showSettingsMenu(breadcrumb = []) {
       return lines.join("\n");
     },
     refresh: async () => {
-      const [tunnelRes, settingsRes] = await Promise.all([
-        api.getTunnelStatus(),
-        api.getSettings()
-      ]);
+      const settingsRes = await api.getSettings();
       return {
-        tunnel: tunnelRes.success ? (tunnelRes.data || {}) : {},
         settings: settingsRes.success ? (settingsRes.data || {}) : {}
       };
     },
     items: [
-      {
-        label: "Tunnel ON",
-        action: async () => { await enableTunnel(); return true; }
-      },
-      {
-        label: "Tunnel OFF",
-        action: async () => { await disableTunnel(); return true; }
-      },
       {
         label: (d) => {
           const on = d?.settings?.rtkEnabled !== false;
@@ -83,13 +62,13 @@ async function showSettingsMenu(breadcrumb = []) {
         action: async (d) => { await toggleHeadroom(d?.settings?.headroomEnabled === true); return true; }
       },
       {
-        label: "🔑 Reset Password to Default",
+        label: "🔑 Reset Admin Account",
         action: async () => { await resetPassword(); return true; }
       },
       {
         label: (d) => {
           const mode = d?.settings?.authMode || "password";
-          return mode === "password" ? "🔓 Reset Auth Mode (already password)" : `🔓 Reset Auth Mode to Password (current: ${mode})`;
+          return mode === "password" ? "🔓 Reset Auth Mode (already accounts)" : `🔓 Reset Auth Mode to Accounts (current: ${mode})`;
         },
         action: async () => { await resetAuthMode(); return true; }
       }
@@ -118,41 +97,6 @@ async function resetAuthMode() {
   await pause();
 }
 
-/**
- * Enable tunnel via API
- */
-async function enableTunnel() {
-  showStatus("Creating tunnel...", "info");
-  const result = await api.enableTunnel();
-
-  if (result.success) {
-    const { publicUrl, shortId, alreadyRunning } = result.data || {};
-    if (alreadyRunning) {
-      showStatus(`Tunnel already running: ${publicUrl}`, "success");
-    } else {
-      showStatus(`Tunnel enabled: ${publicUrl} (${shortId})`, "success");
-    }
-  } else {
-    showStatus(`Failed: ${result.error}`, "error");
-  }
-
-  await pause();
-}
-
-/**
- * Disable tunnel via API
- */
-async function disableTunnel() {
-  const result = await api.disableTunnel();
-
-  if (result.success) {
-    showStatus("Tunnel disabled", "success");
-  } else {
-    showStatus(`Failed: ${result.error}`, "error");
-  }
-
-  await pause();
-}
 
 /**
  * Toggle RTK (Token Saver) via API
@@ -181,11 +125,10 @@ async function toggleHeadroom(currentlyOn) {
 }
 
 /**
- * Reset dashboard password to default via server API (writes the live SQLite DB).
- * After reset, user can log in with the default password "123456".
+ * Generate a one-time password for the local administrator account.
  */
 async function resetPassword() {
-  const ok = await confirm(`Reset dashboard password to default "${DEFAULT_PASSWORD}"?`);
+  const ok = await confirm("Generate a new temporary password for the admin account?");
   if (!ok) {
     showStatus("Cancelled", "info");
     await pause();
@@ -194,9 +137,9 @@ async function resetPassword() {
 
   const result = await api.resetPassword();
   if (result.success) {
-    showStatus(`Password reset. Default: ${DEFAULT_PASSWORD}`, "success");
+    showStatus(`Admin account reset. Username: ${result.data.username}  Temporary password: ${result.data.temporaryPassword}`, "success");
   } else {
-    showStatus(`Failed to reset password: ${result.error}`, "error");
+    showStatus(`Failed to reset admin account: ${result.error}`, "error");
   }
   await pause();
 }

@@ -2,58 +2,54 @@
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 border-y border-[#3a2f27] bg-[#23180f]/30" id="how-it-works">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="border-y border-zinc-800 bg-zinc-900/40 py-24" id="how-it-works">
+      <div className="mx-auto max-w-7xl px-6">
         <div className="mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">How 9Router Works</h2>
-          <p className="text-gray-400 max-w-xl text-lg">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">How Router2k Works</h2>
+          <p className="max-w-xl text-lg text-zinc-400">
             Data flows seamlessly from your application through our intelligent routing layer to the best provider for the job.
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          {/* Connection line */}
-          <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-[2px] bg-linear-to-r from-gray-700 via-[#f97815] to-gray-700 -z-10"></div>
-          
-          {/* Step 1: CLI & SDKs */}
-          <div className="flex flex-col gap-6 relative group">
-            <div className="w-24 h-24 rounded-2xl bg-[#181411] border border-[#3a2f27] flex items-center justify-center shadow-xl group-hover:border-gray-500 transition-colors z-10 mx-auto md:mx-0">
-              <span className="material-symbols-outlined text-4xl text-gray-300">terminal</span>
+
+        <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="absolute top-12 right-[16%] left-[16%] -z-10 hidden h-px bg-gradient-to-r from-zinc-700 via-blue-500 to-zinc-700 md:block" />
+
+          <div className="group relative flex flex-col gap-6">
+            <div className="z-10 mx-auto flex size-24 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl transition-colors group-hover:border-zinc-600 md:mx-0">
+              <span className="material-symbols-outlined text-4xl text-zinc-300">terminal</span>
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-2">1. CLI &amp; SDKs</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="mb-2 text-xl font-semibold">1. CLI &amp; SDKs</h3>
+              <p className="text-sm text-zinc-400">
                 Your requests start from your favorite tools or our unified SDK. Just change the base URL.
               </p>
             </div>
           </div>
 
-          {/* Step 2: 9Router Hub */}
-          <div className="flex flex-col gap-6 relative group md:items-center md:text-center">
-            <div className="w-24 h-24 rounded-2xl bg-[#181411] border-2 border-[#f97815] flex items-center justify-center shadow-[0_0_30px_rgba(249,120,21,0.2)] z-10 mx-auto">
-              <span className="material-symbols-outlined text-4xl text-[#f97815] animate-pulse">hub</span>
+          <div className="group relative flex flex-col gap-6 md:items-center md:text-center">
+            <div className="z-10 mx-auto flex size-24 items-center justify-center rounded-2xl border-2 border-blue-500 bg-zinc-950 shadow-[0_0_30px_rgba(37,99,235,0.2)]">
+              <span className="material-symbols-outlined animate-pulse text-4xl text-blue-500">hub</span>
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-2 text-[#f97815]">2. 9Router Hub</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="mb-2 text-xl font-semibold text-blue-400">2. Router2k Hub</h3>
+              <p className="text-sm text-zinc-400">
                 Our engine analyzes the prompt, checks provider health, and routes for lowest latency or cost.
               </p>
             </div>
           </div>
 
-          {/* Step 3: AI Providers */}
-          <div className="flex flex-col gap-6 relative group md:items-end md:text-right">
-            <div className="w-24 h-24 rounded-2xl bg-[#181411] border border-[#3a2f27] flex items-center justify-center shadow-xl group-hover:border-gray-500 transition-colors z-10 mx-auto md:mx-0">
+          <div className="group relative flex flex-col gap-6 md:items-end md:text-right">
+            <div className="z-10 mx-auto flex size-24 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl transition-colors group-hover:border-zinc-600 md:mx-0">
               <div className="grid grid-cols-2 gap-2">
-                <div className="w-6 h-6 rounded bg-white/10"></div>
-                <div className="w-6 h-6 rounded bg-white/10"></div>
-                <div className="w-6 h-6 rounded bg-white/10"></div>
-                <div className="w-6 h-6 rounded bg-white/10"></div>
+                <div className="size-6 rounded bg-white/10" />
+                <div className="size-6 rounded bg-white/10" />
+                <div className="size-6 rounded bg-white/10" />
+                <div className="size-6 rounded bg-white/10" />
               </div>
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-2">3. AI Providers</h3>
-              <p className="text-sm text-gray-400">
+              <h3 className="mb-2 text-xl font-semibold">3. AI Providers</h3>
+              <p className="text-sm text-zinc-400">
                 The request is fulfilled by OpenAI, Anthropic, Gemini, or others instantly.
               </p>
             </div>
@@ -63,4 +59,3 @@ export default function HowItWorks() {
     </section>
   );
 }
-

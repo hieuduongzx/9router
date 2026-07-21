@@ -11,23 +11,23 @@ Local/remote AI gateway exposing OpenAI-compatible REST. One key, many providers
 
 ```bash
 export NINEROUTER_URL="http://localhost:20128"      # or VPS / tunnel URL
-export NINEROUTER_KEY="sk-..."                      # from Dashboard → Keys (only if requireApiKey=true)
+export NINEROUTER_KEY="sk-..."                      # required; create it in Dashboard → API Keys
 ```
 
-All requests: `${NINEROUTER_URL}/v1/...` with header `Authorization: Bearer ${NINEROUTER_KEY}` (omit if auth disabled).
+All requests to `${NINEROUTER_URL}/v1/...` require `Authorization: Bearer ${NINEROUTER_KEY}`.
 
 Verify: `curl $NINEROUTER_URL/api/health` → `{"ok":true}`
 
 ## Discover models
 
 ```bash
-curl $NINEROUTER_URL/v1/models                  # chat/LLM (default)
-curl $NINEROUTER_URL/v1/models/image            # image-gen
-curl $NINEROUTER_URL/v1/models/tts              # text-to-speech
-curl $NINEROUTER_URL/v1/models/embedding        # embeddings
-curl $NINEROUTER_URL/v1/models/web              # web search + fetch (entries have `kind` field)
-curl $NINEROUTER_URL/v1/models/stt              # speech-to-text
-curl $NINEROUTER_URL/v1/models/image-to-text    # vision
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models                  # chat/LLM (default)
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/image            # image-gen
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/tts              # text-to-speech
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/embedding        # embeddings
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/web              # web search + fetch
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/stt              # speech-to-text
+curl -H "Authorization: Bearer $NINEROUTER_KEY" $NINEROUTER_URL/v1/models/image-to-text    # vision
 ```
 
 Use `data[].id` as `model` field in requests. Combos appear with `owned_by:"combo"`.

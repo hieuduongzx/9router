@@ -6,6 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
+const authMocks = vi.hoisted(() => ({
+  getDashboardAccount: vi.fn(async () => ({ id: "test-admin", role: "admin", isActive: true })),
+}));
+
+vi.mock("@/lib/auth/dashboardSession", () => ({
+  getDashboardAccount: authMocks.getDashboardAccount,
+}));
+
 const originalDataDir = process.env.DATA_DIR;
 let tempDir;
 let db;
@@ -29,6 +37,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  adapter?.close?.();
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
   if (originalDataDir === undefined) delete process.env.DATA_DIR;
   else process.env.DATA_DIR = originalDataDir;
@@ -106,6 +115,143 @@ describe("request details — tab crash-risk cases", () => {
     expect(got.tokens).toBeUndefined();
     // Drawer reads tokens?.prompt_tokens — optional chaining tolerates undefined
     expect(got.tokens?.prompt_tokens || 0).toBe(0);
+  });
+
+  it("API-key filter returns only details owned by the selected account", async () => {
+    await saveDetail({
+      id: "owned-a", apiKey: "sk-owner-a", provider: "openai", model: "gpt-a",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+    await saveDetail({
+      id: "owned-b", apiKey: "sk-owner-b", provider: "anthropic", model: "claude-b",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+
+    const result = await db.getRequestDetails({ apiKeys: ["sk-owner-a"], pageSize: 100 });
+    expect(result.details.map((detail) => detail.id)).toContain("owned-a");
+    expect(result.details.map((detail) => detail.id)).not.toContain("owned-b");
+    expect(result.details.find((detail) => detail.id === "owned-a")?.apiKey).toBeUndefined();
+    expect(await db.getDistinctProviders({ apiKeys: ["sk-owner-a"] })).toContain("openai");
+    expect(await db.getDistinctProviders({ apiKeys: ["sk-owner-a"] })).not.toContain("anthropic");
+  });
+
+  it("activity logs expose the owning account and an inspectable detail id", async () => {
+    const owner = await db.createUser({
+      username: "activity.owner",
+      email: "activity.owner@example.com",
+      password: "password-owner",
+    });
+    const key = await db.createApiKey("Activity Owner Key", "machine-activity", owner.id);
+    const timestamp = new Date().toISOString();
+    await db.updatePricing({
+      openai: {
+        "gpt-activity": { input: 1, output: 2 },
+      },
+    });
+    await db.saveRequestUsage({
+      timestamp,
+      provider: "openai",
+      model: "gpt-activity",
+      connectionId: "activity-connection",
+      apiKey: key.key,
+      tokens: { prompt_tokens: 17, completion_tokens: 5 },
+      status: "200 OK",
+    });
+    await saveDetail({
+      id: "activity-log-detail",
+      timestamp,
+      apiKey: key.key,
+      provider: "openai",
+      model: "gpt-activity",
+      connectionId: "activity-connection",
+      status: "success",
+      tokens: { prompt_tokens: 17, completion_tokens: 5 },
+      request: {},
+      response: {},
+    });
+
+    const log = (await db.getRecentLogs(100)).find((item) => item.detailId === "activity-log-detail");
+    expect(log).toMatchObject({
+      username: "activity.owner",
+      email: "activity.owner@example.com",
+      apiKeyName: "Activity Owner Key",
+      inputTokens: 17,
+      outputTokens: 5,
+    });
+    expect(log.cost).toBeCloseTo(0.000027, 12);
+    expect((await db.getRequestDetailById("activity-log-detail")).cost).toBeCloseTo(0.000027, 12);
+    expect(JSON.stringify(log)).not.toContain(key.key);
+  });
+
+  it("activity logs paginate at 30 rows by default and honor period filters", async () => {
+    await saveDetail({
+      id: "activity-old-detail",
+      timestamp: "2020-01-01T00:00:00.000Z",
+      provider: "openai",
+      model: "gpt-old",
+      status: "success",
+      tokens: { prompt_tokens: 1, completion_tokens: 1 },
+      request: {},
+      response: {},
+    });
+
+    const defaultPage = await db.getRequestLogsPage({ period: "all" });
+    expect(defaultPage.pagination.pageSize).toBe(30);
+    expect(defaultPage.logs.length).toBeLessThanOrEqual(30);
+    expect(defaultPage.pagination.totalItems).toBeGreaterThanOrEqual(2);
+
+    const firstPage = await db.getRequestLogsPage({ period: "all", page: 1, pageSize: 1 });
+    const secondPage = await db.getRequestLogsPage({ period: "all", page: 2, pageSize: 1 });
+    expect(firstPage.logs).toHaveLength(1);
+    expect(secondPage.logs).toHaveLength(1);
+    expect(firstPage.logs[0].detailId).not.toBe(secondPage.logs[0].detailId);
+
+    const today = await db.getRequestLogsPage({ period: "today", pageSize: 100 });
+    expect(today.logs.some((item) => item.detailId === "activity-old-detail")).toBe(false);
+    const allTime = await db.getRequestLogsPage({ period: "all", pageSize: 100 });
+    expect(allTime.logs.some((item) => item.detailId === "activity-old-detail")).toBe(true);
+  });
+
+  it("system overview attributes usage and active requests to the API-key owner", async () => {
+    const owner = await db.createUser({
+      username: "system.owner",
+      email: "system.owner@example.com",
+      password: "password-owner",
+    });
+    const key = await db.createApiKey("System Owner Key", "machine-system", owner.id);
+    const timestamp = new Date().toISOString();
+    await db.saveRequestUsage({
+      timestamp,
+      provider: "openai",
+      model: "gpt-system",
+      apiKey: key.key,
+      tokens: { prompt_tokens: 12, completion_tokens: 4 },
+      status: "200 OK",
+    });
+    await saveDetail({
+      id: "system-overview-detail",
+      timestamp,
+      provider: "openai",
+      model: "gpt-system",
+      apiKey: key.key,
+      status: "success",
+      tokens: { prompt_tokens: 12, completion_tokens: 4 },
+      request: {},
+      response: {},
+    });
+    db.trackPendingRequest("gpt-system", "openai", null, true, false, key.key);
+
+    const overview = await db.getSystemUsageOverview("all");
+    const user = overview.users.find((item) => item.id === owner.id);
+    expect(user).toMatchObject({ username: "system.owner", requests: 1, activeRequests: 1 });
+    expect(overview.recent[0]).toMatchObject({
+      detailId: "system-overview-detail",
+      username: "system.owner",
+      apiKeyName: "System Owner Key",
+    });
+    expect(JSON.stringify(overview)).not.toContain(key.key);
+
+    db.trackPendingRequest("gpt-system", "openai", null, false, false, key.key);
   });
 });
 
@@ -248,5 +394,47 @@ describe("API route contract — validation boundary", () => {
     const body = await res.json();
     expect(Array.isArray(body.details)).toBe(true);
     expect(body.pagination).toMatchObject({ page: 1, pageSize: 20 });
+  });
+
+  it("account route returns only details for API keys owned by the signed-in user", async () => {
+    const owner = await db.createUser({
+      username: "details.owner",
+      email: "details.owner@example.com",
+      password: "password-owner",
+    });
+    const ownKey = await db.createApiKey("Own details", "machine-own", owner.id);
+    await saveDetail({
+      id: "route-owned", apiKey: ownKey.key, provider: "openai", model: "owned-model",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+    await saveDetail({
+      id: "route-foreign", apiKey: "sk-foreign-route", provider: "openai", model: "foreign-model",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+    authMocks.getDashboardAccount.mockResolvedValueOnce({ id: owner.id, role: "user", isActive: true });
+
+    const res = await GET(makeReq("page=1&pageSize=100"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.details.map((detail) => detail.id)).toContain("route-owned");
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-foreign");
+  });
+  it("administrator can load one request detail while users cannot", async () => {
+    const { GET: getDetail } = await import("@/app/api/usage/request-details/[id]/route.js");
+    const context = { params: Promise.resolve({ id: "activity-log-detail" }) };
+
+    const adminResponse = await getDetail(
+      new Request("http://localhost/api/usage/request-details/activity-log-detail"),
+      context,
+    );
+    expect(adminResponse.status).toBe(200);
+    expect(await adminResponse.json()).toMatchObject({ id: "activity-log-detail" });
+
+    authMocks.getDashboardAccount.mockResolvedValueOnce({ id: "member-1", role: "user", isActive: true });
+    const userResponse = await getDetail(
+      new Request("http://localhost/api/usage/request-details/activity-log-detail"),
+      context,
+    );
+    expect(userResponse.status).toBe(403);
   });
 });

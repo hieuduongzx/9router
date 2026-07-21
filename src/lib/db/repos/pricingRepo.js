@@ -50,10 +50,41 @@ export async function getPricing() {
 
 export async function getPricingForModel(provider, model) {
   if (!model) return null;
+  const [entry] = await getModelPricingCatalog([{ provider, model }]);
+  return entry?.pricing || null;
+}
+
+/**
+ * Resolve many catalog prices with one custom-pricing read. Each result carries
+ * the effective rate, the built-in fallback, and whether an administrator
+ * override is active.
+ */
+export async function getModelPricingCatalog(models) {
+  const entries = Array.isArray(models) ? models : [];
+  if (entries.length === 0) return [];
+
   const userPricing = await getUserPricing();
-  if (provider && userPricing[provider]?.[model]) return userPricing[provider][model];
-  const { getPricingForModel: resolveConst } = await import("open-sse/providers/pricing.js");
-  return resolveConst(provider, model);
+  const { getPricingForModel: resolveDefault } = await import("open-sse/providers/pricing.js");
+
+  return entries.map(({ provider, model }) => {
+    if (!model) return { pricing: null, defaultPricing: null, source: "unpriced" };
+
+    const defaultPricing = resolveDefault(provider, model);
+    const customPricing = provider ? userPricing[provider]?.[model] : null;
+    if (customPricing) {
+      return {
+        pricing: { ...(defaultPricing || {}), ...customPricing },
+        defaultPricing,
+        source: "custom",
+      };
+    }
+
+    return {
+      pricing: defaultPricing,
+      defaultPricing,
+      source: defaultPricing ? "default" : "unpriced",
+    };
+  });
 }
 
 // Atomic merge inside transaction (per-provider read-modify-write)

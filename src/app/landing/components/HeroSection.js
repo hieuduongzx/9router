@@ -1,40 +1,41 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 export default function HeroSection() {
+  const router = useRouter();
+
   return (
-    <section className="relative pt-32 pb-20 px-6 min-h-[90vh] flex flex-col items-center justify-center overflow-hidden">
-      {/* Glow effect */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-[#f97815]/10 rounded-full blur-[120px] pointer-events-none"></div>
-      
-      <div className="relative z-10 max-w-4xl w-full text-center flex flex-col items-center gap-8">
-        {/* Version badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#3a2f27] bg-[#23180f]/50 px-3 py-1 text-xs font-medium text-[#f97815]">
-          <span className="flex h-2 w-2 rounded-full bg-[#f97815] animate-pulse"></span>
-          v1.0 is now live
+    <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 pb-20 pt-32">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[1000px] -translate-x-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
+
+      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center gap-8 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-400">
+          <span className="flex h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          Universal AI Gateway
         </div>
 
-        {/* Main heading */}
-        <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight">
-          One Endpoint for <br/>
-          <span className="text-[#f97815]">All AI Providers</span>
+        <h1 className="text-5xl font-bold leading-[1.1] tracking-tight md:text-7xl">
+          One Endpoint for <br />
+          <span className="text-blue-500">All AI Providers</span>
         </h1>
 
-        {/* Description */}
-        <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto font-light">
-          AI endpoint proxy with web dashboard - A JavaScript port of CLIProxyAPI. Works seamlessly with Claude Code, OpenAI Codex, Cline, RooCode, and other CLI tools.
+        <p className="mx-auto max-w-2xl text-lg font-light text-zinc-400 md:text-xl">
+          AI endpoint proxy with a web dashboard. Works seamlessly with Claude Code, OpenAI Codex, Cline, RooCode, and other CLI tools.
         </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-4 w-full">
-          <button className="h-12 px-8 rounded-lg bg-[#f97815] hover:bg-[#e0650a] text-[#181411] text-base font-bold transition-all shadow-[0_0_15px_rgba(249,120,21,0.4)] flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-center gap-4">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="flex h-12 items-center gap-2 rounded-md bg-blue-600 px-8 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-500"
+          >
             <span className="material-symbols-outlined">rocket_launch</span>
             Get Started
           </button>
-          <a 
-            href="https://github.com/decolua/9router" 
-            target="_blank" 
+          <a
+            href="https://github.com/decolua/9router"
+            target="_blank"
             rel="noopener noreferrer"
-            className="h-12 px-8 rounded-lg border border-[#3a2f27] bg-[#23180f] hover:bg-[#3a2f27] text-white text-base font-bold transition-all flex items-center gap-2"
+            className="flex h-12 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-8 text-base font-semibold text-white transition-colors hover:bg-zinc-800"
           >
             <span className="material-symbols-outlined">code</span>
             View on GitHub
@@ -44,4 +45,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

@@ -19,10 +19,6 @@ export default function DeepSeekTuiToolCard({
   activeProviders,
   cloudEnabled,
   initialStatus,
-  tunnelEnabled,
-  tunnelPublicUrl,
-  tailscaleEnabled,
-  tailscaleUrl,
 }) {
   const [deepseekStatus, setDeepseekStatus] = useState(initialStatus || null);
   const [checking, setChecking] = useState(false);
@@ -41,7 +37,7 @@ export default function DeepSeekTuiToolCard({
     if (!deepseekStatus?.installed) return null;
     const openaiSection = deepseekStatus.settings?.["providers.openai"];
     if (!openaiSection?.base_url) return "not_configured";
-    if (matchKnownEndpoint(openaiSection.base_url, { tunnelPublicUrl, tailscaleUrl })) return "configured";
+    if (matchKnownEndpoint(openaiSection.base_url)) return "configured";
     return "other";
   };
 
@@ -256,15 +252,9 @@ model = "${selectedModel || "provider/model-id"}"
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
                   <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                  <BaseUrlSelect
-                    value={customBaseUrl || getEffectiveBaseUrl()}
-                    onChange={setCustomBaseUrl}
-                    requiresExternalUrl={tool.requiresExternalUrl}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
-                  />
+                  <BaseUrlSelect value={customBaseUrl || getEffectiveBaseUrl()}
+                  onChange={setCustomBaseUrl}
+                  requiresExternalUrl={tool.requiresExternalUrl}  />
                 </div>
 
                 {deepseekStatus?.settings?.["providers.openai"]?.base_url && (

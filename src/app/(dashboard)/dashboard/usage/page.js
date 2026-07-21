@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { UsageStats, RequestLogger, CardSkeleton, SegmentedControl } from "@/shared/components";
+import { UsageStats, CardSkeleton, SegmentedControl } from "@/shared/components";
 import RequestDetailsTab from "./components/RequestDetailsTab";
 
 const PERIODS = [
@@ -37,10 +37,10 @@ function UsageContent() {
       .catch(() => {});
   }, []);
 
+
   const tabFromUrl = searchParams.get("tab");
-  const activeTab = tabFromUrl && ["overview", "logs", "details"].includes(tabFromUrl)
-    ? tabFromUrl
-    : "overview";
+  const allowedTabs = ["overview", "details"];
+  const activeTab = tabFromUrl && allowedTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
 
   const handleTabChange = (value) => {
     if (value === activeTab) return;
@@ -64,23 +64,22 @@ function UsageContent() {
         />
         {activeTab === "overview" && (
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
-            <label className="flex min-w-0 items-center gap-2 text-sm text-text-muted">
-              <span className="material-symbols-outlined text-[18px] shrink-0">key</span>
-              <select
-                value={apiKeyId}
-                onChange={(e) => setApiKeyId(e.target.value)}
-                className="min-w-0 flex-1 rounded-lg border border-border bg-bg-subtle px-2.5 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 sm:w-44"
-                title="Filter usage by API key"
-              >
-                <option value="all">All API keys</option>
-                <option value="local">Local (no key)</option>
-                {apiKeys.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.name || k.key?.slice(0, 12) + "…"}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="flex min-w-0 items-center gap-2 text-sm text-text-muted">
+                <span className="material-symbols-outlined text-[18px] shrink-0">key</span>
+                <select
+                  value={apiKeyId}
+                  onChange={(e) => setApiKeyId(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-bg-subtle px-2.5 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 sm:w-44"
+                  title="Filter usage by API key"
+                >
+                  <option value="all">All API keys</option>
+                  {apiKeys.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name || k.key?.slice(0, 12) + "…"}
+                    </option>
+                  ))}
+                </select>
+              </label>
             <SegmentedControl
               options={PERIODS}
               value={period}
@@ -102,7 +101,6 @@ function UsageContent() {
           />
         </Suspense>
       )}
-      {activeTab === "logs" && <RequestLogger />}
       {activeTab === "details" && <RequestDetailsTab />}
     </div>
   );

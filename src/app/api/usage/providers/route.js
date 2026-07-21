@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { getDistinctProviders } from "@/lib/requestDetailsDb";
-import { getProviderNodes } from "@/lib/localDb";
+import { getApiKeys, getProviderNodes } from "@/lib/localDb";
 import { AI_PROVIDERS, getProviderByAlias } from "@/shared/constants/providers";
+import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
 /**
  * GET /api/usage/providers
  * Returns list of unique providers from request details
  */
-export async function GET() {
+export async function GET(request) {
   try {
+    const owner = await getDashboardAccount(request);
+    if (!owner) return NextResponse.json({ error: "Account login required" }, { status: 403 });
+    const keys = owner.role === "admin" ? null : await getApiKeys(owner.id);
+
     // Query DISTINCT provider column directly — avoids parsing every row's
     // full JSON blob (can be hundreds of MB), which previously caused OOM.
-    const providerIds = await getDistinctProviders();
+    const providerIds = await getDistinctProviders(
+      keys ? { apiKeys: keys.map((key) => key.key) } : {},
+    );
 
-    const providerNodes = await getProviderNodes();
     const nodeMap = {};
-    for (const node of providerNodes) {
-      nodeMap[node.id] = node.name;
+    if (owner.role === "admin") {
+      const providerNodes = await getProviderNodes();
+      for (const node of providerNodes) nodeMap[node.id] = node.name;
     }
 
     const providers = providerIds.map(providerId => {

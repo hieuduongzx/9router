@@ -37,6 +37,8 @@ describe("Schema migrations", () => {
       "_meta", "settings", "providerConnections", "providerNodes",
       "proxyPools", "apiKeys", "combos", "kv", "usageHistory", "usageDaily", "requestDetails",
     ]));
+    const userColumns = db.all("PRAGMA table_info(users)").map((column) => column.name);
+    expect(userColumns).toContain("creditCents");
   });
 
   it("existing DB at older schemaVersion → re-applies pending migrations on restart", async () => {
@@ -60,6 +62,23 @@ describe("Schema migrations", () => {
     expect(JSON.parse(settings.data)).toEqual({ foo: "bar" });
   });
 
+  it("schema v1 without users table → completes account migration on restart", async () => {
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+    db.exec("DROP TABLE users");
+    db.run("UPDATE _meta SET value = '1' WHERE key = 'schemaVersion'");
+    db.close?.();
+
+    delete global._dbAdapter;
+    vi.resetModules();
+    const { getAdapter: getAdapter2 } = await import("@/lib/db/driver.js");
+    const db2 = await getAdapter2();
+
+    expect(db2.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'")).toBeTruthy();
+    expect(db2.all("PRAGMA table_info(apiKeys)").map((column) => column.name)).toContain("ownerUserId");
+    expect(db2.get("SELECT value FROM _meta WHERE key = 'schemaVersion'")?.value).toBe("3");
+  });
+
   it("fresh DB + legacy db.json → imports data automatically", async () => {
     // Simulate user upgrading: place legacy JSON in DATA_DIR before first boot
     const legacy = {
@@ -81,6 +100,74 @@ describe("Schema migrations", () => {
 
     const aliases = db.all(`SELECT * FROM kv WHERE scope='modelAliases'`);
     expect(aliases).toHaveLength(1);
+  });
+
+  it("stores credit as integer cents and rejects overdrafts", async () => {
+    const {
+      createUser,
+      adjustUserCredit,
+      getUserById,
+      setUserCreditBalance,
+    } = await import("@/lib/db/index.js");
+    const user = await createUser({
+      username: "credit.user",
+      email: "credit.user@example.com",
+      password: "credit-password",
+    });
+    expect(user.creditCents).toBe(0);
+
+    const credited = await adjustUserCredit(user.id, 1250);
+    expect(credited.creditCents).toBe(1250);
+    const debited = await adjustUserCredit(user.id, -500);
+    expect(debited.creditCents).toBe(750);
+
+    await expect(adjustUserCredit(user.id, -751)).rejects.toThrow("cannot be negative");
+    expect((await getUserById(user.id)).creditCents).toBe(750);
+
+    expect((await setUserCreditBalance(user.id, 4321)).creditCents).toBe(4321);
+    expect((await setUserCreditBalance(user.id, 0)).creditCents).toBe(0);
+    await expect(setUserCreditBalance(user.id, -1)).rejects.toThrow("non-negative");
+    expect((await getUserById(user.id)).creditCents).toBe(0);
+  });
+
+  it("updates a profile atomically and preserves account state", async () => {
+    const {
+      createUser,
+      getUserByLogin,
+      setUserCreditBalance,
+      updateUserProfile,
+    } = await import("@/lib/db/index.js");
+    const user = await createUser({
+      username: "profile.user",
+      email: "profile.user@example.com",
+      password: "profile-password",
+    });
+    await createUser({
+      username: "existing.user",
+      email: "existing.user@example.com",
+      password: "existing-password",
+    });
+    await setUserCreditBalance(user.id, 4321);
+
+    const updated = await updateUserProfile(user.id, {
+      username: "Profile.Updated",
+      email: "PROFILE.UPDATED@example.com",
+    });
+
+    expect(updated).toMatchObject({
+      id: user.id,
+      username: "profile.updated",
+      email: "profile.updated@example.com",
+      creditCents: 4321,
+      isActive: true,
+    });
+    expect(await getUserByLogin("profile.user")).toBeNull();
+    expect((await getUserByLogin("PROFILE.UPDATED")).id).toBe(user.id);
+    await expect(updateUserProfile(user.id, {
+      username: "existing.user",
+      email: "profile.updated@example.com",
+    })).rejects.toMatchObject({ code: "USERNAME_EXISTS" });
+    expect((await getUserByLogin("profile.updated")).email).toBe("profile.updated@example.com");
   });
 
   it("auto-sync re-creates missing index when DB lacks it", async () => {

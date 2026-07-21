@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import PropTypes from "prop-types";
 import Link from "next/link";
 import {
   Area,
@@ -159,20 +158,23 @@ function DashboardSkeleton() {
   );
 }
 
-export default function DashboardHomeClient({ machineId }) {
+export default function DashboardHomeClient() {
   const [period, setPeriod] = useState("7d");
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [hourlyData, setHourlyData] = useState([]);
   const [connections, setConnections] = useState([]);
   const [keys, setKeys] = useState([]);
-  const [tunnelStatus, setTunnelStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchDashboardData = useCallback(async (signal) => {
+    const auth = await fetchJson("/api/auth/status", signal).catch(() => null);
+    const admin = auth?.role === "admin";
+    setIsAdmin(admin);
     const chartRequest = fetchJson(`/api/usage/chart?period=${period}`, signal);
     const hourlyRequest = period === "today"
       ? chartRequest
@@ -181,14 +183,13 @@ export default function DashboardHomeClient({ machineId }) {
       fetchJson(`/api/usage/stats?period=${period}`, signal),
       chartRequest,
       hourlyRequest,
-      fetchJson("/api/providers", signal),
+      admin ? fetchJson("/api/providers", signal) : Promise.resolve(null),
       fetchJson("/api/keys", signal),
-      fetchJson("/api/tunnel/status", signal),
     ]);
 
     if (signal?.aborted) return;
 
-    const [statsResult, chartResult, hourlyResult, providersResult, keysResult, tunnelResult] = results;
+    const [statsResult, chartResult, hourlyResult, providersResult, keysResult] = results;
     if (statsResult.status === "fulfilled") setStats(statsResult.value);
     if (chartResult.status === "fulfilled") {
       setChartData(Array.isArray(chartResult.value) ? chartResult.value : []);
@@ -202,10 +203,9 @@ export default function DashboardHomeClient({ machineId }) {
     if (keysResult.status === "fulfilled") {
       setKeys(Array.isArray(keysResult.value?.keys) ? keysResult.value.keys : []);
     }
-    if (tunnelResult.status === "fulfilled") setTunnelStatus(tunnelResult.value);
 
     const usageFailed = statsResult.status === "rejected" || chartResult.status === "rejected" || hourlyResult.status === "rejected";
-    setError(usageFailed ? "Usage data could not be loaded. Provider and endpoint status may still be available." : "");
+    setError(usageFailed ? "Your usage data could not be loaded. Try refreshing this page." : "");
     setLastUpdated(new Date());
     setLoading(false);
   }, [period]);
@@ -273,11 +273,6 @@ export default function DashboardHomeClient({ machineId }) {
   const chartHasData = chartData.some((point) => Number(point.tokens) > 0);
   const hourlyHasData = hourlyData.some((point) => Number(point.tokens) > 0);
   const activeKeys = keys.filter((key) => key.isActive).length;
-  const publicEndpoint = tunnelStatus?.tunnel?.running
-    ? tunnelStatus.tunnel.tunnelUrl || tunnelStatus.tunnel.publicUrl
-    : tunnelStatus?.tailscale?.running
-      ? tunnelStatus.tailscale.tunnelUrl
-      : "Not enabled";
 
   if (loading && !stats) return <DashboardSkeleton />;
 
@@ -287,7 +282,7 @@ export default function DashboardHomeClient({ machineId }) {
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Operations overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            Traffic, cost, and provider health across your 9Router gateway.
+            {isAdmin ? "Traffic, cost, and provider health across your Router2k gateway." : "Traffic, cost, and model activity for your API keys."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -329,7 +324,7 @@ export default function DashboardHomeClient({ machineId }) {
       )}
 
 
-      <EndpointPageClient machineId={machineId} />
+      {isAdmin && <EndpointPageClient />}
 
       <Card padding="none" className="overflow-hidden">
         <div className="grid divide-y divide-border-subtle sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
@@ -416,7 +411,7 @@ export default function DashboardHomeClient({ machineId }) {
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <span className="material-symbols-outlined text-3xl text-text-subtle">monitoring</span>
                 <p className="mt-2 text-sm font-medium text-text-main">No traffic in this period</p>
-                <p className="mt-1 text-xs text-text-muted">Requests will appear here as they pass through 9Router.</p>
+                <p className="mt-1 text-xs text-text-muted">Requests will appear here as they pass through Router2k.</p>
               </div>
             )}
           </div>
@@ -532,8 +527,8 @@ export default function DashboardHomeClient({ machineId }) {
               <h2 className="text-sm font-semibold text-text-main">Recent requests</h2>
               <p className="mt-0.5 text-xs text-text-muted">Latest traffic across all API keys</p>
             </div>
-            <Link href="/dashboard/usage?tab=logs" className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
-              View logs
+            <Link href={isAdmin ? "/dashboard/activity" : "/dashboard/usage"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
+              {isAdmin ? "View activity" : "Full usage"}
             </Link>
           </div>
           {recentRequests.length ? (
@@ -550,7 +545,7 @@ export default function DashboardHomeClient({ machineId }) {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {recentRequests.map((request, index) => {
-                    const connection = connections.find((item) => item.provider === request.provider);
+                    const connection = connections.find((item) => item.provider === request.provider) || { provider: request.provider };
                     const successful = request.status === "ok" || request.status === "success";
                     return (
                       <tr key={`${request.timestamp}-${request.model}-${index}`} className="transition-colors hover:bg-bg-alt/70">
@@ -579,54 +574,92 @@ export default function DashboardHomeClient({ machineId }) {
           )}
         </Card>
 
-        <Card padding="none" className="overflow-hidden">
-          <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-            <div>
-              <h2 className="text-sm font-semibold text-text-main">Infrastructure</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Provider and access health</p>
+        {isAdmin ? (
+          <Card padding="none" className="overflow-hidden">
+            <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-text-main">Infrastructure</h2>
+                <p className="mt-0.5 text-xs text-text-muted">Provider and access health</p>
+              </div>
+              {providerSummary.issues > 0 ? (
+                <span className="rounded-full bg-danger/10 px-2 py-1 text-[10px] font-semibold text-danger">{providerSummary.issues} issue{providerSummary.issues === 1 ? "" : "s"}</span>
+              ) : (
+                <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">All healthy</span>
+              )}
             </div>
-            {providerSummary.issues > 0 ? (
-              <span className="rounded-full bg-danger/10 px-2 py-1 text-[10px] font-semibold text-danger">{providerSummary.issues} issue{providerSummary.issues === 1 ? "" : "s"}</span>
-            ) : (
-              <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">All healthy</span>
-            )}
-          </div>
-          <div className="divide-y divide-border-subtle">
-            {visibleProviders.map((connection) => {
-              const status = statusMeta(connection);
-              return (
-                <Link key={connection.id} href={`/dashboard/providers/${connection.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
-                  <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-main">{providerName(connection)}</span>
-                  <span className={`shrink-0 text-[10px] font-medium ${status.text}`}>{status.label}</span>
-                  <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-                </Link>
-              );
-            })}
-            {!visibleProviders.length && (
-              <div className="px-5 py-6 text-center text-xs text-text-muted">No providers configured.</div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 border-t border-border-subtle bg-bg-alt/60">
-            <div className="border-r border-border-subtle px-5 py-4">
-              <p className="text-[10px] font-medium text-text-muted">API keys</p>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-text-main">{activeKeys} active</p>
+            <div className="divide-y divide-border-subtle">
+              {visibleProviders.map((connection) => {
+                const status = statusMeta(connection);
+                return (
+                  <Link key={connection.id} href={`/dashboard/providers/${connection.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
+                    <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-main">{providerName(connection)}</span>
+                    <span className={`shrink-0 text-[10px] font-medium ${status.text}`}>{status.label}</span>
+                    <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+                  </Link>
+                );
+              })}
+              {!visibleProviders.length && (
+                <div className="px-5 py-6 text-center text-xs text-text-muted">No providers configured.</div>
+              )}
             </div>
-            <div className="min-w-0 px-5 py-4">
-              <p className="text-[10px] font-medium text-text-muted">Public endpoint</p>
-              <p className="mt-1 truncate text-sm font-semibold text-text-main" title={publicEndpoint}>{publicEndpoint}</p>
+            <div className="grid grid-cols-2 border-t border-border-subtle bg-bg-alt/60">
+              <div className="border-r border-border-subtle px-5 py-4">
+                <p className="text-[10px] font-medium text-text-muted">API keys</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-text-main">{activeKeys} active</p>
+              </div>
+              <div className="min-w-0 px-5 py-4">
+                <p className="text-[10px] font-medium text-text-muted">Endpoint mode</p>
+                <p className="mt-1 truncate text-sm font-semibold text-text-main">Self-hosted</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-5 py-3">
-            <Link href="/dashboard/providers" className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">Manage providers</Link>
-            <Link href="/dashboard/api-keys" className="text-xs font-medium text-text-muted hover:text-text-main">API keys</Link>
-          </div>
-        </Card>
+            <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-5 py-3">
+              <Link href="/dashboard/providers" className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">Manage providers</Link>
+              <Link href="/dashboard/api-keys" className="text-xs font-medium text-text-muted hover:text-text-main">API keys</Link>
+            </div>
+          </Card>
+        ) : (
+          <Card padding="none" className="overflow-hidden">
+            <div className="border-b border-border-subtle px-5 py-4">
+              <h2 className="text-sm font-semibold text-text-main">Your access</h2>
+              <p className="mt-0.5 text-xs text-text-muted">Account-owned resources</p>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              <Link href="/dashboard/api-keys" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <span className="material-symbols-outlined text-[18px]">vpn_key</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">API keys</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">{activeKeys} active for this account</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
+              <Link href="/dashboard/models" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-info/10 text-info">
+                  <span className="material-symbols-outlined text-[18px]">deployed_code</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">Available models</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">Copy routed model IDs</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
+              <Link href="/dashboard/account" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success">
+                  <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">Account security</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">Identity and password</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
 }
 
-DashboardHomeClient.propTypes = {
-  machineId: PropTypes.string.isRequired,
-};

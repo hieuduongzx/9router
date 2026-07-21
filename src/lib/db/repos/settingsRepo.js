@@ -6,11 +6,6 @@ const DEFAULT_HEADROOM_URL = process.env.HEADROOM_URL || "http://localhost:8787"
 
 const DEFAULT_SETTINGS = {
   cloudEnabled: false,
-  tunnelEnabled: false,
-  tunnelUrl: "",
-  tunnelProvider: "cloudflare",
-  tailscaleEnabled: false,
-  tailscaleUrl: "",
   stickyRoundRobinLimit: 3,
   providerStrategies: {},
   quotaVisibility: {},
@@ -18,7 +13,6 @@ const DEFAULT_SETTINGS = {
   comboStickyRoundRobinLimit: 1,
   comboStrategies: {},
   requireLogin: true,
-  tunnelDashboardAccess: true,
   authMode: "password",
   oidcIssuerUrl: "",
   oidcClientId: "",
@@ -49,15 +43,30 @@ const DEFAULT_SETTINGS = {
   pxpipeTimeoutMs: 15000,
 };
 
+const REMOVED_SETTING_KEYS = new Set([
+  "tunnelEnabled",
+  "tunnelUrl",
+  "tunnelProvider",
+  "tailscaleEnabled",
+  "tailscaleUrl",
+  "tunnelDashboardAccess",
+]);
+
+function sanitizeSettings(value) {
+  const sanitized = { ...(value || {}) };
+  for (const key of REMOVED_SETTING_KEYS) delete sanitized[key];
+  return sanitized;
+}
+
 async function readRaw() {
   const db = await getAdapter();
   const row = db.get(`SELECT data FROM settings WHERE id = 1`);
   return row ? parseJson(row.data, {}) : {};
 }
 
-// Merge raw settings with defaults; backward-compat for missing keys
+// Merge persisted settings with defaults while dropping retired feature keys.
 function mergeWithDefaults(raw) {
-  const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
+  const merged = { ...DEFAULT_SETTINGS, ...sanitizeSettings(raw) };
   for (const [key, defVal] of Object.entries(DEFAULT_SETTINGS)) {
     if (merged[key] === undefined) {
       if (
@@ -85,8 +94,8 @@ export async function updateSettings(updates) {
   let next;
   db.transaction(() => {
     const row = db.get(`SELECT data FROM settings WHERE id = 1`);
-    const current = row ? parseJson(row.data, {}) : {};
-    next = { ...current, ...updates };
+    const current = sanitizeSettings(row ? parseJson(row.data, {}) : {});
+    next = { ...current, ...sanitizeSettings(updates) };
     db.run(
       `INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
       [stringifyJson(next)]
@@ -111,5 +120,5 @@ export async function getCloudUrl() {
 }
 
 export async function exportSettings() {
-  return await readRaw();
+  return sanitizeSettings(await readRaw());
 }

@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
-import { updateSettings } from "@/lib/localDb";
+import { resetRecoveryAdminCredentials } from "@/lib/db/repos/usersRepo";
 
-// Reset dashboard password to default by clearing the stored hash.
-// Local-only (enforced by dashboardGuard). Never returns the default literal.
+// Local-only (enforced by dashboardGuard). Generates a one-time recovery
+// password and requires a password change before remote access.
 export async function POST() {
   try {
-    await updateSettings({ password: null });
-    return NextResponse.json({ success: true });
+    const { user, temporaryPassword } = await resetRecoveryAdminCredentials();
+    return NextResponse.json({
+      success: true,
+      username: user.username,
+      temporaryPassword,
+      message: "A temporary administrator password was generated.",
+    });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Failed to reset admin account." }, { status: 500 });
   }
 }

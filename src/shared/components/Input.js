@@ -1,8 +1,11 @@
 "use client";
 
+import { useId } from "react";
+
 import { cn } from "@/shared/utils/cn";
 
 export default function Input({
+  id,
   label,
   type = "text",
   placeholder,
@@ -17,49 +20,51 @@ export default function Input({
   inputClassName,
   ...props
 }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
-        <label className="text-sm font-medium text-text-main">
+        <label htmlFor={inputId} className="text-sm font-medium leading-none text-text-main peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="ml-1 text-red-500">*</span>}
         </label>
       )}
       <div className="relative">
         {icon && (
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-muted">
-            <span className="material-symbols-outlined text-[20px]">{icon}</span>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-text-muted">
+            <span className="material-symbols-outlined text-[18px]">{icon}</span>
           </div>
         )}
         <input
+          id={inputId}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
           disabled={disabled}
           className={cn(
-            "w-full py-2.5 px-3 text-sm text-text-main bg-surface-2 rounded-[10px]",
-            "border border-transparent placeholder-text-muted/70",
-            "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/40",
-            "transition-all duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed",
-            // iOS zoom fix
+            "flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm text-text-main shadow-sm transition-colors",
+            "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+            "placeholder:text-text-muted",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50",
+            "disabled:cursor-not-allowed disabled:opacity-50",
             "text-[16px] sm:text-sm",
             icon && "pl-10",
-            error && "ring-1 ring-red-500 focus:ring-2 focus:ring-red-500/40 border-red-500/40",
+            error && "border-red-500 focus-visible:ring-red-500/30",
             inputClassName
           )}
           {...props}
         />
       </div>
       {error && (
-        <p className="text-xs text-red-500 flex items-center gap-1">
+        <p className="flex items-center gap-1 text-xs text-red-500">
           <span className="material-symbols-outlined text-[14px]">error</span>
           {error}
         </p>
       )}
-      {hint && !error && (
-        <p className="text-xs text-text-muted">{hint}</p>
-      )}
+      {hint && !error && <p className="text-xs text-text-muted">{hint}</p>}
     </div>
   );
 }

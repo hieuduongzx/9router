@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   handleChat: vi.fn(),
-  getSettings: vi.fn(),
   isValidApiKey: vi.fn(),
   getProviderCredentials: vi.fn(),
   markAccountUnavailable: vi.fn(),
@@ -20,9 +19,6 @@ vi.mock("@/sse/services/auth.js", () => ({
   clearAccountError: mocks.clearAccountError,
 }));
 
-vi.mock("@/lib/localDb", () => ({
-  getSettings: mocks.getSettings,
-}));
 
 const { GET } = await import("../../src/app/api/v1beta/models/route.js");
 const { POST } = await import("../../src/app/api/v1beta/models/[...path]/route.js");
@@ -59,7 +55,6 @@ function audioBody() {
 describe("Gemini native v1beta endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getSettings.mockResolvedValue({ requireApiKey: true });
     mocks.isValidApiKey.mockResolvedValue(true);
     mocks.getProviderCredentials.mockResolvedValue({
       apiKey: "real-gemini-key",

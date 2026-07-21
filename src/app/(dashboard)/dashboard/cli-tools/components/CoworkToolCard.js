@@ -25,10 +25,6 @@ export default function CoworkToolCard({
   hasActiveProviders,
   cloudEnabled,
   cloudUrl,
-  tunnelEnabled,
-  tunnelPublicUrl,
-  tailscaleEnabled,
-  tailscaleUrl,
   initialStatus,
 }) {
   const [status, setStatus] = useState(initialStatus || null);
@@ -300,10 +296,6 @@ export default function CoworkToolCard({
                   <BaseUrlSelect
                     value={getEffectiveBaseUrl()}
                     onChange={(url) => setCustomBaseUrl(stripV1(url))}
-                    tunnelEnabled={tunnelEnabled}
-                    tunnelPublicUrl={tunnelPublicUrl}
-                    tailscaleEnabled={tailscaleEnabled}
-                    tailscaleUrl={tailscaleUrl}
                     cloudEnabled={cloudEnabled}
                     cloudUrl={cloudUrl}
                   />

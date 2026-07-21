@@ -3,41 +3,26 @@
 import { useState, useEffect, useCallback } from "react";
 import Card from "@/shared/components/Card";
 import Button from "@/shared/components/Button";
-import Drawer from "@/shared/components/Drawer";
+import RequestDetailDrawer from "@/shared/components/RequestDetailDrawer";
 import Pagination from "@/shared/components/Pagination";
 import { cn } from "@/shared/utils/cn";
 import { AI_PROVIDERS, getProviderByAlias } from "@/shared/constants/providers";
 
-let providerNameCache = null;
-let providerNodesCache = null;
+const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
+});
 
-async function fetchProviderNames() {
-  if (providerNameCache && providerNodesCache) {
-    return { providerNameCache, providerNodesCache };
-  }
-
-  const nodesRes = await fetch("/api/provider-nodes");
-  const nodesData = await nodesRes.json();
-  const nodes = nodesData.nodes || [];
-  providerNodesCache = {};
-
-  for (const node of nodes) {
-    providerNodesCache[node.id] = node.name;
-  }
-
-  providerNameCache = {
-    ...AI_PROVIDERS,
-    ...providerNodesCache
-  };
-
-  return { providerNameCache, providerNodesCache };
+function formatCost(value) {
+  return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
 }
+
 
 function getProviderName(providerId, cache) {
   if (!providerId) return providerId;
-  if (!cache) return providerId;
-
-  const cached = cache[providerId];
+  const cached = cache?.[providerId];
 
   if (typeof cached === 'string') {
     return cached;
@@ -51,36 +36,6 @@ function getProviderName(providerId, cache) {
   return providerConfig?.name || providerId;
 }
 
-function CollapsibleSection({ title, children, defaultOpen = false, icon = null }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  
-  return (
-    <div className="border border-black/5 dark:border-white/5 rounded-lg overflow-hidden">
-      <button 
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          {icon && <span className="material-symbols-outlined text-[18px] text-text-muted">{icon}</span>}
-          <span className="font-semibold text-sm text-text-main">{title}</span>
-        </div>
-        <span className={cn(
-          "material-symbols-outlined text-[20px] text-text-muted transition-transform duration-200",
-          isOpen ? "rotate-90" : ""
-        )}>
-          chevron_right
-        </span>
-      </button>
-      
-      {isOpen && (
-        <div className="p-4 border-t border-black/5 dark:border-white/5">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function getCachedTokens(tokens) {
   return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
@@ -121,11 +76,13 @@ export default function RequestDetailsTab() {
   const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch("/api/usage/providers");
+      if (!res.ok) throw new Error("Unable to load provider filters");
       const data = await res.json();
-      setProviders(data.providers || []);
-
-      const cache = await fetchProviderNames();
-      setProviderNameCache(cache.providerNameCache);
+      const availableProviders = data.providers || [];
+      setProviders(availableProviders);
+      setProviderNameCache(Object.fromEntries(
+        availableProviders.map((provider) => [provider.id, provider.name]),
+      ));
     } catch (error) {
       console.error("Failed to fetch providers:", error);
     }
@@ -155,11 +112,13 @@ export default function RequestDetailsTab() {
   }, [pagination.page, pagination.pageSize, filters]);
 
   useEffect(() => {
-    fetchProviders();
+    const id = setTimeout(fetchProviders, 0);
+    return () => clearTimeout(id);
   }, [fetchProviders]);
 
   useEffect(() => {
-    fetchDetails();
+    const id = setTimeout(fetchDetails, 0);
+    return () => clearTimeout(id);
   }, [fetchDetails]);
 
   const handleViewDetail = (detail) => {
@@ -249,7 +208,7 @@ export default function RequestDetailsTab() {
 
       <Card padding="none">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-xs leading-tight">
+          <table className="w-full min-w-[960px] text-xs leading-tight">
             <thead>
               <tr className="border-b border-black/5 dark:border-white/5 bg-black/[0.015] dark:bg-white/[0.015]">
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Timestamp</th>
@@ -259,6 +218,7 @@ export default function RequestDetailsTab() {
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Cached</th>
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Cache Create</th>
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Output</th>
+                <th className="whitespace-nowrap px-2.5 py-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Price</th>
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Latency</th>
                 <th className="whitespace-nowrap px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted">Action</th>
               </tr>
@@ -266,7 +226,7 @@ export default function RequestDetailsTab() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-2.5 py-6 text-center text-xs text-text-muted">
+                  <td colSpan="10" className="px-2.5 py-6 text-center text-xs text-text-muted">
                     <div className="flex items-center justify-center gap-1.5">
                       <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
                       Loading...
@@ -275,7 +235,7 @@ export default function RequestDetailsTab() {
                 </tr>
               ) : details.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-2.5 py-6 text-center text-xs text-text-muted">
+                  <td colSpan="10" className="px-2.5 py-6 text-center text-xs text-text-muted">
                     No request details found
                   </td>
                 </tr>
@@ -305,6 +265,9 @@ export default function RequestDetailsTab() {
                     </td>
                     <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs text-text-main tabular-nums">
                       {detail.tokens?.completion_tokens?.toLocaleString() || 0}
+                    </td>
+                    <td className="whitespace-nowrap px-2.5 py-1 text-right font-mono text-xs font-medium text-warning tabular-nums">
+                      {formatCost(detail.cost)}
                     </td>
                     <td className="whitespace-nowrap px-2.5 py-1 text-xs text-text-muted">
                       <span className="font-mono tabular-nums" title={`TTFT ${detail.latency?.ttft || 0}ms · Total ${detail.latency?.total || 0}ms`}>
@@ -342,168 +305,12 @@ export default function RequestDetailsTab() {
         )}
       </Card>
 
-      <Drawer
+      <RequestDetailDrawer
+        detail={selectedDetail}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title="Request Details"
-        width="lg"
-      >
-        {selectedDetail && (
-          <div className="space-y-6">
-            <div className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-text-muted">ID:</span>{" "}
-                <span className="break-all font-mono text-text-main">{selectedDetail.id}</span>
-              </div>
-              <div>
-                <span className="text-text-muted">Timestamp:</span>{" "}
-                <span className="text-text-main">{new Date(selectedDetail.timestamp).toLocaleString()}</span>
-              </div>
-              <div>
-                 <span className="text-text-muted">Provider:</span>{" "}
-                 <span className="text-text-main font-medium">{getProviderName(selectedDetail.provider, providerNameCache)}</span>
-               </div>
-              <div>
-                <span className="text-text-muted">Model:</span>{" "}
-                <span className="text-text-main font-mono">{selectedDetail.model}</span>
-              </div>
-              <div>
-                <span className="text-text-muted">Status:</span>{" "}
-                <span className={cn(
-                  "font-medium",
-                  selectedDetail.status === "success" ? "text-green-600" : "text-red-600"
-                )}>
-                  {selectedDetail.status}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-muted">Latency:</span>{" "}
-                <span className="text-text-main font-mono">
-                  TTFT {selectedDetail.latency?.ttft || 0}ms / Total {selectedDetail.latency?.total || 0}ms
-                </span>
-              </div>
-              <div>
-                <span className="text-text-muted">Input Tokens:</span>{" "}
-                <span className="text-text-main font-mono">
-                  {getInputTokens(selectedDetail.tokens).toLocaleString()}
-                </span>
-              </div>
-              {getCachedTokens(selectedDetail.tokens) > 0 && (
-                <div>
-                  <span className="text-text-muted">Cached Tokens:</span>{" "}
-                  <span className="text-text-main font-mono">
-                    {getCachedTokens(selectedDetail.tokens).toLocaleString()}
-                  </span>
-                </div>
-              )}
-              {getCacheCreationTokens(selectedDetail.tokens) > 0 && (
-                <div>
-                  <span className="text-text-muted">Cache Creation:</span>{" "}
-                  <span className="text-text-main font-mono">
-                    {getCacheCreationTokens(selectedDetail.tokens).toLocaleString()}
-                  </span>
-                </div>
-              )}
-              <div>
-                <span className="text-text-muted">Output Tokens:</span>{" "}
-                <span className="text-text-main font-mono">
-                  {selectedDetail.tokens?.completion_tokens?.toLocaleString() || 0}
-                </span>
-              </div>
-            </div>
-
-            {selectedDetail.pxpipe && (
-              <div className="rounded-lg border border-black/5 dark:border-white/5 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-[18px] text-text-muted">image</span>
-                  <span className="font-semibold text-sm text-text-main">PXPIPE</span>
-                  <span className={cn(
-                    "text-xs px-2 py-0.5 rounded",
-                    selectedDetail.pxpipe.applied
-                      ? "bg-green-500/15 text-green-600"
-                      : "bg-amber-500/15 text-amber-600"
-                  )}>
-                    {selectedDetail.pxpipe.applied ? "Activated" : "Skipped"}
-                  </span>
-                </div>
-                {selectedDetail.pxpipe.applied ? (
-                  <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                    <div>
-                      <span className="text-text-muted block text-xs">Original (est.)</span>
-                      <span className="font-mono">{(selectedDetail.pxpipe.tokensBeforeEst || 0).toLocaleString()} tokens</span>
-                    </div>
-                    <div>
-                      <span className="text-text-muted block text-xs">Compressed (est.)</span>
-                      <span className="font-mono">{(selectedDetail.pxpipe.tokensAfterEst || 0).toLocaleString()} tokens</span>
-                    </div>
-                    <div>
-                      <span className="text-text-muted block text-xs">Saved</span>
-                      <span className="font-mono text-green-600">{selectedDetail.pxpipe.savedPct || 0}%</span>
-                    </div>
-                    <div>
-                      <span className="text-text-muted block text-xs">Images</span>
-                      <span className="font-mono">{selectedDetail.pxpipe.imageCount || 0} ({selectedDetail.pxpipe.durationMs || 0}ms)</span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-text-muted">
-                    Reason: <span className="font-mono">{selectedDetail.pxpipe.reason}</span>
-                    {selectedDetail.pxpipe.detail ? ` — ${selectedDetail.pxpipe.detail}` : ""}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <CollapsibleSection title="1. Client Request (Input)" defaultOpen={true} icon="input">
-                <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
-                  {JSON.stringify(selectedDetail.request, null, 2)}
-                </pre>
-              </CollapsibleSection>
-
-              {selectedDetail.providerRequest && (
-                <CollapsibleSection title="2. Provider Request (Translated)" icon="translate">
-                  <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
-                    {JSON.stringify(selectedDetail.providerRequest, null, 2)}
-                  </pre>
-                </CollapsibleSection>
-              )}
-
-              {selectedDetail.providerResponse && (
-                <CollapsibleSection title="3. Provider Response (Raw)" icon="data_object">
-                  <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
-                    {typeof selectedDetail.providerResponse === 'object'
-                      ? JSON.stringify(selectedDetail.providerResponse, null, 2)
-                      : selectedDetail.providerResponse
-                    }
-                  </pre>
-                </CollapsibleSection>
-              )}
-              
-              <CollapsibleSection title="4. Client Response (Final)" defaultOpen={true} icon="output">
-                {selectedDetail.response?.thinking && (
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-text-main mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-70">
-                      <span className="material-symbols-outlined text-[16px]">psychology</span>
-                      Thinking Process
-                    </h4>
-                    <pre className="max-h-[200px] max-w-full overflow-auto rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:p-4">
-                      {selectedDetail.response.thinking}
-                    </pre>
-                  </div>
-                )}
-                
-                <h4 className="font-semibold text-text-main mb-2 text-xs uppercase tracking-wide opacity-70">
-                  Content
-                </h4>
-                <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
-                  {selectedDetail.response?.content || "[No content]"}
-                </pre>
-              </CollapsibleSection>
-            </div>
-          </div>
-        )}
-      </Drawer>
+        providerName={getProviderName(selectedDetail?.provider, providerNameCache)}
+      />
     </div>
   );
 }

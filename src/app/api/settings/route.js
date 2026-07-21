@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
+import { getDashboardAuthSession } from "@/lib/auth/dashboardSession";
+import { getUserById, hasSecureAdminAccount, updateUserPassword, verifyUserPassword } from "@/lib/db/repos/usersRepo";
 import { resetComboRotation } from "open-sse/services/combo.js";
-import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,17 +19,25 @@ const PROTECTED_SETTING_KEYS = ["password", "mitmSudoEncrypted"];
 export async function GET() {
   try {
     const settings = await getSettings();
-    const { password, oidcClientSecret, ...safeSettings } = settings;
+    const { oidcClientSecret } = settings;
+    const safeSettings = { ...settings };
+    delete safeSettings.password;
+    delete safeSettings.oidcClientSecret;
+    const cookieStore = await cookies();
+    const session = await getDashboardAuthSession(cookieStore.get("auth_token")?.value);
+    const account = session?.userId ? await getUserById(session.userId) : null;
     safeSettings.oidcConfigured = !!(safeSettings.oidcIssuerUrl && safeSettings.oidcClientId && oidcClientSecret);
-    
+
     const enableRequestLogs = process.env.ENABLE_REQUEST_LOGS === "true";
     const enableTranslator = process.env.ENABLE_TRANSLATOR === "true";
-    
-    return NextResponse.json({ 
-      ...safeSettings, 
+
+    return NextResponse.json({
+      ...safeSettings,
       enableRequestLogs,
       enableTranslator,
-      hasPassword: !!password
+      hasPassword: !!account,
+      hasSecureAdminAccount: await hasSecureAdminAccount(),
+      currentUser: account ? { id: account.id, username: account.username, email: account.email, role: account.role } : null,
     }, { headers: SETTINGS_RESPONSE_HEADERS });
   } catch (error) {
     console.log("Error getting settings:", error);
@@ -42,30 +52,24 @@ export async function PATCH(request) {
     // Strip protected secrets before any internal handling sets them
     for (const key of PROTECTED_SETTING_KEYS) delete body[key];
 
-    // If updating password, hash it
+    // Password changes now apply to the signed-in account, never global settings.
     if (body.newPassword) {
-      const settings = await getSettings();
-      const currentHash = settings.password;
-
-      // Verify current password if it exists
-      if (currentHash) {
-        if (!body.currentPassword) {
-          return NextResponse.json({ error: "Current password required" }, { status: 400 });
-        }
-        const isValid = await bcrypt.compare(body.currentPassword, currentHash);
-        if (!isValid) {
-          return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
-        }
-      } else {
-        // First time setting password, no current password needed
-        // Allow empty currentPassword or default "123456"
-        if (body.currentPassword && body.currentPassword !== "123456") {
-           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
-        }
+      const cookieStore = await cookies();
+      const session = await getDashboardAuthSession(cookieStore.get("auth_token")?.value);
+      if (!session?.userId) {
+        return NextResponse.json({ error: "Account login required to change password." }, { status: 403 });
       }
-
-      const salt = await bcrypt.genSalt(10);
-      body.password = await bcrypt.hash(body.newPassword, salt);
+      if (!body.currentPassword) {
+        return NextResponse.json({ error: "Current password required." }, { status: 400 });
+      }
+      if (!(await verifyUserPassword(session.userId, body.currentPassword))) {
+        return NextResponse.json({ error: "Invalid current password." }, { status: 401 });
+      }
+      try {
+        await updateUserPassword(session.userId, body.newPassword);
+      } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
       delete body.newPassword;
       delete body.currentPassword;
     }

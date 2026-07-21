@@ -1,10 +1,31 @@
 import { NextResponse } from "next/server";
-import { getRecentLogs } from "@/lib/usageDb";
+import { getRequestLogsPage } from "@/lib/usageDb";
+import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
-export async function GET() {
+const VALID_PERIODS = new Set(["today", "24h", "7d", "30d", "60d", "all"]);
+const VALID_PAGE_SIZES = new Set([10, 30, 50, 100]);
+
+export async function GET(request) {
   try {
-    const logs = await getRecentLogs(200);
-    return NextResponse.json(logs);
+    const account = await getDashboardAccount(request);
+    if (account?.role !== "admin") {
+      return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+    }
+    const searchParams = new URL(request.url).searchParams;
+    const period = searchParams.get("period") || "all";
+    const page = Number(searchParams.get("page") || 1);
+    const pageSize = Number(searchParams.get("pageSize") || 30);
+    if (!VALID_PERIODS.has(period)) {
+      return NextResponse.json({ error: "Invalid period" }, { status: 400 });
+    }
+    if (!Number.isInteger(page) || page < 1) {
+      return NextResponse.json({ error: "Invalid page" }, { status: 400 });
+    }
+    if (!VALID_PAGE_SIZES.has(pageSize)) {
+      return NextResponse.json({ error: "Invalid page size" }, { status: 400 });
+    }
+
+    return NextResponse.json(await getRequestLogsPage({ period, page, pageSize }));
   } catch (error) {
     console.error("[API ERROR] /api/usage/logs failed:", error);
     console.error("[API ERROR] Stack:", error?.stack);
