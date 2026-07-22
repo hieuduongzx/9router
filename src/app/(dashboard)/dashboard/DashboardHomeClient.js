@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import Card from "@/shared/components/Card";
+import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 import EndpointPageClient from "./endpoint/EndpointPageClient";
 
 const PERIODS = [
@@ -27,6 +28,12 @@ const PERIODS = [
   { value: "all", label: "All" },
 ];
 
+const STATUS_META = {
+  success: { label: "Successful", color: "#2F9E8F" },
+  error: { label: "Failed", color: "#D15B4D" },
+  rate_limited: { label: "Rate limited", color: "#D99A32" },
+  other: { label: "Other", color: "#8B6BB1" },
+};
 const MODEL_COLORS = ["#E56A4A", "#4F7CAC", "#2F9E8F", "#D99A32", "#8B6BB1"];
 
 const METRIC_ICONS = {
@@ -90,28 +97,6 @@ function formatTimeAgo(timestamp) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function providerName(connection) {
-  return (
-    connection?.providerSpecificData?.nodeName ||
-    connection?.displayName ||
-    connection?.name ||
-    connection?.provider ||
-    "Provider"
-  );
-}
-
-function statusMeta(connection) {
-  if (!connection?.isActive) {
-    return { label: "Paused", dot: "bg-text-subtle", text: "text-text-muted" };
-  }
-  if (connection.testStatus === "active") {
-    return { label: "Healthy", dot: "bg-success", text: "text-success" };
-  }
-  if (connection.testStatus === "unavailable") {
-    return { label: "Needs attention", dot: "bg-danger", text: "text-danger" };
-  }
-  return { label: "Not checked", dot: "bg-warning", text: "text-warning" };
-}
 
 async function fetchJson(path, signal) {
   const response = await fetch(path, { cache: "no-store", signal });
@@ -163,7 +148,6 @@ export default function DashboardHomeClient() {
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [hourlyData, setHourlyData] = useState([]);
-  const [connections, setConnections] = useState([]);
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -173,32 +157,29 @@ export default function DashboardHomeClient() {
 
   const fetchDashboardData = useCallback(async (signal) => {
     const auth = await fetchJson("/api/auth/status", signal).catch(() => null);
-    const admin = auth?.role === "admin";
+    const admin = auth?.isAdminView === true;
     setIsAdmin(admin);
-    const chartRequest = fetchJson(`/api/usage/chart?period=${period}`, signal);
+    const scope = admin ? "&scope=system" : "";
+    const chartRequest = fetchJson(`/api/usage/chart?period=${period}${scope}`, signal);
     const hourlyRequest = period === "today"
       ? chartRequest
-      : fetchJson("/api/usage/chart?period=today", signal);
+      : Promise.resolve({ points: [] });
     const results = await Promise.allSettled([
-      fetchJson(`/api/usage/stats?period=${period}`, signal),
+      fetchJson(`/api/usage/stats?period=${period}${scope}`, signal),
       chartRequest,
       hourlyRequest,
-      admin ? fetchJson("/api/providers", signal) : Promise.resolve(null),
       fetchJson("/api/keys", signal),
     ]);
 
     if (signal?.aborted) return;
 
-    const [statsResult, chartResult, hourlyResult, providersResult, keysResult] = results;
+    const [statsResult, chartResult, hourlyResult, keysResult] = results;
     if (statsResult.status === "fulfilled") setStats(statsResult.value);
     if (chartResult.status === "fulfilled") {
-      setChartData(Array.isArray(chartResult.value) ? chartResult.value : []);
+      setChartData(normalizeUsageChartPoints(chartResult.value));
     }
     if (hourlyResult.status === "fulfilled") {
-      setHourlyData(Array.isArray(hourlyResult.value) ? hourlyResult.value : []);
-    }
-    if (providersResult.status === "fulfilled") {
-      setConnections(Array.isArray(providersResult.value?.connections) ? providersResult.value.connections : []);
+      setHourlyData(normalizeUsageChartPoints(hourlyResult.value));
     }
     if (keysResult.status === "fulfilled") {
       setKeys(Array.isArray(keysResult.value?.keys) ? keysResult.value.keys : []);
@@ -232,30 +213,11 @@ export default function DashboardHomeClient() {
     ? (Number(stats.totalCachedTokens || 0) / Number(stats.totalPromptTokens)) * 100
     : 0;
 
-  const providerSummary = useMemo(() => {
-    const enabled = connections.filter((connection) => connection.isActive);
-    return {
-      enabled: enabled.length,
-      healthy: enabled.filter((connection) => connection.testStatus === "active").length,
-      issues: enabled.filter((connection) => connection.testStatus === "unavailable").length,
-    };
-  }, [connections]);
-
-  const visibleProviders = useMemo(() => {
-    const rank = (connection) => {
-      if (connection.isActive && connection.testStatus === "unavailable") return 0;
-      if (connection.isActive && connection.testStatus !== "active") return 1;
-      if (connection.isActive) return 2;
-      return 3;
-    };
-    return [...connections].sort((a, b) => rank(a) - rank(b)).slice(0, 5);
-  }, [connections]);
 
   const modelData = useMemo(() => {
     const entries = Object.values(stats?.byModel || {})
       .map((model) => ({
         name: model.rawModel || "Unknown model",
-        provider: model.provider || "Unknown provider",
         value: Number(model.requests) || 0,
       }))
       .filter((model) => model.value > 0)
@@ -265,12 +227,28 @@ export default function DashboardHomeClient() {
     const rest = entries.slice(4);
     return [
       ...entries.slice(0, 4),
-      { name: "Other models", provider: `${rest.length} models`, value: rest.reduce((sum, item) => sum + item.value, 0) },
+      { name: "Other models", value: rest.reduce((sum, item) => sum + item.value, 0) },
     ];
   }, [stats]);
 
+  const outcomeData = useMemo(
+    () => Object.entries(STATUS_META)
+      .map(([id, meta]) => ({
+        id,
+        name: meta.label,
+        color: meta.color,
+        value: Number(stats?.byStatus?.[id]) || 0,
+      }))
+      .filter((entry) => entry.value > 0),
+    [stats],
+  );
+  const outcomeTotal = outcomeData.reduce((sum, entry) => sum + entry.value, 0);
+  const successfulRequests = outcomeData.find((entry) => entry.id === "success")?.value || 0;
+  const successRate = outcomeTotal ? (successfulRequests / outcomeTotal) * 100 : 0;
+
   const recentRequests = Array.isArray(stats?.recentRequests) ? stats.recentRequests.slice(0, 6) : [];
   const chartHasData = chartData.some((point) => Number(point.tokens) > 0);
+  const costHasData = chartData.some((point) => Number(point.cost) > 0);
   const hourlyHasData = hourlyData.some((point) => Number(point.tokens) > 0);
   const activeKeys = keys.filter((key) => key.isActive).length;
 
@@ -280,9 +258,9 @@ export default function DashboardHomeClient() {
     <div className="flex min-w-0 flex-col gap-5 pb-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Operations overview</h1>
+          <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Dashboard overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            {isAdmin ? "Traffic, cost, and provider health across your Router2k gateway." : "Traffic, cost, and model activity for your API keys."}
+            {isAdmin ? "Gateway-wide model traffic, token volume, and estimated cost." : "Your model traffic, token volume, and estimated cost."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -359,7 +337,7 @@ export default function DashboardHomeClient() {
         </div>
       </Card>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
             <div>
@@ -418,13 +396,72 @@ export default function DashboardHomeClient() {
         </Card>
 
         <Card padding="none" className="min-w-0 overflow-hidden">
+          <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-text-main">Spend over time</h2>
+              <p className="mt-0.5 text-xs text-text-muted">Estimated model cost across the selected period</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-warning">
+              {formatCurrency(stats?.totalCost)}
+            </span>
+          </div>
+          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Estimated spend area chart">
+            {costHasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="homeCostFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#D99A32" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#D99A32" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickMargin={10} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickFormatter={formatCurrency} width={60} />
+                  <Tooltip
+                    cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+                    contentStyle={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 10,
+                      boxShadow: "var(--shadow-elevated)",
+                      color: "var(--color-text-main)",
+                      fontSize: 12,
+                    }}
+                    formatter={(value) => [formatCurrency(value), "Estimated cost"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="cost"
+                    stroke="#D99A32"
+                    strokeWidth={2.5}
+                    fill="url(#homeCostFill)"
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2, fill: "#D99A32", stroke: "var(--color-surface)" }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <span className="material-symbols-outlined text-3xl text-text-subtle">payments</span>
+                <p className="mt-2 text-sm font-medium text-text-main">No priced usage in this period</p>
+                <p className="mt-1 text-xs text-text-muted">Requests without configured model rates do not add estimated cost.</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+        <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border-subtle px-5 py-4">
             <h2 className="text-sm font-semibold text-text-main">Model mix</h2>
             <p className="mt-0.5 text-xs text-text-muted">Share of requests by model</p>
           </div>
           {modelData.length ? (
-            <div className="px-5 pb-5 pt-4">
-              <div className="relative mx-auto h-40 max-w-[220px]" role="img" aria-label="Model request share donut chart">
+            <div className="grid min-h-[280px] items-center gap-4 px-5 py-5 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
+              <div className="relative mx-auto h-40 w-full max-w-[220px]" role="img" aria-label="Model request share donut chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={modelData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={68} paddingAngle={modelData.length > 1 ? 3 : 0} stroke="none" isAnimationActive={false}>
@@ -449,7 +486,7 @@ export default function DashboardHomeClient() {
                   <span className="text-[10px] text-text-muted">requests</span>
                 </div>
               </div>
-              <div className="mt-2 space-y-2.5">
+              <div className="space-y-2.5">
                 {modelData.map((model, index) => (
                   <div key={model.name} className="flex min-w-0 items-center gap-2 text-xs">
                     <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: MODEL_COLORS[index % MODEL_COLORS.length] }} />
@@ -467,8 +504,62 @@ export default function DashboardHomeClient() {
             </div>
           )}
         </Card>
+
+        <Card padding="none" className="min-w-0 overflow-hidden">
+          <div className="border-b border-border-subtle px-5 py-4">
+            <h2 className="text-sm font-semibold text-text-main">Request outcomes</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Completion health across recorded request details</p>
+          </div>
+          {outcomeData.length ? (
+            <div className="grid min-h-[280px] items-center gap-4 px-5 py-5 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
+              <div className="relative mx-auto h-40 w-full max-w-[220px]" role="img" aria-label="Request outcome donut chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={outcomeData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={68} paddingAngle={outcomeData.length > 1 ? 3 : 0} stroke="none" isAnimationActive={false}>
+                      {outcomeData.map((entry) => (
+                        <Cell key={entry.id} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 10,
+                        color: "var(--color-text-main)",
+                        fontSize: 12,
+                      }}
+                      formatter={(value) => [`${formatNumber(value)} requests`, "Outcome"]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-semibold tabular-nums text-text-main">{formatPercent(successRate)}</span>
+                  <span className="text-[10px] text-text-muted">successful</span>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {outcomeData.map((outcome) => (
+                  <div key={outcome.id} className="flex min-w-0 items-center gap-2 text-xs">
+                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: outcome.color }} />
+                    <span className="min-w-0 flex-1 truncate text-text-main">{outcome.name}</span>
+                    <span className="shrink-0 tabular-nums text-text-muted">
+                      {formatNumber(outcome.value)} · {formatPercent((outcome.value / outcomeTotal) * 100)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
+              <span className="material-symbols-outlined text-3xl text-text-subtle">task_alt</span>
+              <p className="mt-2 text-sm font-medium text-text-main">No outcomes recorded</p>
+              <p className="mt-1 text-xs text-text-muted">Success and failure distribution appears after request details are stored.</p>
+            </div>
+          )}
+        </Card>
       </div>
 
+      {period === "today" && (
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
           <div>
@@ -519,25 +610,25 @@ export default function DashboardHomeClient() {
           )}
         </div>
       </Card>
+      )}
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
             <div>
               <h2 className="text-sm font-semibold text-text-main">Recent requests</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Latest traffic across all API keys</p>
+              <p className="mt-0.5 text-xs text-text-muted">{isAdmin ? "Latest model traffic across the gateway" : "Latest model traffic for your API keys"}</p>
             </div>
-            <Link href={isAdmin ? "/dashboard/activity" : "/dashboard/usage"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
-              {isAdmin ? "View activity" : "Full usage"}
+            <Link href={isAdmin ? "/dashboard/activity?tab=requests" : "/dashboard/usage?tab=details"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
+              {isAdmin ? "View operations" : "View history"}
             </Link>
           </div>
           {recentRequests.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-left text-xs">
+              <table className="w-full min-w-[520px] text-left text-xs">
                 <thead className="bg-bg-alt text-text-muted">
                   <tr>
                     <th className="px-5 py-2.5 font-medium">Model</th>
-                    <th className="px-4 py-2.5 font-medium">Provider</th>
                     <th className="px-4 py-2.5 text-right font-medium">Tokens</th>
                     <th className="px-4 py-2.5 font-medium">Status</th>
                     <th className="px-5 py-2.5 text-right font-medium">Time</th>
@@ -545,12 +636,10 @@ export default function DashboardHomeClient() {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {recentRequests.map((request, index) => {
-                    const connection = connections.find((item) => item.provider === request.provider) || { provider: request.provider };
                     const successful = request.status === "ok" || request.status === "success";
                     return (
                       <tr key={`${request.timestamp}-${request.model}-${index}`} className="transition-colors hover:bg-bg-alt/70">
                         <td className="max-w-[190px] truncate px-5 py-3 font-medium text-text-main" title={request.model}>{request.model || "Unknown"}</td>
-                        <td className="max-w-[150px] truncate px-4 py-3 text-text-muted" title={providerName(connection)}>{providerName(connection)}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-text-main">{formatNumber(Number(request.promptTokens || 0) + Number(request.completionTokens || 0))}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 font-medium ${successful ? "text-success" : "text-danger"}`}>
@@ -576,32 +665,41 @@ export default function DashboardHomeClient() {
 
         {isAdmin ? (
           <Card padding="none" className="overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-              <div>
-                <h2 className="text-sm font-semibold text-text-main">Infrastructure</h2>
-                <p className="mt-0.5 text-xs text-text-muted">Provider and access health</p>
-              </div>
-              {providerSummary.issues > 0 ? (
-                <span className="rounded-full bg-danger/10 px-2 py-1 text-[10px] font-semibold text-danger">{providerSummary.issues} issue{providerSummary.issues === 1 ? "" : "s"}</span>
-              ) : (
-                <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">All healthy</span>
-              )}
+            <div className="border-b border-border-subtle px-5 py-4">
+              <h2 className="text-sm font-semibold text-text-main">Admin workspace</h2>
+              <p className="mt-0.5 text-xs text-text-muted">Operational and account management shortcuts</p>
             </div>
             <div className="divide-y divide-border-subtle">
-              {visibleProviders.map((connection) => {
-                const status = statusMeta(connection);
-                return (
-                  <Link key={connection.id} href={`/dashboard/providers/${connection.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
-                    <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-main">{providerName(connection)}</span>
-                    <span className={`shrink-0 text-[10px] font-medium ${status.text}`}>{status.label}</span>
-                    <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-                  </Link>
-                );
-              })}
-              {!visibleProviders.length && (
-                <div className="px-5 py-6 text-center text-xs text-text-muted">No providers configured.</div>
-              )}
+              <Link href="/dashboard/activity" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <span className="material-symbols-outlined text-[18px]">monitoring</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">Operations activity</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">System, routing, and request diagnostics</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
+              <Link href="/dashboard/users" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-info/10 text-info">
+                  <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">Accounts</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">Users, access, and credit controls</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
+              <Link href="/dashboard/settings" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success">
+                  <span className="material-symbols-outlined text-[18px]">settings</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-text-main">Gateway settings</span>
+                  <span className="mt-0.5 block text-[10px] text-text-muted">Runtime, security, and pricing</span>
+                </span>
+                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
+              </Link>
             </div>
             <div className="grid grid-cols-2 border-t border-border-subtle bg-bg-alt/60">
               <div className="border-r border-border-subtle px-5 py-4">
@@ -612,10 +710,6 @@ export default function DashboardHomeClient() {
                 <p className="text-[10px] font-medium text-text-muted">Endpoint mode</p>
                 <p className="mt-1 truncate text-sm font-semibold text-text-main">Self-hosted</p>
               </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-5 py-3">
-              <Link href="/dashboard/providers" className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">Manage providers</Link>
-              <Link href="/dashboard/api-keys" className="text-xs font-medium text-text-muted hover:text-text-main">API keys</Link>
             </div>
           </Card>
         ) : (

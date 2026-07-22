@@ -37,12 +37,17 @@ vi.mock("@/lib/auth/dashboardSession", () => ({
 
 const { proxy, __test__ } = await import("../../src/dashboardGuard.js");
 
-function request(pathname, headers = {}, token = null) {
+function request(pathname, headers = {}, token = null, cookieValues = {}) {
   const normalizedHeaders = new Headers(headers);
   return {
     nextUrl: { pathname, searchParams: new URL(`http://localhost${pathname}`).searchParams },
     headers: normalizedHeaders,
-    cookies: { get: vi.fn(() => token ? { value: token } : undefined) },
+    cookies: {
+      get: vi.fn((name) => {
+        if (name === "auth_token" && token) return { value: token };
+        return cookieValues[name] ? { value: cookieValues[name] } : undefined;
+      }),
+    },
     url: `http://localhost${pathname}`,
   };
 }
@@ -193,6 +198,32 @@ describe("dashboard guard public LLM API access", () => {
   });
 });
 
+describe("dashboard guard public product home", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSettings.mockResolvedValue({ requireLogin: true });
+    mocks.validateApiKey.mockResolvedValue(false);
+    mocks.getConsistentMachineId.mockResolvedValue("cli-token");
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+    mocks.getDashboardAccount.mockResolvedValue(null);
+  });
+
+  it("serves the product home without forcing dashboard login", async () => {
+    expect(await proxy(request("/"))).toBe(mocks.nextResponse);
+    expect(await proxy(request("/landing"))).toBe(mocks.nextResponse);
+  });
+
+  it("exposes the model catalog to guests", async () => {
+    expect(await proxy(request("/api/catalog/models"))).toBe(mocks.nextResponse);
+  });
+
+  it("still requires login for the authenticated dashboard", async () => {
+    const response = await proxy(request("/dashboard"));
+    expect(response.status).toBe(307);
+    expect(response.url.pathname).toBe("/login");
+  });
+});
+
 describe("dashboard guard local-only access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -325,6 +356,24 @@ describe("dashboard guard role boundaries", () => {
     expect(await proxy(request("/api/providers"))).toBe(mocks.nextResponse);
     expect(await proxy(request("/dashboard/providers"))).toBe(mocks.nextResponse);
     expect(await proxy(request("/dashboard/settings"))).toBe(mocks.nextResponse);
+  });
+
+  it("limits Activity to an administrator's Admin view without changing admin authorization", async () => {
+    mocks.getDashboardAccount.mockResolvedValue({
+      id: "admin-1",
+      role: "admin",
+      isActive: true,
+    });
+
+    expect(await proxy(request("/dashboard/activity"))).toBe(mocks.nextResponse);
+
+    const userViewCookies = { dashboard_view_mode: "user" };
+    const activityResponse = await proxy(request("/dashboard/activity", {}, null, userViewCookies));
+    expect(activityResponse.status).toBe(307);
+    expect(activityResponse.url.pathname).toBe("/dashboard");
+
+    expect(await proxy(request("/api/providers", {}, null, userViewCookies))).toBe(mocks.nextResponse);
+    expect(await proxy(request("/dashboard/providers", {}, null, userViewCookies))).toBe(mocks.nextResponse);
   });
 });
 describe("dashboard guard helpers", () => {

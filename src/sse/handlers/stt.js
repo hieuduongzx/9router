@@ -1,5 +1,5 @@
 import {
-  extractApiKey, isValidApiKey,
+  extractApiKey, authorizeBillableApiKey,
   getProviderCredentials, markAccountUnavailable,
 } from "../services/auth.js";
 import { getModelInfo } from "../services/model.js";
@@ -29,8 +29,8 @@ export async function handleStt(request) {
 
   const apiKey = extractApiKey(request);
   if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-  const valid = await isValidApiKey(apiKey);
-  if (!valid) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+  const auth = await authorizeBillableApiKey(apiKey);
+  if (!auth.ok) return errorResponse(auth.status, auth.message);
 
   if (!modelStr) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing model");
   if (!formData.get("file")) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: file");

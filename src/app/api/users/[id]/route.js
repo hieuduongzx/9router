@@ -50,9 +50,17 @@ export async function PATCH(request, { params }) {
 
     let user;
     if (hasCreditBalance) {
-      user = await setUserCreditBalance(id, body.creditBalanceCents);
+      user = await setUserCreditBalance(id, body.creditBalanceCents, {
+        actorUserId: admin.id,
+        source: "admin_dashboard",
+        note: body.note || "Balance set from Accounts",
+      });
     } else if (hasCreditAdjustment) {
-      user = await adjustUserCredit(id, body.creditAdjustmentCents);
+      user = await adjustUserCredit(id, body.creditAdjustmentCents, {
+        actorUserId: admin.id,
+        source: "admin_dashboard",
+        note: body.note || (body.creditAdjustmentCents > 0 ? "Top-up from Accounts" : "Deduction from Accounts"),
+      });
     } else {
       user = await updateUserAccess(id, update);
     }

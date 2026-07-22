@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getSettings, validateApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { getDashboardAccount, verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
+import {
+  DASHBOARD_VIEW_ADMIN,
+  DASHBOARD_VIEW_COOKIE,
+  resolveDashboardViewMode,
+} from "@/shared/constants/dashboardView";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
 const CLI_TOKEN_SALT = "9r-cli-auth";
@@ -30,6 +35,7 @@ const PUBLIC_API_PATHS = [
   "/api/auth/oidc",
   "/api/version",
   "/api/settings/require-login",
+  "/api/catalog/models",
 ];
 
 // Public top-level prefixes (LLM API endpoints with their own API key auth).
@@ -282,6 +288,19 @@ export async function proxy(request) {
       // On error, keep the secure default.
     }
 
+    if (matchesPathPrefix(pathname, "/dashboard/activity")) {
+      const account = await getDashboardAccount(request);
+      const viewMode = resolveDashboardViewMode(
+        account?.role,
+        request.cookies.get(DASHBOARD_VIEW_COOKIE)?.value,
+      );
+      if (account?.role === "admin" && viewMode === DASHBOARD_VIEW_ADMIN) {
+        return NextResponse.next();
+      }
+      if (account) return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
     // Non-admin accounts are confined to account-owned keys, usage, models,
     // and account security. A valid user session is required for every other
     // dashboard route even when legacy password protection is disabled.
@@ -305,10 +324,8 @@ export async function proxy(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Redirect / to /dashboard if logged in, or /dashboard if it's the root
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Public product home stays at /. Authenticated users open /dashboard from the nav.
+  // Do not auto-redirect "/" → /dashboard.
 
   return NextResponse.next();
 }

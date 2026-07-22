@@ -12,10 +12,15 @@ export {
   USER_ROLES,
   publicUser, validateRegistrationInput, validateUserProfileInput,
   getPrimaryAdmin, getUserById, getUserByLogin, createUser, listUsers,
-  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance, deleteUserAccount,
+  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance,
+  usdCostToCents, debitUserCreditForUsage, deleteUserAccount,
   verifyUserCredentials, verifyUserPassword, updateUserPassword,
   hasSecureAdminAccount, resetRecoveryAdminCredentials,
 } from "./repos/usersRepo.js";
+
+export {
+  listCreditLedger,
+} from "./repos/creditLedgerRepo.js";
 
 // Provider connections
 export {
@@ -39,7 +44,7 @@ export {
 
 // API keys
 export {
-  getApiKeys, getApiKeyById, createApiKey, updateApiKey, deleteApiKey, validateApiKey,
+  getApiKeys, getApiKeyById, createApiKey, updateApiKey, deleteApiKey, validateApiKey, resolveApiKey,
 } from "./repos/apiKeysRepo.js";
 
 // Combos

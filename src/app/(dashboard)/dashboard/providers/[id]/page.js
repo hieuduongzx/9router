@@ -1106,7 +1106,9 @@ export default function ProviderDetailPage() {
     });
 
     return (
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-5">
+        {(customModelRows.length > 0 || displayModels.length > 0) && (
+          <div role="list" className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {/* Custom models first */}
         {customModelRows.map((model) => (
           <ModelRow
@@ -1160,8 +1162,12 @@ export default function ProviderDetailPage() {
             />
           );
         })}
+          </div>
+        )}
 
-        {/* Add model button — inline, same style as model chips */}
+        <div className="flex flex-wrap gap-2">
+
+        {/* Model management actions */}
         <button
           onClick={() => setShowAddCustomModel(true)}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-2 text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5 sm:w-auto"
@@ -1183,6 +1189,7 @@ export default function ProviderDetailPage() {
             {importingQoderModels ? translate("Fetching...") : translate("Fetch Qoder Models")}
           </button>
         )}
+        </div>
 
         {/* Suggested models from provider API — show only models not yet added */}
         {suggestedModels.length > 0 && (() => {
@@ -1196,7 +1203,7 @@ export default function ProviderDetailPage() {
           );
           if (notAdded.length === 0) return null;
           return (
-            <div className="w-full mt-2">
+            <div className="w-full">
               <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
               <div className="flex flex-wrap gap-2">
                 {notAdded.map((m) => (
@@ -1219,19 +1226,34 @@ export default function ProviderDetailPage() {
 
         {/* Disabled models — restorable */}
         {disabledDisplayModels.length > 0 && (
-          <div className="w-full mt-2">
-            <p className="text-xs text-text-muted mb-2">Disabled models ({disabledDisplayModels.length}):</p>
-            <div className="flex flex-wrap gap-2">
-              {disabledDisplayModels.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleEnableModel(m.id)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                  title="Restore model"
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-text-muted">Disabled models ({disabledDisplayModels.length})</p>
+            <div role="list" className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+              {disabledDisplayModels.map((model) => (
+                <div
+                  role="listitem"
+                  key={model.id}
+                  className="flex min-w-0 items-center gap-3 px-3 py-1.5 text-text-muted transition-colors hover:bg-sidebar/50"
                 >
-                  <span className="material-symbols-outlined text-[13px]">add</span>
-                  {m.id}
-                </button>
+                  <span className="material-symbols-outlined text-lg">block</span>
+                  <div className="min-w-0 flex-1 py-1">
+                    <code className="block truncate font-mono text-sm" title={`${providerDisplayAlias}/${model.id}`}>
+                      {providerDisplayAlias}/{model.id}
+                    </code>
+                    {model.name && model.name !== model.id && (
+                      <span className="mt-1 block truncate text-xs">{model.name}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEnableModel(model.id)}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-text-muted transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    title="Restore model"
+                  >
+                    <span className="material-symbols-outlined text-base">restart_alt</span>
+                    <span className="hidden sm:inline">Restore</span>
+                  </button>
+                </div>
               ))}
             </div>
           </div>

@@ -720,7 +720,21 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
       }
       case "fal-ai": {
-        const res = await fetchWithConnectionProxy("https://api.fal.ai/v1/models?limit=1", { headers: { Authorization: `Key ${connection.apiKey}` } }, effectiveProxy);
+        // FAL OpenAI-compatible router requires Authorization: Key <FAL_KEY>
+        // (Bearer is rejected). /models is not exposed on this path.
+        const res = await fetchWithConnectionProxy("https://fal.run/openrouter/router/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Key ${connection.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: connection.defaultModel || "google/gemini-2.5-flash",
+            messages: [{ role: "user", content: "ping" }],
+            max_tokens: 1,
+            stream: false,
+          }),
+        }, effectiveProxy);
         const valid = res.status !== 401 && res.status !== 403;
         return { valid, error: valid ? null : "Invalid API key" };
       }

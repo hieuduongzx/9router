@@ -83,7 +83,7 @@ function ProviderNode({ data }) {
       {/* Active indicator */}
       {active && (
         <span className="relative flex h-2 w-2 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }} />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 motion-reduce:hidden" style={{ backgroundColor: color }} />
           <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
         </span>
       )}
@@ -100,7 +100,7 @@ function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
-      className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-xl border-2 min-w-[130px] ${
+      className={`relative z-10 flex min-w-[130px] items-center justify-center rounded-xl border-2 px-5 py-3 ${
         powering
           ? "topology-router-core border-yellow-300 bg-gradient-to-br from-primary/30 via-yellow-400/20 to-cyan-400/25"
           : "border-primary bg-primary/5 shadow-md"
@@ -181,7 +181,7 @@ function TopologyEdge({
         strokeOpacity={0.35}
         strokeLinecap="round"
         filter={`url(#${filterId})`}
-        className="topology-edge-halo"
+        className="topology-edge-halo motion-reduce:hidden"
       />
       {/* Mid plasma */}
       <path
@@ -192,7 +192,7 @@ function TopologyEdge({
         strokeOpacity={0.85}
         strokeLinecap="round"
         filter={`url(#${filterId})`}
-        className="topology-edge-plasma"
+        className="topology-edge-plasma motion-reduce:hidden"
       />
       {/* Hot white core */}
       <BaseEdge
@@ -209,6 +209,7 @@ function TopologyEdge({
           fill={i % 3 === 0 ? "#fde047" : i % 3 === 1 ? "#67e8f9" : "#fff"}
           opacity={0.95}
           style={{ filter: "drop-shadow(0 0 4px #22d3ee)" }}
+          className="motion-reduce:hidden"
         >
           <animateMotion
             dur={`${0.4 + i * 0.08}s`}
@@ -227,6 +228,7 @@ function TopologyEdge({
           opacity={0}
         >
           <animate
+          className="motion-reduce:hidden"
             attributeName="opacity"
             values="0;1;0;0;1;0"
             dur={`${0.35 + (i % 3) * 0.1}s`}
@@ -441,7 +443,12 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+    <div
+      ref={containerRef}
+      role="img"
+      aria-label={`Provider routing topology with ${providers.length} active routing target${providers.length === 1 ? "" : "s"}`}
+      className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]"
+    >
       {providers.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected

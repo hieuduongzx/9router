@@ -3,7 +3,7 @@ import {
   markAccountUnavailable,
   clearAccountError,
   extractApiKey,
-  isValidApiKey,
+  authorizeBillableApiKey,
 } from "../services/auth.js";
 import { getModelInfo } from "../services/model.js";
 import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets } from "open-sse/handlers/videoCore.js";
@@ -28,8 +28,8 @@ const CREATE_ROTATION_STATUSES = new Set([
 async function requireValidApiKey(request) {
   const apiKey = extractApiKey(request);
   if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-  const valid = await isValidApiKey(apiKey);
-  if (!valid) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+  const auth = await authorizeBillableApiKey(apiKey);
+  if (!auth.ok) return errorResponse(auth.status, auth.message);
   return null;
 }
 

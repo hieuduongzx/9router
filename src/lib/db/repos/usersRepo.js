@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { getAdapter } from "../driver.js";
+import { insertCreditLedgerEntry } from "./creditLedgerRepo.js";
 
 export const USER_ROLES = Object.freeze({
   ADMIN: "admin",
@@ -111,10 +112,19 @@ export async function getUserByLogin(login) {
   return rowToUser(db.get("SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE", [normalized, normalized]));
 }
 
-export async function createUser({ username, email, password, role = USER_ROLES.USER }) {
+export async function createUser({
+  username,
+  email,
+  password,
+  role = USER_ROLES.USER,
+  initialCreditCents = 0,
+}) {
   const validated = validateRegistrationInput({ username, email, password });
   if (validated.error) throw new Error(validated.error);
   if (![USER_ROLES.ADMIN, USER_ROLES.USER].includes(role)) throw new Error("Invalid user role.");
+  const signupCredit = Number.isSafeInteger(initialCreditCents) && initialCreditCents > 0
+    ? Math.min(initialCreditCents, MAX_CREDIT_ADJUSTMENT_CENTS)
+    : 0;
 
   const db = await getAdapter();
   const passwordHash = await bcrypt.hash(validated.password, 12);
@@ -134,23 +144,37 @@ export async function createUser({ username, email, password, role = USER_ROLES.
 
     const userCount = db.get("SELECT COUNT(*) AS count FROM users")?.count || 0;
     const now = new Date().toISOString();
+    const nextRole = userCount === 0 ? USER_ROLES.ADMIN : role;
+    // First bootstrap admin starts at 0; subsequent users get configured signup credit.
+    const creditCents = nextRole === USER_ROLES.ADMIN && userCount === 0 ? 0 : signupCredit;
     user = {
       id: randomUUID(),
       username: validated.username,
       email: validated.email,
       passwordHash,
-      role: userCount === 0 ? USER_ROLES.ADMIN : role,
+      role: nextRole,
       isActive: true,
       mustChangePassword: false,
-      creditCents: 0,
+      creditCents,
       createdAt: now,
       updatedAt: now,
     };
     db.run(
-      `INSERT INTO users(id, username, email, passwordHash, role, isActive, mustChangePassword, createdAt, updatedAt)
-       VALUES(?, ?, ?, ?, ?, 1, 0, ?, ?)`,
-      [user.id, user.username, user.email, user.passwordHash, user.role, user.createdAt, user.updatedAt]
+      `INSERT INTO users(id, username, email, passwordHash, role, isActive, mustChangePassword, creditCents, createdAt, updatedAt)
+       VALUES(?, ?, ?, ?, ?, 1, 0, ?, ?, ?)`,
+      [user.id, user.username, user.email, user.passwordHash, user.role, user.creditCents, user.createdAt, user.updatedAt]
     );
+    if (creditCents > 0) {
+      insertCreditLedgerEntry(db, {
+        userId: user.id,
+        amountCents: creditCents,
+        balanceAfterCents: creditCents,
+        type: "signup_bonus",
+        source: "registration",
+        note: "Signup credit",
+        createdAt: now,
+      });
+    }
     if (user.role === USER_ROLES.ADMIN) claimUnownedApiKeys(db, user.id);
   });
 
@@ -205,29 +229,32 @@ export async function updateUserAccess(userId, { role, isActive }) {
   db.transaction(() => {
     const target = rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId]));
     if (!target) return;
-    const nextRole = role ?? target.role;
-    const nextActive = isActive ?? target.isActive;
-    const removesActiveAdmin = target.role === USER_ROLES.ADMIN
-      && target.isActive
-      && (nextRole !== USER_ROLES.ADMIN || !nextActive);
-    if (removesActiveAdmin) {
+    const nextRole = role === undefined ? target.role : role;
+    const nextActive = isActive === undefined ? target.isActive : isActive;
+    if (target.role === USER_ROLES.ADMIN && target.isActive && (nextRole !== USER_ROLES.ADMIN || !nextActive)) {
       const remaining = db.get(
         "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND isActive = 1 AND id != ?",
-        [userId]
+        [userId],
       );
       if (!remaining?.count) throw new Error("At least one active administrator is required.");
     }
     const updatedAt = new Date().toISOString();
     db.run(
       "UPDATE users SET role = ?, isActive = ?, updatedAt = ? WHERE id = ?",
-      [nextRole, nextActive ? 1 : 0, updatedAt, userId]
+      [nextRole, nextActive ? 1 : 0, updatedAt, userId],
     );
     updated = publicUser(rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId])));
   });
   return updated;
 }
 
-export async function adjustUserCredit(userId, adjustmentCents) {
+export async function adjustUserCredit(userId, adjustmentCents, {
+  actorUserId = null,
+  source = "admin",
+  note = null,
+  type = null,
+  meta = null,
+} = {}) {
   if (!Number.isSafeInteger(adjustmentCents) || adjustmentCents === 0) {
     throw new Error("Credit adjustment must be a non-zero whole number of cents.");
   }
@@ -250,12 +277,66 @@ export async function adjustUserCredit(userId, adjustmentCents) {
       "UPDATE users SET creditCents = ?, updatedAt = ? WHERE id = ?",
       [nextCreditCents, updatedAt, userId]
     );
+    insertCreditLedgerEntry(db, {
+      userId,
+      amountCents: adjustmentCents,
+      balanceAfterCents: nextCreditCents,
+      type: type || (adjustmentCents > 0 ? "topup" : "deduction"),
+      source,
+      note,
+      actorUserId,
+      meta,
+      createdAt: updatedAt,
+    });
     updated = publicUser(rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId])));
   });
   return updated;
 }
 
-export async function setUserCreditBalance(userId, creditCents) {
+/** Convert USD cost to whole cents, rounding up so tiny usage still bills. */
+export function usdCostToCents(costUsd) {
+  const n = Number(costUsd);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(1, Math.ceil(n * 100 - 1e-9));
+}
+
+/**
+ * Debit account credit for completed usage.
+ * Takes up to `costUsd` (never negative). Returns actual debited cents.
+ */
+export async function debitUserCreditForUsage(userId, costUsd, meta = null) {
+  const debitCents = usdCostToCents(costUsd);
+  if (!userId || debitCents <= 0) {
+    return { ok: true, debitedCents: 0, creditCents: null };
+  }
+
+  const db = await getAdapter();
+  let result = { ok: false, debitedCents: 0, creditCents: null };
+  db.transaction(() => {
+    const target = rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId]));
+    if (!target) {
+      result = { ok: false, debitedCents: 0, creditCents: null, error: "user_not_found" };
+      return;
+    }
+    const available = Math.max(0, target.creditCents || 0);
+    const take = Math.min(available, debitCents);
+    if (take <= 0) {
+      result = { ok: true, debitedCents: 0, creditCents: available, requestedCents: debitCents };
+      return;
+    }
+    const next = available - take;
+    const updatedAt = new Date().toISOString();
+    db.run("UPDATE users SET creditCents = ?, updatedAt = ? WHERE id = ?", [next, updatedAt, userId]);
+    result = { ok: true, debitedCents: take, creditCents: next, requestedCents: debitCents };
+  });
+  return result;
+}
+
+export async function setUserCreditBalance(userId, creditCents, {
+  actorUserId = null,
+  source = "admin",
+  note = null,
+} = {}) {
   if (!Number.isSafeInteger(creditCents) || creditCents < 0) {
     throw new Error("Credit balance must be a non-negative whole number of cents.");
   }
@@ -264,13 +345,31 @@ export async function setUserCreditBalance(userId, creditCents) {
   }
 
   const db = await getAdapter();
-  const updatedAt = new Date().toISOString();
-  const result = db.run(
-    "UPDATE users SET creditCents = ?, updatedAt = ? WHERE id = ?",
-    [creditCents, updatedAt, userId]
-  );
-  if ((result?.changes ?? 0) === 0) return null;
-  return publicUser(rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId])));
+  let updated = null;
+  db.transaction(() => {
+    const target = rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId]));
+    if (!target) return;
+    const delta = creditCents - (target.creditCents || 0);
+    const updatedAt = new Date().toISOString();
+    db.run(
+      "UPDATE users SET creditCents = ?, updatedAt = ? WHERE id = ?",
+      [creditCents, updatedAt, userId]
+    );
+    if (delta !== 0) {
+      insertCreditLedgerEntry(db, {
+        userId,
+        amountCents: delta,
+        balanceAfterCents: creditCents,
+        type: "set_balance",
+        source,
+        note: note || "Balance set by administrator",
+        actorUserId,
+        createdAt: updatedAt,
+      });
+    }
+    updated = publicUser(rowToUser(db.get("SELECT * FROM users WHERE id = ?", [userId])));
+  });
+  return updated;
 }
 
 export async function deleteUserAccount(userId, actorUserId) {

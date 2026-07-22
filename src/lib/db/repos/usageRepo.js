@@ -9,6 +9,17 @@ function maskApiKey(key) {
   return key.slice(0, 8) + "***";
 }
 
+async function debitOwnerForApiKeyUsage(apiKey, costUsd, meta = null) {
+  if (!apiKey || !(Number(costUsd) > 0)) return;
+  const { resolveApiKey } = await import("./apiKeysRepo.js");
+  const { debitUserCreditForUsage } = await import("./usersRepo.js");
+  const resolved = await resolveApiKey(apiKey);
+  const ownerId = resolved?.owner?.id || resolved?.ownerUserId;
+  if (!ownerId) return;
+  // Admin keys still debit when balance > 0 so self-usage is visible; zero stays allowed.
+  await debitUserCreditForUsage(ownerId, costUsd, meta);
+}
+
 const PENDING_TIMEOUT_MS = 60 * 1000;
 const RING_CAP = 50;
 const CONN_CACHE_TTL_MS = 30 * 1000;
@@ -331,6 +342,15 @@ export async function saveRequestUsage(entry) {
     if (inserted) {
       pushToRing(entry);
       scheduleStatsEvent("update", 250);
+      if (entry.cost > 0 && entry.apiKey) {
+        debitOwnerForApiKeyUsage(entry.apiKey, entry.cost, {
+          provider: entry.provider || null,
+          model: entry.model || null,
+          endpoint: entry.endpoint || null,
+        }).catch((err) => {
+          console.error("Failed to debit account credit:", err?.message || err);
+        });
+      }
     }
   } catch (e) {
     console.error("Failed to save usage stats:", e);
@@ -385,8 +405,9 @@ function getPeriodCutoffIso(period) {
 /**
  * apiKeyFilter: null = all keys; "__local__" = no key; string = one exact key;
  * string[] = any key in the account.
+ * @param {string} [opts.column="apiKey"] column / qualified name (e.g. "uh.apiKey")
  */
-function buildApiKeyClause(apiKeyFilter, { leadingAnd = true } = {}) {
+function buildApiKeyClause(apiKeyFilter, { leadingAnd = true, column = "apiKey" } = {}) {
   if (apiKeyFilter == null || apiKeyFilter === "") {
     return { clause: "", params: [] };
   }
@@ -394,15 +415,221 @@ function buildApiKeyClause(apiKeyFilter, { leadingAnd = true } = {}) {
   if (Array.isArray(apiKeyFilter)) {
     if (apiKeyFilter.length === 0) return { clause: `${prefix}1=0`, params: [] };
     const placeholders = apiKeyFilter.map(() => "?").join(", ");
-    return { clause: `${prefix}apiKey IN (${placeholders})`, params: apiKeyFilter };
+    return { clause: `${prefix}${column} IN (${placeholders})`, params: apiKeyFilter };
   }
   if (apiKeyFilter === "__local__") {
-    return { clause: `${prefix}(apiKey IS NULL OR apiKey = '')`, params: [] };
+    return { clause: `${prefix}(${column} IS NULL OR ${column} = '')`, params: [] };
   }
   if (apiKeyFilter === "__none__") {
     return { clause: `${prefix}1=0`, params: [] };
   }
-  return { clause: `${prefix}apiKey = ?`, params: [apiKeyFilter] };
+  return { clause: `${prefix}${column} = ?`, params: [apiKeyFilter] };
+}
+
+function normalizeUsageStatus(status) {
+  const raw = String(status || "ok").trim().toLowerCase();
+  if (!raw || raw === "ok" || raw === "success") return "success";
+  if (raw.includes("429") || raw.includes("rate")) return "rate_limited";
+  if (raw.includes("fail") || raw.includes("error") || raw === "error") return "error";
+  return "other";
+}
+
+function percentileSorted(sorted, p) {
+  if (!sorted.length) return null;
+  if (sorted.length === 1) return sorted[0];
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  const w = idx - lo;
+  return sorted[lo] * (1 - w) + sorted[hi] * w;
+}
+
+const CHART_STACK_COLORS = [
+  "#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#a855f7", "#94a3b8",
+];
+
+function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = {}) {
+  const cutoff = getPeriodCutoffIso(period);
+
+  // --- status + byUser from usageHistory ---
+  const histConds = [];
+  const histParams = [];
+  if (cutoff) {
+    histConds.push("uh.timestamp >= ?");
+    histParams.push(cutoff);
+  }
+  const histAk = buildApiKeyClause(apiKeyFilter, { leadingAnd: false, column: "uh.apiKey" });
+  if (histAk.clause) {
+    histConds.push(histAk.clause);
+    histParams.push(...histAk.params);
+  }
+  const histWhere = histConds.length ? `WHERE ${histConds.join(" AND ")}` : "";
+
+  const statusRows = db.all(
+    `SELECT uh.status AS status, COUNT(*) AS count
+       FROM usageHistory uh
+       ${histWhere}
+      GROUP BY uh.status`,
+    histParams,
+  );
+  const byStatus = { success: 0, error: 0, rate_limited: 0, other: 0 };
+  for (const row of statusRows) {
+    byStatus[normalizeUsageStatus(row.status)] += Number(row.count) || 0;
+  }
+  stats.byStatus = byStatus;
+
+  const userRows = db.all(
+    `SELECT
+        CASE
+          WHEN u.id IS NOT NULL THEN u.id
+          WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN '__local__'
+          ELSE '__unassigned__'
+        END AS userId,
+        COALESCE(u.username,
+          CASE
+            WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN 'Local / system'
+            ELSE 'Unassigned key'
+          END
+        ) AS username,
+        COALESCE(u.email, '') AS email,
+        COUNT(*) AS requests,
+        COALESCE(SUM(uh.promptTokens), 0) AS promptTokens,
+        COALESCE(SUM(uh.completionTokens), 0) AS completionTokens,
+        COALESCE(SUM(uh.cost), 0) AS cost,
+        MAX(uh.timestamp) AS lastUsed
+       FROM usageHistory uh
+       LEFT JOIN apiKeys ak ON ak.key = uh.apiKey
+       LEFT JOIN users u ON u.id = ak.ownerUserId
+       ${histWhere}
+      GROUP BY userId
+      ORDER BY requests DESC`,
+    histParams,
+  );
+  stats.byUser = {};
+  for (const row of userRows) {
+    stats.byUser[row.userId] = {
+      userId: row.userId,
+      username: row.username,
+      email: row.email || "",
+      requests: Number(row.requests) || 0,
+      promptTokens: Number(row.promptTokens) || 0,
+      completionTokens: Number(row.completionTokens) || 0,
+      cachedTokens: 0,
+      cost: Number(row.cost) || 0,
+      lastUsed: row.lastUsed || null,
+    };
+  }
+
+  // --- latency p50/p95 from requestDetails ---
+  const detConds = [];
+  const detParams = [];
+  if (cutoff) {
+    detConds.push("rd.timestamp >= ?");
+    detParams.push(cutoff);
+  }
+  const detAk = buildApiKeyClause(apiKeyFilter, { leadingAnd: false, column: "rd.apiKey" });
+  if (detAk.clause) {
+    detConds.push(detAk.clause);
+    detParams.push(...detAk.params);
+  }
+  const detWhere = detConds.length ? `WHERE ${detConds.join(" AND ")}` : "";
+  const latencyRows = db.all(
+    `SELECT
+        rd.status AS status,
+        CAST(json_extract(rd.data, '$.latency.total') AS REAL) AS totalMs
+       FROM requestDetails rd
+       ${detWhere}`,
+    detParams,
+  );
+
+  const detailStatus = { success: 0, error: 0, rate_limited: 0, other: 0 };
+  const allLat = [];
+  const okLat = [];
+  const errLat = [];
+  for (const row of latencyRows) {
+    const bucket = normalizeUsageStatus(row.status);
+    detailStatus[bucket] += 1;
+    const ms = Number(row.totalMs);
+    if (!Number.isFinite(ms) || ms < 0) continue;
+    allLat.push(ms);
+    if (bucket === "success") okLat.push(ms);
+    else if (bucket === "error" || bucket === "rate_limited") errLat.push(ms);
+  }
+  allLat.sort((a, b) => a - b);
+  okLat.sort((a, b) => a - b);
+  errLat.sort((a, b) => a - b);
+
+  // Prefer requestDetails status when present (has real error rows); else usageHistory.
+  const detailTotal = Object.values(detailStatus).reduce((s, n) => s + n, 0);
+  if (detailTotal > 0) {
+    stats.byStatus = detailStatus;
+  }
+
+  const mkLat = (arr) => ({
+    count: arr.length,
+    p50: percentileSorted(arr, 0.5),
+    p95: percentileSorted(arr, 0.95),
+    avg: arr.length ? arr.reduce((s, n) => s + n, 0) / arr.length : null,
+  });
+  stats.latency = {
+    all: mkLat(allLat),
+    success: mkLat(okLat),
+    error: mkLat(errLat),
+  };
+}
+
+function emptyChartBucket(label) {
+  return { label, tokens: 0, cost: 0, byProvider: {} };
+}
+
+function addChartSample(bucket, provider, tokens, cost) {
+  const t = Number(tokens) || 0;
+  const c = Number(cost) || 0;
+  bucket.tokens += t;
+  bucket.cost += c;
+  const key = provider || "unknown";
+  if (!bucket.byProvider[key]) bucket.byProvider[key] = { tokens: 0, cost: 0 };
+  bucket.byProvider[key].tokens += t;
+  bucket.byProvider[key].cost += c;
+}
+
+function finalizeChartBuckets(buckets, topN = 6) {
+  const totals = {};
+  for (const b of buckets) {
+    for (const [prov, vals] of Object.entries(b.byProvider || {})) {
+      if (!totals[prov]) totals[prov] = 0;
+      totals[prov] += vals.tokens || 0;
+    }
+  }
+  const ranked = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const top = ranked.slice(0, topN).map(([id]) => id);
+  const topSet = new Set(top);
+  const hasOther = ranked.some(([id]) => !topSet.has(id));
+  const stackKeys = hasOther ? [...top, "other"] : top;
+
+  const points = buckets.map((b) => {
+    const point = { label: b.label, tokens: b.tokens || 0, cost: b.cost || 0 };
+    for (const key of stackKeys) {
+      point[`t_${key}`] = 0;
+      point[`c_${key}`] = 0;
+    }
+    for (const [prov, vals] of Object.entries(b.byProvider || {})) {
+      const key = topSet.has(prov) ? prov : "other";
+      if (!stackKeys.includes(key)) continue;
+      point[`t_${key}`] += vals.tokens || 0;
+      point[`c_${key}`] += vals.cost || 0;
+    }
+    return point;
+  });
+
+  const series = stackKeys.map((id, i) => ({
+    id,
+    name: id === "other" ? "Other" : id,
+    color: CHART_STACK_COLORS[i % CHART_STACK_COLORS.length],
+  }));
+
+  return { points, series };
 }
 
 export async function getUsageStats(period = "all", options = {}) {
@@ -530,12 +757,13 @@ export async function getUsageStats(period = "all", options = {}) {
       stats.totalCost += day.cost || 0;
 
       for (const [prov, p] of Object.entries(day.byProvider || {})) {
-        if (!stats.byProvider[prov]) stats.byProvider[prov] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+        if (!stats.byProvider[prov]) stats.byProvider[prov] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, lastUsed: dateKey };
         stats.byProvider[prov].requests += p.requests || 0;
         stats.byProvider[prov].promptTokens += p.promptTokens || 0;
         stats.byProvider[prov].completionTokens += p.completionTokens || 0;
         stats.byProvider[prov].cachedTokens += p.cachedTokens || 0;
         stats.byProvider[prov].cost += p.cost || 0;
+        if (dateKey > (stats.byProvider[prov].lastUsed || "")) stats.byProvider[prov].lastUsed = dateKey;
       }
 
       for (const [mk, m] of Object.entries(day.byModel || {})) {
@@ -667,12 +895,15 @@ export async function getUsageStats(period = "all", options = {}) {
       stats.totalCachedTokens += cachedTokens;
       stats.totalCost += entryCost;
 
-      if (!stats.byProvider[r.provider]) stats.byProvider[r.provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0 };
+      if (!stats.byProvider[r.provider]) stats.byProvider[r.provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0, cost: 0, lastUsed: r.timestamp };
       stats.byProvider[r.provider].requests++;
       stats.byProvider[r.provider].promptTokens += promptTokens;
       stats.byProvider[r.provider].completionTokens += completionTokens;
       stats.byProvider[r.provider].cachedTokens += cachedTokens;
       stats.byProvider[r.provider].cost += entryCost;
+      if (new Date(r.timestamp) > new Date(stats.byProvider[r.provider].lastUsed || 0)) {
+        stats.byProvider[r.provider].lastUsed = r.timestamp;
+      }
 
       const modelKey = r.provider ? `${r.model} (${r.provider})` : r.model;
       if (!stats.byModel[modelKey]) {
@@ -731,6 +962,16 @@ export async function getUsageStats(period = "all", options = {}) {
   }
 
   stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+
+  // Enrich provider rows with display name for table view.
+  for (const [provId, row] of Object.entries(stats.byProvider)) {
+    row.providerId = provId;
+    row.provider = providerNodeNameMap[provId] || provId;
+    row.rawModel = "—";
+    if (!row.lastUsed) row.lastUsed = null;
+  }
+
+  attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap);
   return stats;
 }
 
@@ -868,116 +1109,31 @@ function queryHistoryChartRows(db, startIso, apiKeyFilter) {
   }
   const where = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
   return db.all(
-    `SELECT timestamp, promptTokens, completionTokens, cost, apiKey FROM usageHistory${where}`,
+    `SELECT timestamp, provider, promptTokens, completionTokens, cost, apiKey FROM usageHistory${where}`,
     params
   );
 }
 
-export async function getChartData(period = "7d", options = {}) {
-  const apiKeyFilter = options.apiKeyFilter ?? null;
-  const db = await getAdapter();
-  const now = Date.now();
-
-  if (period === "today") {
-    const bucketCount = 24;
-    const bucketMs = 3600000;
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const startTime = startOfDay.getTime();
-    const endTime = startTime + bucketCount * bucketMs;
-    const labelFn = (ts) => new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
-
-    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
-    for (const r of rows) {
-      const t = new Date(r.timestamp).getTime();
-      if (t < startTime || t >= endTime) continue;
-      const idx = Math.floor((t - startTime) / bucketMs);
-      if (idx >= 0 && idx < bucketCount) {
-        buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
-        buckets[idx].cost += r.cost || 0;
-      }
-    }
-    return buckets;
+function fillHourlyBucketsFromHistory(rows, startTime, endTime, bucketCount, bucketMs, labelFn, clampLast = false) {
+  const buckets = Array.from({ length: bucketCount }, (_, i) => emptyChartBucket(labelFn(startTime + i * bucketMs)));
+  for (const r of rows) {
+    const t = new Date(r.timestamp).getTime();
+    if (t < startTime || t >= endTime) continue;
+    let idx = Math.floor((t - startTime) / bucketMs);
+    if (clampLast) idx = Math.min(idx, bucketCount - 1);
+    if (idx < 0 || idx >= bucketCount) continue;
+    addChartSample(
+      buckets[idx],
+      r.provider || "unknown",
+      (r.promptTokens || 0) + (r.completionTokens || 0),
+      r.cost || 0,
+    );
   }
+  return finalizeChartBuckets(buckets);
+}
 
-  if (period === "24h") {
-    const bucketCount = 24;
-    const bucketMs = 3600000;
-    const labelFn = (ts) => new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const startTime = now - bucketCount * bucketMs;
-    const buckets = Array.from({ length: bucketCount }, (_, i) => ({ label: labelFn(startTime + i * bucketMs), tokens: 0, cost: 0 }));
-
-    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
-    for (const r of rows) {
-      const t = new Date(r.timestamp).getTime();
-      if (t < startTime || t > now) continue;
-      const idx = Math.min(Math.floor((t - startTime) / bucketMs), bucketCount - 1);
-      buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
-      buckets[idx].cost += r.cost || 0;
-    }
-    return buckets;
-  }
-
-  // Multi-day: with API key filter use history buckets; otherwise usageDaily summaries
-  const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
-  const isAll = period === "all";
-  const bucketCount = isAll ? null : (periodDays[period] || 60);
-  const today = new Date();
-  const labelFn = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-  if (apiKeyFilter) {
-    const cutoff = getPeriodCutoffIso(period);
-    const rows = queryHistoryChartRows(db, cutoff, apiKeyFilter);
-    const dayMap = {};
-    for (const r of rows) {
-      const d = new Date(r.timestamp);
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      if (!dayMap[dateKey]) dayMap[dateKey] = { promptTokens: 0, completionTokens: 0, cost: 0 };
-      dayMap[dateKey].promptTokens += r.promptTokens || 0;
-      dayMap[dateKey].completionTokens += r.completionTokens || 0;
-      dayMap[dateKey].cost += r.cost || 0;
-    }
-    if (isAll) {
-      const keys = Object.keys(dayMap).sort();
-      if (keys.length === 0) return [];
-      const [y0, m0, d0] = keys[0].split("-").map(Number);
-      const start = new Date(y0, m0 - 1, d0);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(today);
-      end.setHours(0, 0, 0, 0);
-      const out = [];
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const dayData = dayMap[dateKey];
-        out.push({
-          label: labelFn(d),
-          tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
-          cost: dayData ? (dayData.cost || 0) : 0,
-        });
-      }
-      return out;
-    }
-    return Array.from({ length: bucketCount }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() - (bucketCount - 1 - i));
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const dayData = dayMap[dateKey];
-      return {
-        label: labelFn(d),
-        tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
-        cost: dayData ? (dayData.cost || 0) : 0,
-      };
-    });
-  }
-
-  // Build map of dateKey → day data
-  const dayRows = loadDaysInRange(db, bucketCount);
-  const dayMap = {};
-  for (const r of dayRows) dayMap[r.dateKey] = parseJson(r.data, {});
-
+function dayKeysFromMapOrSpan(dayMap, today, bucketCount, isAll) {
   if (isAll) {
-    // Span from earliest stored day through today so gaps show as zeros
     const keys = Object.keys(dayMap).sort();
     if (keys.length === 0) return [];
     const [y0, m0, d0] = keys[0].split("-").map(Number);
@@ -987,28 +1143,104 @@ export async function getChartData(period = "7d", options = {}) {
     end.setHours(0, 0, 0, 0);
     const out = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const dayData = dayMap[dateKey];
-      out.push({
-        label: labelFn(d),
-        tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
-        cost: dayData ? (dayData.cost || 0) : 0,
-      });
+      out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
     }
     return out;
   }
-
   return Array.from({ length: bucketCount }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() - (bucketCount - 1 - i));
-    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const dayData = dayMap[dateKey];
-    return {
-      label: labelFn(d),
-      tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
-      cost: dayData ? (dayData.cost || 0) : 0,
-    };
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
+}
+
+export async function getChartData(period = "7d", options = {}) {
+  const apiKeyFilter = options.apiKeyFilter ?? null;
+  const db = await getAdapter();
+  const now = Date.now();
+  const hourLabel = (ts) => new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const dayLabel = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  if (period === "today") {
+    const bucketCount = 24;
+    const bucketMs = 3600000;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startTime = startOfDay.getTime();
+    const endTime = startTime + bucketCount * bucketMs;
+    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
+    return fillHourlyBucketsFromHistory(rows, startTime, endTime, bucketCount, bucketMs, hourLabel);
+  }
+
+  if (period === "24h") {
+    const bucketCount = 24;
+    const bucketMs = 3600000;
+    const startTime = now - bucketCount * bucketMs;
+    const rows = queryHistoryChartRows(db, new Date(startTime).toISOString(), apiKeyFilter);
+    return fillHourlyBucketsFromHistory(rows, startTime, now + 1, bucketCount, bucketMs, hourLabel, true);
+  }
+
+  const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
+  const isAll = period === "all";
+  const bucketCount = isAll ? null : (periodDays[period] || 60);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Multi-day path below.
+
+  if (apiKeyFilter) {
+    const cutoff = getPeriodCutoffIso(period);
+    const rows = queryHistoryChartRows(db, cutoff, apiKeyFilter);
+    const dayMap = {};
+    for (const r of rows) {
+      const d = new Date(r.timestamp);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!dayMap[dateKey]) dayMap[dateKey] = emptyChartBucket(dateKey);
+      addChartSample(
+        dayMap[dateKey],
+        r.provider || "unknown",
+        (r.promptTokens || 0) + (r.completionTokens || 0),
+        r.cost || 0,
+      );
+    }
+    const keys = dayKeysFromMapOrSpan(dayMap, today, bucketCount, isAll);
+    if (keys.length === 0) return { points: [], series: [] };
+    const buckets = keys.map((dateKey) => {
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const label = dayLabel(new Date(y, m - 1, d));
+      const src = dayMap[dateKey] || emptyChartBucket(label);
+      return { label, tokens: src.tokens || 0, cost: src.cost || 0, byProvider: src.byProvider || {} };
+    });
+    return finalizeChartBuckets(buckets);
+  }
+
+  // Unfiltered multi-day: usageDaily summaries already include byProvider
+  const dayRows = loadDaysInRange(db, bucketCount);
+  const dayMap = {};
+  for (const r of dayRows) dayMap[r.dateKey] = parseJson(r.data, {});
+  const keys = dayKeysFromMapOrSpan(dayMap, today, bucketCount, isAll);
+  if (keys.length === 0) return { points: [], series: [] };
+
+  const buckets = keys.map((dateKey) => {
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const label = dayLabel(new Date(y, m - 1, d));
+    const dayData = dayMap[dateKey] || {};
+    const bucket = emptyChartBucket(label);
+    bucket.tokens = (dayData.promptTokens || 0) + (dayData.completionTokens || 0);
+    bucket.cost = dayData.cost || 0;
+    for (const [prov, p] of Object.entries(dayData.byProvider || {})) {
+      bucket.byProvider[prov] = {
+        tokens: (p.promptTokens || 0) + (p.completionTokens || 0),
+        cost: p.cost || 0,
+      };
+    }
+    // If day has totals but empty byProvider, keep total-only series via unknown
+    if (bucket.tokens > 0 && Object.keys(bucket.byProvider).length === 0) {
+      bucket.byProvider.unknown = { tokens: bucket.tokens, cost: bucket.cost };
+    }
+    return bucket;
+  });
+  return finalizeChartBuckets(buckets);
 }
 
 function formatLogDate(date = new Date()) {

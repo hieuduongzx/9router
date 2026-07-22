@@ -114,7 +114,7 @@ export function useRequestDetailDrawer() {
   };
 }
 
-export default function RequestDetailDrawer({ detail, isOpen, onClose, providerName }) {
+export default function RequestDetailDrawer({ detail, isOpen, onClose, providerName, showProviderDetails = true }) {
   const resolvedProviderName = providerName || detail?.provider || "Unknown";
 
   return (
@@ -145,10 +145,12 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
                 </div>
               </>
             )}
-            <div>
-              <span className="text-text-muted">Provider:</span>{" "}
-              <span className="font-medium text-text-main">{resolvedProviderName}</span>
-            </div>
+            {showProviderDetails && (
+              <div>
+                <span className="text-text-muted">Provider:</span>{" "}
+                <span className="font-medium text-text-main">{resolvedProviderName}</span>
+              </div>
+            )}
             <div>
               <span className="text-text-muted">Model:</span>{" "}
               <span className="font-mono text-text-main">{detail.model}</span>
@@ -247,7 +249,7 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
               </pre>
             </CollapsibleSection>
 
-            {detail.providerRequest && (
+            {showProviderDetails && detail.providerRequest && (
               <CollapsibleSection title="2. Provider Request (Translated)" icon="translate">
                 <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
                   {JSON.stringify(detail.providerRequest, null, 2)}
@@ -255,7 +257,7 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
               </CollapsibleSection>
             )}
 
-            {detail.providerResponse && (
+            {showProviderDetails && detail.providerResponse && (
               <CollapsibleSection title="3. Provider Response (Raw)" icon="data_object">
                 <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
                   {typeof detail.providerResponse === "object"
@@ -265,7 +267,7 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
               </CollapsibleSection>
             )}
 
-            <CollapsibleSection title="4. Client Response (Final)" defaultOpen icon="output">
+            <CollapsibleSection title={showProviderDetails ? "4. Client Response (Final)" : "2. Client Response (Final)"} defaultOpen icon="output">
               {detail.response?.thinking && (
                 <div className="mb-4">
                   <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-main opacity-70">
@@ -294,4 +296,5 @@ RequestDetailDrawer.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   providerName: PropTypes.string,
+  showProviderDetails: PropTypes.bool,
 };

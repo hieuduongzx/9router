@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
   AreaChart,
@@ -10,35 +10,33 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import Card from "@/shared/components/Card";
+import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 
-const fmtTokens = (n) => {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n || 0);
+const fmtTokens = (value) => {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value || 0);
 };
+const fmtCost = (value) => `$${(value || 0).toFixed(4)}`;
 
-const fmtCost = (n) => `$${(n || 0).toFixed(4)}`;
 
 export default function UsageChart({ period = "7d", apiKeyId = "all" }) {
-  const [data, setData] = useState([]);
+  const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("tokens");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ period });
-      if (apiKeyId && apiKeyId !== "all") qs.set("apiKeyId", apiKeyId);
-      const res = await fetch(`/api/usage/chart?${qs}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
-    } catch (e) {
-      console.error("Failed to fetch chart data:", e);
+      const params = new URLSearchParams({ period });
+      if (apiKeyId !== "all") params.set("apiKeyId", apiKeyId);
+      const response = await fetch(`/api/usage/chart?${params}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load usage trend");
+      setPoints(normalizeUsageChartPoints(await response.json()));
+    } catch {
+      setPoints([]);
     } finally {
       setLoading(false);
     }
@@ -48,57 +46,54 @@ export default function UsageChart({ period = "7d", apiKeyId = "all" }) {
     fetchData();
   }, [fetchData]);
 
-  const hasData = data.some((d) => d.tokens > 0 || d.cost > 0);
+  const hasData = points.some((point) => Number(point.tokens) > 0 || Number(point.cost) > 0);
+  const dataKey = viewMode === "tokens" ? "tokens" : "cost";
+  const color = viewMode === "tokens" ? "#6366f1" : "#f59e0b";
+  const formatter = viewMode === "tokens" ? fmtTokens : fmtCost;
 
   return (
     <Card className="flex min-w-0 flex-col gap-3 p-3 sm:p-4">
-      <div className="grid w-full grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:w-auto sm:self-start">
-        <button
-          onClick={() => setViewMode("tokens")}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
-        >
-          Tokens
-        </button>
-        <button
-          onClick={() => setViewMode("cost")}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "cost" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
-        >
-          Cost
-        </button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-text-main">Model consumption trend</h2>
+          <p className="mt-0.5 text-xs text-text-muted">Aggregate tokens and estimated cost across routed models.</p>
+        </div>
+        <div className="grid w-full grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode("tokens")}
+            aria-pressed={viewMode === "tokens"}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
+          >
+            Tokens
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("cost")}
+            aria-pressed={viewMode === "cost"}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${viewMode === "cost" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
+          >
+            Cost
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="h-48 flex items-center justify-center text-text-muted text-sm">Loading...</div>
+        <div className="flex h-48 items-center justify-center text-sm text-text-muted">Loading trend…</div>
       ) : !hasData ? (
-        <div className="h-48 flex items-center justify-center text-text-muted text-sm">No data for this period</div>
+        <div className="flex h-48 items-center justify-center text-sm text-text-muted">No model usage in this period.</div>
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="gradTokens" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gradCost" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+              <linearGradient id={`usage-${dataKey}-fill`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }}
-              tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={viewMode === "tokens" ? fmtTokens : fmtCost}
-              width={50}
-            />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10, fill: "currentColor", fillOpacity: 0.5 }} tickLine={false} axisLine={false} tickFormatter={formatter} width={50} />
             <Tooltip
               contentStyle={{
                 backgroundColor: "var(--color-bg)",
@@ -106,31 +101,19 @@ export default function UsageChart({ period = "7d", apiKeyId = "all" }) {
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
-              formatter={(value, name) =>
-                name === "tokens" ? [fmtTokens(value), "Tokens"] : [fmtCost(value), "Cost"]
-              }
+              formatter={(value) => [formatter(value), viewMode === "tokens" ? "Tokens" : "Cost"]}
             />
-            {viewMode === "tokens" ? (
-              <Area
-                type="monotone"
-                dataKey="tokens"
-                stroke="#6366f1"
-                strokeWidth={2}
-                fill="url(#gradTokens)"
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-            ) : (
-              <Area
-                type="monotone"
-                dataKey="cost"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                fill="url(#gradCost)"
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-            )}
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              name={viewMode === "tokens" ? "Tokens" : "Cost"}
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#usage-${dataKey}-fill)`}
+              dot={false}
+              activeDot={{ r: 3 }}
+              isAnimationActive={false}
+            />
           </AreaChart>
         </ResponsiveContainer>
       )}
@@ -140,4 +123,5 @@ export default function UsageChart({ period = "7d", apiKeyId = "all" }) {
 
 UsageChart.propTypes = {
   period: PropTypes.string,
+  apiKeyId: PropTypes.string,
 };

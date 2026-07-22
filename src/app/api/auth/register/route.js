@@ -16,11 +16,15 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    const signupCreditCents = Number.isSafeInteger(settings.signupCreditCents)
+      ? Math.max(0, settings.signupCreditCents)
+      : 0;
     const user = await createUser({
       username: body?.username,
       email: body?.email,
       password: body?.password,
       role: USER_ROLES.USER,
+      initialCreditCents: signupCreditCents,
     });
 
     const cookieStore = await cookies();

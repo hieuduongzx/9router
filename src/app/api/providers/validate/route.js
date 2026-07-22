@@ -394,6 +394,25 @@ export async function POST(request) {
           break;
         }
 
+        case "fal-ai": {
+          // OpenAI-compatible router on fal.run; Authorization must be Key (not Bearer).
+          const res = await fetch("https://fal.run/openrouter/router/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Key ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: "ping" }],
+              max_tokens: 1,
+              stream: false,
+            }),
+          });
+          isValid = res.status !== 401 && res.status !== 403;
+          break;
+        }
+
         case "opencode-go": {
           const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
             method: "POST",

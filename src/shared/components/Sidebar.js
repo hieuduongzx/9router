@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
@@ -21,12 +21,15 @@ const COMBINED_WEB_ITEM = {
 
 const GLOBAL_NAV = [
   { href: "/dashboard", label: "Home", icon: "home", exact: true },
-];
-
-const ACCOUNT_NAV = [
   { href: "/dashboard/api-keys", label: "API Keys", icon: "vpn_key" },
   { href: "/dashboard/models", label: "Models", icon: "deployed_code" },
   { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
+];
+
+const PERSONAL_NAV = [
+  { href: "/dashboard/account", label: "Profile", icon: "person", exact: true },
+  { href: "/dashboard/account?tab=wallet", label: "Wallet", icon: "account_balance_wallet", match: "wallet" },
+  { href: "/dashboard/account?tab=security", label: "Security", icon: "lock", match: "security" },
 ];
 
 const ADMIN_NAV = [
@@ -134,6 +137,8 @@ NavSubsection.propTypes = {
 
 export default function Sidebar({ onClose }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const accountTab = searchParams?.get("tab") || "profile";
   const onMediaRoute = pathname.startsWith("/dashboard/media-providers");
   const [mediaOpen, setMediaOpen] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
@@ -159,7 +164,7 @@ export default function Sidebar({ onClose }) {
     fetch("/api/auth/status", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
-        const admin = data.role === "admin";
+        const admin = data.isAdminView === true;
         setIsAdmin(admin);
         if (!admin) return null;
         return fetch("/api/settings")
@@ -292,18 +297,7 @@ export default function Sidebar({ onClose }) {
             ))}
           </NavSection>
 
-          <NavSection title="Account" className="mt-2 border-t border-border/70">
-            {ACCOUNT_NAV.map((item) => (
-              <NavItem
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                active={isPathActive(pathname, item.href)}
-                onClick={onClose}
-              />
-            ))}
-          </NavSection>
+
 
           {isAdmin && (
             <NavSection title="Admin" className="mt-2 border-t border-border/70">
@@ -408,17 +402,39 @@ export default function Sidebar({ onClose }) {
               </NavSubsection>
             </NavSection>
           )}
+
+          <NavSection title="Personal" className="mt-2 border-t border-border/70">
+            {PERSONAL_NAV.map((item) => {
+              const onAccount = pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
+              let active = false;
+              if (item.match === "wallet") active = onAccount && accountTab === "wallet";
+              else if (item.match === "security") active = onAccount && accountTab === "security";
+              else active = onAccount && (accountTab === "profile" || !accountTab || accountTab === "");
+              return (
+                <NavItem
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={active}
+                  onClick={onClose}
+                />
+              );
+            })}
+          </NavSection>
         </nav>
 
         {/* Footer */}
         <div className="shrink-0 space-y-1 border-t border-border p-2">
-          <NavItem
-            href={isAdmin ? "/dashboard/settings" : "/dashboard/account"}
-            label={isAdmin ? "Settings" : "Profile"}
-            icon={isAdmin ? "settings" : "person"}
-            active={isPathActive(pathname, isAdmin ? "/dashboard/settings" : "/dashboard/account")}
-            onClick={onClose}
-          />
+          {isAdmin ? (
+            <NavItem
+              href="/dashboard/settings"
+              label="Settings"
+              icon="settings"
+              active={isPathActive(pathname, "/dashboard/settings")}
+              onClick={onClose}
+            />
+          ) : null}
           <div className="flex items-center justify-between px-2.5 py-1.5">
             <span className="text-[11px] text-text-muted">Gateway</span>
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-text-muted">

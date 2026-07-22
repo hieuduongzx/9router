@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
 import Sidebar from "../Sidebar";
@@ -78,7 +78,9 @@ export default function DashboardLayout({ children }) {
 
       {/* Sidebar - Desktop */}
       <div className="hidden h-full lg:flex">
-        <Sidebar />
+        <Suspense fallback={<div className="h-full w-[248px] border-r border-border bg-surface" />}>
+          <Sidebar />
+        </Suspense>
       </div>
 
       {/* Sidebar - Mobile drawer */}
@@ -87,7 +89,9 @@ export default function DashboardLayout({ children }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        <Suspense fallback={null}>
+          <Sidebar onClose={() => setSidebarOpen(false)} />
+        </Suspense>
       </div>
 
       {/* Main content */}

@@ -3,7 +3,7 @@ import {
   markAccountUnavailable,
   clearAccountError,
   extractApiKey,
-  isValidApiKey,
+  authorizeBillableApiKey,
 } from "../services/auth.js";
 import { getSettings, getCombos } from "@/lib/localDb";
 import { AI_PROVIDERS, resolveProviderId } from "@/shared/constants/providers.js";
@@ -44,16 +44,16 @@ export async function handleSearch(request) {
     log.debug("AUTH", "No API key provided");
   }
 
-  // Every AI request requires an active Router2k API key.
+  // Every AI request requires an active Router2k API key with account credit.
   const settings = await getSettings();
   if (!apiKey) {
     log.warn("AUTH", "Missing API key");
     return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
   }
-  const valid = await isValidApiKey(apiKey);
-  if (!valid) {
-    log.warn("AUTH", "Invalid API key");
-    return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+  const auth = await authorizeBillableApiKey(apiKey);
+  if (!auth.ok) {
+    log.warn("AUTH", auth.message);
+    return errorResponse(auth.status, auth.message);
   }
 
   if (!providerInput || typeof providerInput !== "string") {

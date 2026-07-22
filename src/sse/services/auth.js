@@ -1,4 +1,4 @@
-import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
+import { getProviderConnections, validateApiKey, resolveApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
@@ -316,4 +316,50 @@ export function extractApiKey(request) {
 export async function isValidApiKey(apiKey) {
   if (!apiKey) return false;
   return await validateApiKey(apiKey);
+}
+
+/**
+ * Resolve an active API key and enforce owner credit for billable routes.
+ * Returns { ok:true, apiKey, owner } or { ok:false, status, message }.
+ */
+export async function authorizeBillableApiKey(apiKey) {
+  if (!apiKey) {
+    return { ok: false, status: 401, message: "Missing API key" };
+  }
+
+  const resolved = await resolveApiKey(apiKey);
+  if (!resolved || !resolved.isActive) {
+    return { ok: false, status: 401, message: "Invalid API key" };
+  }
+
+  const owner = resolved.owner;
+  if (!owner?.id) {
+    return {
+      ok: false,
+      status: 403,
+      message: "API key is not linked to an account. Ask an administrator to reissue the key.",
+    };
+  }
+  if (!owner.isActive) {
+    return { ok: false, status: 403, message: "Account is suspended" };
+  }
+  // Admins may run with a zero balance (self-hosted ops). Non-admin users need credit.
+  if (owner.role !== "admin" && (owner.creditCents || 0) <= 0) {
+    return {
+      ok: false,
+      status: 402,
+      message: "Insufficient account credit. Ask an administrator to add balance.",
+    };
+  }
+
+  return {
+    ok: true,
+    apiKey: resolved,
+    owner: {
+      id: owner.id,
+      username: owner.username,
+      role: owner.role,
+      creditCents: owner.creditCents,
+    },
+  };
 }

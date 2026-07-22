@@ -50,10 +50,8 @@ export async function GET(request) {
     if (startDate) filter.startDate = startDate;
     if (endDate) filter.endDate = endDate;
 
-    if (owner.role !== "admin") {
-      const keys = await getApiKeys(owner.id);
-      filter.apiKeys = keys.map((key) => key.key);
-    }
+    const keys = await getApiKeys(owner.id);
+    filter.apiKeys = keys.map((key) => key.key);
     
     const result = await getRequestDetails(filter);
     

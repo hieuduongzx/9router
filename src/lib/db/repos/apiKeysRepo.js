@@ -77,9 +77,45 @@ export async function deleteApiKey(id, ownerUserId) {
   return (res?.changes ?? 0) > 0;
 }
 
-export async function validateApiKey(key) {
+export async function resolveApiKey(key) {
+  if (!key || typeof key !== "string") return null;
   const db = await getAdapter();
-  const row = db.get(`SELECT isActive FROM apiKeys WHERE key = ?`, [key]);
-  if (!row) return false;
-  return row.isActive === 1 || row.isActive === true;
+  const row = db.get(
+    `SELECT k.id, k.key, k.name, k.machineId, k.ownerUserId, k.isActive, k.createdAt,
+            u.id AS ownerId, u.username AS ownerUsername, u.role AS ownerRole,
+            u.isActive AS ownerIsActive, u.creditCents AS ownerCreditCents
+       FROM apiKeys k
+       LEFT JOIN users u ON u.id = k.ownerUserId
+      WHERE k.key = ?`,
+    [key],
+  );
+  if (!row) return null;
+  const isActive = row.isActive === 1 || row.isActive === true;
+  const owner =
+    row.ownerId
+      ? {
+          id: row.ownerId,
+          username: row.ownerUsername || "",
+          role: row.ownerRole === "admin" ? "admin" : "user",
+          isActive: row.ownerIsActive === 1 || row.ownerIsActive === true,
+          creditCents: Number.isSafeInteger(row.ownerCreditCents)
+            ? row.ownerCreditCents
+            : Number(row.ownerCreditCents) || 0,
+        }
+      : null;
+  return {
+    id: row.id,
+    key: row.key,
+    name: row.name,
+    machineId: row.machineId,
+    ownerUserId: row.ownerUserId || owner?.id || null,
+    isActive,
+    createdAt: row.createdAt,
+    owner,
+  };
+}
+
+export async function validateApiKey(key) {
+  const resolved = await resolveApiKey(key);
+  return !!(resolved && resolved.isActive);
 }

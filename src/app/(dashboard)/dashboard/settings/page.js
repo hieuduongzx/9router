@@ -311,6 +311,25 @@ export default function ProfilePage() {
     }
   };
 
+  const updateSignupCreditDollars = async (rawValue) => {
+    const dollars = Number(rawValue);
+    if (!Number.isFinite(dollars) || dollars < 0) return;
+    const signupCreditCents = Math.round(dollars * 100);
+    if (!Number.isSafeInteger(signupCreditCents) || signupCreditCents > 100_000_000) return;
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupCreditCents }),
+      });
+      if (res.ok) {
+        setSettings((prev) => ({ ...prev, signupCreditCents }));
+      }
+    } catch (err) {
+      console.error("Failed to update signup credit:", err);
+    }
+  };
+
   const updateOidcForm = (field, value) => {
     setOidcForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -694,6 +713,34 @@ export default function ProfilePage() {
                 onChange={() => updateRequireLogin(!settings.requireLogin)}
                 disabled={loading}
               />
+            </div>
+            <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+              <div className="flex items-start sm:items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">Signup credit</p>
+                  <p className="text-xs sm:text-sm text-text-muted">
+                    Starting wallet balance granted when a new account registers.
+                  </p>
+                </div>
+                <div className="w-36">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    disabled={loading}
+                    value={((Number(settings.signupCreditCents) || 0) / 100).toString()}
+                    onChange={(event) => {
+                      const dollars = event.target.value;
+                      const cents = Math.round(Number(dollars) * 100);
+                      if (Number.isFinite(cents) && cents >= 0) {
+                        setSettings((prev) => ({ ...prev, signupCreditCents: cents }));
+                      }
+                    }}
+                    onBlur={(event) => updateSignupCreditDollars(event.target.value)}
+                    hint="USD"
+                  />
+                </div>
+              </div>
             </div>
             {settings.requireLogin === true && settings.currentUser && (
               <form onSubmit={handlePasswordChange} className="flex flex-col gap-4 pt-4 border-t border-border/50">

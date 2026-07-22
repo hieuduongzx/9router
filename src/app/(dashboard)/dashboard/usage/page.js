@@ -51,12 +51,19 @@ function UsageContent() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
-      {/* Tabs + filters */}
+      <header>
+        <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Model usage</h1>
+        <p className="mt-1 max-w-2xl text-sm text-text-muted">
+          Review request volume, tokens, cache utilization, latency, and estimated cost by routed model.
+        </p>
+      </header>
+
+      {/* Model analytics views and account-scoped filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <SegmentedControl
           options={[
             { value: "overview", label: "Overview" },
-            { value: "details", label: "Details" },
+            { value: "details", label: "Request history" },
           ]}
           value={activeTab}
           onChange={handleTabChange}

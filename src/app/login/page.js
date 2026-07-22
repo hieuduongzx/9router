@@ -30,6 +30,9 @@ export default function LoginPage() {
   useEffect(() => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get("mode");
+    if (requestedMode === "register") setMode("register");
 
     fetch("/api/auth/status", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {

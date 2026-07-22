@@ -65,8 +65,8 @@ export default function SystemUsageTab({ period }) {
 
   if (loading && !data) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Loading system usage">
-        {[0, 1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-[14px] bg-surface-2" />)}
+      <div className="grid gap-3 sm:grid-cols-3" aria-label="Loading system activity">
+        {[0, 1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-[14px] bg-surface-2" />)}
       </div>
     );
   }
@@ -80,40 +80,50 @@ export default function SystemUsageTab({ period }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-3">
         <SummaryCard
           icon="sensors"
           label="Active now"
           value={formatNumber(summary.activeRequests)}
-          detail={`${summary.activeUsers || 0} active user${summary.activeUsers === 1 ? "" : "s"}`}
+          detail="Requests currently in flight"
           active={summary.activeRequests > 0}
         />
-        <SummaryCard icon="receipt_long" label="Requests" value={formatNumber(summary.requests)} />
-        <SummaryCard icon="input" label="Input tokens" value={formatNumber(summary.promptTokens)} />
-        <SummaryCard icon="output" label="Output tokens" value={formatNumber(summary.completionTokens)} />
-        <SummaryCard icon="payments" label="Estimated cost" value={MONEY_FORMAT.format(Number(summary.cost) || 0)} />
+        <SummaryCard
+          icon="group"
+          label="Active users"
+          value={formatNumber(summary.activeUsers)}
+          detail="Identities with in-flight requests"
+          active={summary.activeUsers > 0}
+        />
+        <SummaryCard
+          icon="receipt_long"
+          label="Requests"
+          value={formatNumber(summary.requests)}
+          detail="System-wide in the selected period"
+        />
       </div>
 
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-main">Usage by user</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Account ownership is resolved from the API key used for each request.</p>
+            <h2 className="text-sm font-semibold text-text-main">Activity by account</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Operational traffic attributed through each account-owned API key.</p>
           </div>
           <span className="shrink-0 text-xs tabular-nums text-text-muted">{users.length} identities</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-xs">
+            <caption className="sr-only">System activity grouped by account for the selected period</caption>
             <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">API keys</th>
-                <th className="px-4 py-3 text-right font-medium">Active</th>
-                <th className="px-4 py-3 text-right font-medium">Requests</th>
-                <th className="px-4 py-3 text-right font-medium">Input</th>
-                <th className="px-4 py-3 text-right font-medium">Output</th>
-                <th className="px-4 py-3 text-right font-medium">Cost</th>
-                <th className="px-5 py-3 text-right font-medium">Last request</th>
+                <th scope="col" className="px-5 py-3 font-medium">User</th>
+                <th scope="col" className="px-4 py-3 font-medium">API keys</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Active</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Requests</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Input</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Output</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Cost</th>
+                <th scope="col" className="px-5 py-3 text-right font-medium">Last request</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">

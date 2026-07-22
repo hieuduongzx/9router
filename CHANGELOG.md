@@ -5,8 +5,12 @@
 - **CLI tools**: configure Grok Build subagent models
 - **Kimi**: merge OAuth into dual-auth provider, add K3 / K2.7 models
 - **Dashboard**: ProviderTopology flow animation
+- **Dashboard**: let administrators persistently switch between Admin and account-scoped User views without changing backend permissions
+- **Dashboard**: add Today, 24h, 7D, 30D, 60D, and All quick ranges to account request history
+- **Dashboard**: add paired token and spend trends, request outcome health, and show hourly traffic only for Today
 
 ## Fixes
+- **Dashboard**: render Home token and hourly charts from the current chart API payload
 - **DB**: resolve better-sqlite3 parameter binding crash
 - **Translator**: pass `service_tier` through OpenAI → Responses conversion
 - **Kiro**: map GPT-5.6 reasoning effort fields

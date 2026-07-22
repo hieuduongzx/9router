@@ -8,13 +8,13 @@ const VALID_PERIODS = new Set(["today", "24h", "7d", "30d", "60d", "all"]);
 export const dynamic = "force-dynamic";
 
 /** Resolve ?apiKeyId= to internal filter value for usageRepo. */
-async function resolveApiKeyFilter(apiKeyId, owner) {
-  if ((!apiKeyId || apiKeyId === "all") && owner.role === "admin") return null;
+async function resolveApiKeyFilter(apiKeyId, owner, systemScope) {
+  if (systemScope) return owner.role === "admin" ? null : "__none__";
   if (!apiKeyId || apiKeyId === "all") {
     const keys = await getApiKeys(owner.id);
     return keys.map((key) => key.key);
   }
-  if (apiKeyId === "local") return owner.role === "admin" ? "__local__" : "__none__";
+  if (apiKeyId === "local") return "__none__";
   try {
     const key = await getApiKeyById(apiKeyId, owner.id);
     return key?.key || "__none__";
@@ -30,12 +30,13 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "7d";
     const apiKeyId = searchParams.get("apiKeyId") || "all";
+    const systemScope = searchParams.get("scope") === "system";
 
     if (!VALID_PERIODS.has(period)) {
       return NextResponse.json({ error: "Invalid period" }, { status: 400 });
     }
 
-    const apiKeyFilter = await resolveApiKeyFilter(apiKeyId, owner);
+    const apiKeyFilter = await resolveApiKeyFilter(apiKeyId, owner, systemScope);
     const stats = await getUsageStats(period, { apiKeyFilter });
     return NextResponse.json(stats);
   } catch (error) {

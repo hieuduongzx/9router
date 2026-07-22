@@ -76,7 +76,7 @@ describe("Schema migrations", () => {
 
     expect(db2.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'")).toBeTruthy();
     expect(db2.all("PRAGMA table_info(apiKeys)").map((column) => column.name)).toContain("ownerUserId");
-    expect(db2.get("SELECT value FROM _meta WHERE key = 'schemaVersion'")?.value).toBe("3");
+    expect(db2.get("SELECT value FROM _meta WHERE key = 'schemaVersion'")?.value).toBe(String((await import("@/lib/db/migrations/index.js")).latestVersion()));
   });
 
   it("fresh DB + legacy db.json → imports data automatically", async () => {

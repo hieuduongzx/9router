@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   comboStickyRoundRobinLimit: 1,
   comboStrategies: {},
   requireLogin: true,
+  signupCreditCents: 0,
   authMode: "password",
   oidcIssuerUrl: "",
   oidcClientId: "",

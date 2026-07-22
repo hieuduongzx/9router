@@ -28,32 +28,31 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout }
   if (!displayName) return null;
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative ml-0.5 sm:ml-1" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Open account menu"
-        className="flex max-w-[260px] items-center gap-2 rounded-full border border-border bg-surface/70 py-1 pl-1 pr-2 text-xs text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+        aria-label={displayName ? `Account menu for ${displayName}` : "Open account menu"}
+        className="flex size-11 max-w-[220px] items-center justify-center gap-2 rounded-full border border-border bg-surface p-1 text-left text-text-muted transition-colors hover:border-border hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 sm:w-auto sm:justify-start sm:pr-2.5"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
           {avatarLabel}
         </span>
-        <span className="min-w-0 text-left">
-          <span className="hidden max-w-[112px] truncate text-[11px] font-medium leading-none text-text-main sm:block">{displayName}</span>
+        <span className="hidden min-w-0 sm:block">
+          <span className="block max-w-[120px] truncate text-[13px] font-semibold leading-tight text-text-main">
+            {displayName}
+          </span>
           {formattedCredit && (
-            <span className="block whitespace-nowrap text-[10px] font-semibold leading-none text-primary tabular-nums sm:mt-1">
-              <span className="hidden font-medium text-text-muted sm:inline">Balance </span>{formattedCredit}
+            <span className="mt-0.5 block whitespace-nowrap text-[11px] font-medium leading-none text-primary tabular-nums">
+              {formattedCredit}
             </span>
           )}
         </span>
-        {role && (
-          <span className="hidden rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary xl:inline">
-            {role}
-          </span>
-        )}
-        <span className="material-symbols-outlined text-[15px]">expand_more</span>
+        <span className="ml-0.5 hidden shrink-0 sm:inline-flex">
+          <span className="material-symbols-outlined text-[16px] text-text-muted">expand_more</span>
+        </span>
       </button>
 
       {open && (

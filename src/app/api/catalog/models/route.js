@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
-import { buildModelsList } from "@/app/api/v1/models/route";
-import { getModelPricingCatalog, getProviderConnections } from "@/lib/localDb";
+import { buildProviderModelsCatalog } from "@/lib/providerModelsCatalog";
+import { getCustomModels, getModelPricingCatalog, getProviderConnections } from "@/lib/localDb";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
+import { getDisabledModels } from "@/lib/disabledModelsDb";
 import { getProviderAlias, resolveProviderId } from "@/shared/constants/providers";
+import {
+  DASHBOARD_VIEW_ADMIN,
+  DASHBOARD_VIEW_COOKIE,
+  resolveDashboardViewMode,
+} from "@/shared/constants/dashboardView";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +18,10 @@ function getPricingTarget(model, providerByAlias) {
   if (separator < 1 || separator === model.id.length - 1) return null;
 
   const alias = model.id.slice(0, separator);
+  const provider = providerByAlias.get(alias) || resolveProviderId(alias) || alias;
   return {
-    provider: providerByAlias.get(alias) || resolveProviderId(alias),
+    provider,
+    // Keep nested vendor path (openrouter/google/lyria-...) intact after the first slash.
     model: model.id.slice(separator + 1),
   };
 }
@@ -24,7 +32,7 @@ export async function GET(request) {
       (connection) => connection.isActive !== false,
     );
     if (activeConnections.length === 0) {
-      return NextResponse.json({ models: [] });
+      return NextResponse.json({ models: [], canEditPricing: false });
     }
 
     const providerByAlias = new Map();
@@ -38,10 +46,30 @@ export async function GET(request) {
       if (!providerByAlias.has(alias)) providerByAlias.set(alias, provider);
     }
 
-    const account = await getDashboardAccount(request);
-    const canEditPricing = account?.role === "admin";
+    // Pricing edit controls only for signed-in admins. Guests still get the public catalog.
+    let canEditPricing = false;
+    try {
+      const account = await getDashboardAccount(request);
+      const viewMode = resolveDashboardViewMode(
+        account?.role,
+        request.cookies?.get(DASHBOARD_VIEW_COOKIE)?.value,
+      );
+      canEditPricing = account?.role === "admin" && viewMode === DASHBOARD_VIEW_ADMIN;
+    } catch {
+      canEditPricing = false;
+    }
 
-    const models = await buildModelsList(["llm"]);
+    // Mirror the checked "Available Models" shown on provider tabs:
+    // manually added models plus built-in LLM models that were not disabled.
+    const [customModels, disabledByAlias] = await Promise.all([
+      getCustomModels(),
+      getDisabledModels(),
+    ]);
+    const models = buildProviderModelsCatalog(
+      customModels,
+      activeConnections,
+      disabledByAlias,
+    );
     const pricingTargets = models.map((model) => getPricingTarget(model, providerByAlias));
     const pricingEntries = await getModelPricingCatalog(
       pricingTargets.map((target) => target || {}),
@@ -58,7 +86,9 @@ export async function GET(request) {
           capabilities: model.capabilities || {},
           pricing: resolved?.pricing || null,
           pricingSource: resolved?.source || "unpriced",
-          ...(canEditPricing && target
+          // Always expose target so admins can price previously unpriced models.
+          // UI only enables editors when canEditPricing is true.
+          ...(target
             ? {
                 pricingTarget: target,
                 defaultPricing: resolved?.defaultPricing || null,

@@ -14,6 +14,10 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { translate } from "@/i18n/runtime";
+import {
+  DASHBOARD_VIEW_ADMIN,
+  DASHBOARD_VIEW_USER,
+} from "@/shared/constants/dashboardView";
 
 const getPageInfo = (pathname) => {
   if (!pathname) return { title: "", description: "", breadcrumbs: [] };
@@ -87,14 +91,14 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/activity"))
     return {
       title: "Activity",
-      description: "Monitor system-wide usage and request activity",
+      description: "Admin operations for system, providers, and requests",
       icon: "monitoring",
       breadcrumbs: [],
     };
   if (pathname.includes("/usage"))
     return {
       title: "Usage",
-      description: "Track your API usage and inspect request details",
+      description: "Model tokens, cost, and account-scoped request history",
       icon: "bar_chart",
       breadcrumbs: [],
     };
@@ -177,8 +181,8 @@ const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/account"))
     return {
-      title: "Profile",
-      description: "Identity, balance, usage, and sign-in security",
+      title: "Account",
+      description: "Profile, wallet, and sign-in security",
       icon: "account_circle",
       breadcrumbs: [],
     };
@@ -206,7 +210,7 @@ const getPageInfo = (pathname) => {
   if (pathname === "/dashboard" || pathname === "/dashboard/")
     return {
       title: "Home",
-      description: "Traffic, cost, and provider health at a glance",
+      description: "Model traffic, access, and account status at a glance",
       icon: "home",
       breadcrumbs: [],
     };
@@ -218,6 +222,10 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState("");
   const [creditCents, setCreditCents] = useState(null);
+  const [viewMode, setViewMode] = useState(DASHBOARD_VIEW_USER);
+  const [canSwitchDashboardView, setCanSwitchDashboardView] = useState(false);
+  const [switchingView, setSwitchingView] = useState(false);
+  const [viewModeError, setViewModeError] = useState("");
 
   // Memoize page info to prevent unnecessary recalculations
   const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
@@ -235,12 +243,16 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
           setDisplayName(data?.displayName || data?.oidcName || data?.oidcEmail || "");
           setRole(data?.role || "");
           setCreditCents(Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null);
+          setViewMode(data?.viewMode || DASHBOARD_VIEW_USER);
+          setCanSwitchDashboardView(data?.canSwitchDashboardView === true);
         }
       } catch {
         if (!cancelled) {
           setDisplayName("");
           setRole("");
           setCreditCents(null);
+          setViewMode(DASHBOARD_VIEW_USER);
+          setCanSwitchDashboardView(false);
         }
       }
     }
@@ -261,6 +273,40 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       }
     } catch (err) {
       console.error("Failed to logout:", err);
+    }
+  };
+
+  const handleViewModeToggle = async () => {
+    if (switchingView) return;
+    const nextMode = viewMode === DASHBOARD_VIEW_ADMIN ? DASHBOARD_VIEW_USER : DASHBOARD_VIEW_ADMIN;
+    setSwitchingView(true);
+    setViewModeError("");
+    try {
+      const response = await fetch("/api/auth/view-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Unable to switch dashboard view");
+      if (body.viewMode !== DASHBOARD_VIEW_ADMIN && body.viewMode !== DASHBOARD_VIEW_USER) {
+        throw new Error("Invalid dashboard view response");
+      }
+      const resolvedMode = body.viewMode;
+      setViewMode(resolvedMode);
+      const userViewSafePath = pathname === "/dashboard"
+        || pathname === "/dashboard/"
+        || ["/dashboard/api-keys", "/dashboard/usage", "/dashboard/models", "/dashboard/account"]
+          .some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+      if (resolvedMode === DASHBOARD_VIEW_USER && !userViewSafePath) {
+        window.location.assign("/dashboard");
+      } else {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to switch dashboard view:", error);
+      setViewModeError("Could not switch dashboard view. Try again.");
+      setSwitchingView(false);
     }
   };
 
@@ -339,17 +385,70 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         ) : null}
       </div>
 
-      {/* Right actions */}
-      <div className="flex items-center gap-1 shrink-0">
-        <AccountMenu displayName={displayName} role={role} creditCents={creditCents} onLogout={handleLogout} />
+      {/* Right actions: utilities first, profile owns the far-right corner */}
+      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
         <HeaderSearch />
-        <ThemeToggle />
+        <div className="hidden sm:block"><ThemeToggle /></div>
         <HeaderLanguage />
         <HeaderMenu />
+        {canSwitchDashboardView && (
+          <div className="sm:ml-1 sm:border-l sm:border-border sm:pl-2">
+            <DashboardViewToggle
+              mode={viewMode}
+              pending={switchingView}
+              onToggle={handleViewModeToggle}
+            />
+          </div>
+        )}
+        <AccountMenu displayName={displayName} role={role} creditCents={creditCents} onLogout={handleLogout} />
       </div>
+      {viewModeError && (
+        <div
+          role="alert"
+          className="fixed right-4 top-16 z-50 max-w-sm rounded-lg border border-danger/25 bg-surface px-4 py-3 text-sm font-medium text-danger shadow-[var(--shadow-elev)]"
+        >
+          {viewModeError}
+        </div>
+      )}
     </header>
   );
 }
+
+function DashboardViewToggle({ mode, pending, onToggle }) {
+  const adminView = mode === DASHBOARD_VIEW_ADMIN;
+  const targetLabel = adminView ? "User" : "Admin";
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={adminView}
+      aria-label="Admin dashboard view"
+      title={`Switch to ${targetLabel} view`}
+      aria-busy={pending}
+      disabled={pending}
+      onClick={onToggle}
+      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-2 text-xs font-medium text-text-main transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-wait disabled:opacity-60 sm:h-9 xl:px-2.5"
+    >
+      <span className={`material-symbols-outlined text-[18px] ${pending ? "animate-spin text-primary" : adminView ? "text-primary" : "text-text-muted"}`}>
+        {pending ? "progress_activity" : adminView ? "admin_panel_settings" : "person"}
+      </span>
+      <span>{adminView ? "Admin" : "User"}<span className="hidden xl:inline"> view</span></span>
+      <span
+        aria-hidden="true"
+        className={`relative hidden h-4 w-7 rounded-full transition-colors sm:block ${adminView ? "bg-primary" : "bg-text-subtle/40"}`}
+      >
+        <span className={`absolute top-0.5 size-3 rounded-full bg-white shadow-sm transition-transform ${adminView ? "translate-x-3.5" : "translate-x-0.5"}`} />
+      </span>
+    </button>
+  );
+}
+
+DashboardViewToggle.propTypes = {
+  mode: PropTypes.oneOf([DASHBOARD_VIEW_ADMIN, DASHBOARD_VIEW_USER]).isRequired,
+  pending: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+};
 
 function HeaderSearch() {
   const visible = useHeaderSearchStore((s) => s.visible);

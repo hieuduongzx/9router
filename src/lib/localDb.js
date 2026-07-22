@@ -3,7 +3,8 @@
 export {
   getSettings, updateSettings, isCloudEnabled, getCloudUrl,
   getPrimaryAdmin, getUserById, getUserByLogin, createUser, listUsers,
-  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance, deleteUserAccount,
+  updateUserProfile, updateUserAccess, adjustUserCredit, setUserCreditBalance,
+  usdCostToCents, debitUserCreditForUsage, listCreditLedger, deleteUserAccount,
   verifyUserCredentials, verifyUserPassword, updateUserPassword,
   hasSecureAdminAccount, resetRecoveryAdminCredentials,
   getProviderConnections, getProviderConnectionById,
@@ -14,7 +15,7 @@ export {
   createProviderNode, updateProviderNode, deleteProviderNode,
   getProxyPools, getProxyPoolById,
   createProxyPool, updateProxyPool, deleteProxyPool,
-  getApiKeys, getApiKeyById, createApiKey, updateApiKey, deleteApiKey, validateApiKey,
+  getApiKeys, getApiKeyById, createApiKey, updateApiKey, deleteApiKey, validateApiKey, resolveApiKey,
   getCombos, getComboById, getComboByName,
   createCombo, updateCombo, deleteCombo,
   getModelAliases, setModelAlias, deleteModelAlias,
