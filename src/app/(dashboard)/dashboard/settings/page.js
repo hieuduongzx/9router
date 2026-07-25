@@ -603,24 +603,24 @@ export default function ProfilePage() {
         <Card>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="size-10 sm:size-12 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+              <div className="size-10 sm:size-12 border border-border bg-surface-2 text-text-main flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-xl sm:text-2xl">computer</span>
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold">Local Mode</h2>
+                <h2 className="font-mono text-lg sm:text-xl font-semibold">Local Mode</h2>
                 <p className="text-sm text-text-muted">Running on your machine</p>
               </div>
             </div>
-            <div className="inline-flex p-1 rounded-lg bg-black/5 dark:bg-white/5 w-full sm:w-auto">
+            <div className="inline-flex p-1 rounded-sm bg-black/5 dark:bg-white/5 w-full sm:w-auto">
               {["light", "dark", "system"].map((option) => (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setTheme(option)}
                   className={cn(
-                    "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md font-medium transition-all flex-1 sm:flex-initial",
+                    "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-sm font-mono font-medium transition-all flex-1 sm:flex-initial",
                     theme === option
-                      ? "bg-white dark:bg-white/10 text-text-main shadow-sm"
+                      ? "bg-white dark:bg-white/10 text-text-main"
                       : "text-text-muted hover:text-text-main"
                   )}
                 >
@@ -633,9 +633,9 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="flex flex-col gap-3 pt-4 border-t border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-bg border border-border gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border border-border bg-bg gap-2">
               <div>
-                <p className="font-medium text-sm sm:text-base">Database Location</p>
+                <p className="font-mono font-medium text-sm sm:text-base">Database Location</p>
                 <p className="text-xs sm:text-sm text-text-muted font-mono break-all">~/.9router/db/data.sqlite</p>
               </div>
             </div>
@@ -677,14 +677,14 @@ export default function ProfilePage() {
         {/* Language */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="size-10 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+            <div className="size-10 border border-border bg-surface-2 text-text-main flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[20px]">language</span>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">Language</h3>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Language</h3>
           </div>
           <button
             onClick={() => setLangOpen(true)}
-            className="flex items-center justify-between w-full p-3 rounded-lg bg-bg border border-border hover:border-primary/50 transition-colors"
+            className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border border-border hover:border-primary/50 transition-colors"
             data-i18n-skip="true"
           >
             <span className="text-sm text-text-muted">Display language</span>
@@ -695,15 +695,15 @@ export default function ProfilePage() {
         {/* Security */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">shield</span>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">Security</h3>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Security</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm sm:text-base">Require login</p>
+                <p className="font-mono font-medium text-sm sm:text-base">Require login</p>
                 <p className="text-xs sm:text-sm text-text-muted">
                   When ON, dashboard access requires an account or configured OIDC identity.
                 </p>
@@ -717,7 +717,7 @@ export default function ProfilePage() {
             <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
               <div className="flex items-start sm:items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">Signup credit</p>
+                  <p className="font-mono font-medium text-sm sm:text-base">Signup credit</p>
                   <p className="text-xs sm:text-sm text-text-muted">
                     Starting wallet balance granted when a new account registers.
                   </p>
@@ -745,7 +745,7 @@ export default function ProfilePage() {
             {settings.requireLogin === true && settings.currentUser && (
               <form onSubmit={handlePasswordChange} className="flex flex-col gap-4 pt-4 border-t border-border/50">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs sm:text-sm font-medium">Current account password</label>
+                  <label className="font-mono text-xs sm:text-sm font-medium">Current account password</label>
                   <Input
                     type="password"
                     placeholder="Enter current password"
@@ -756,7 +756,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs sm:text-sm font-medium">New Password</label>
+                    <label className="font-mono text-xs sm:text-sm font-medium">New Password</label>
                     <Input
                       type="password"
                       placeholder="Enter new password"
@@ -766,7 +766,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs sm:text-sm font-medium">Confirm New Password</label>
+                    <label className="font-mono text-xs sm:text-sm font-medium">Confirm New Password</label>
                     <Input
                       type="password"
                       placeholder="Confirm new password"
@@ -800,11 +800,11 @@ export default function ProfilePage() {
             onClick={() => setOidcExpanded((v) => !v)}
             className="w-full flex items-center gap-3 text-left"
           >
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 shrink-0">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">lock_open</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-lg font-semibold">OIDC Dashboard Login</h3>
+              <h3 className="font-mono text-base sm:text-lg font-semibold">OIDC Dashboard Login</h3>
               <p className="text-xs text-text-muted">
                 {settings.authMode === "oidc" ? "OIDC active" : settings.authMode === "both" ? "Accounts + OIDC active" : "Optional SSO via Authentik/Keycloak/Google"}
               </p>
@@ -820,7 +820,7 @@ export default function ProfilePage() {
             </p>
 
             <div className="flex flex-col gap-2">
-              <label className="font-medium text-sm sm:text-base">Auth Mode</label>
+              <label className="font-mono font-medium text-sm sm:text-base">Auth Mode</label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   {
@@ -846,14 +846,14 @@ export default function ProfilePage() {
                       type="button"
                       onClick={() => updateOidcForm("authMode", option.value)}
                       className={cn(
-                        "text-left rounded-lg border p-3 transition-colors",
+                        "text-left border p-3 transition-colors",
                         active
                           ? "border-primary bg-primary/5"
                           : "border-border bg-bg hover:bg-black/5 dark:hover:bg-white/5"
                       )}
                       disabled={loading || oidcLoading}
                     >
-                      <p className="font-medium text-sm sm:text-base">{option.title}</p>
+                      <p className="font-mono font-medium text-sm sm:text-base">{option.title}</p>
                       <p className="text-xs sm:text-sm text-text-muted mt-1">{option.desc}</p>
                     </button>
                   );
@@ -863,7 +863,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 gap-4">
               <div className="flex flex-col gap-2">
-                <label className="font-medium text-sm sm:text-base">Issuer URL</label>
+                <label className="font-mono font-medium text-sm sm:text-base">Issuer URL</label>
                 <Input
                   placeholder="https://auth.example.com/application/o/Router2k/"
                   value={oidcForm.oidcIssuerUrl}
@@ -873,7 +873,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-medium text-sm sm:text-base">Client ID</label>
+                <label className="font-mono font-medium text-sm sm:text-base">Client ID</label>
                 <Input
                   placeholder="Router2k-dashboard"
                   value={oidcForm.oidcClientId}
@@ -883,7 +883,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-medium text-sm sm:text-base">Client Secret</label>
+                <label className="font-mono font-medium text-sm sm:text-base">Client Secret</label>
                 <Input
                   type="password"
                   placeholder="Leave blank to keep existing secret"
@@ -895,7 +895,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-medium text-sm sm:text-base">Scopes</label>
+                <label className="font-mono font-medium text-sm sm:text-base">Scopes</label>
                 <Input
                   placeholder="openid profile email"
                   value={oidcForm.oidcScopes}
@@ -905,7 +905,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-medium text-sm sm:text-base">Login Button Label</label>
+                <label className="font-mono font-medium text-sm sm:text-base">Login Button Label</label>
                 <Input
                   placeholder="Sign in with OIDC"
                   value={oidcForm.oidcLoginLabel}
@@ -915,8 +915,8 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-bg p-3 text-xs sm:text-sm text-text-muted">
-              <p className="font-medium text-text-main mb-1">Redirect URI</p>
+            <div className="border border-border bg-bg p-3 text-xs sm:text-sm text-text-muted">
+              <p className="font-mono font-medium text-text-main mb-1">Redirect URI</p>
               <code className="block break-all font-mono">{oidcRedirectUri}</code>
             </div>
 
@@ -959,15 +959,15 @@ export default function ProfilePage() {
         {/* Routing Preferences */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">route</span>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">Routing Strategy</h3>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Routing Strategy</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm sm:text-base">Round Robin</p>
+                <p className="font-mono font-medium text-sm sm:text-base">Round Robin</p>
                 <p className="text-xs sm:text-sm text-text-muted">
                   Cycle through accounts to distribute load
                 </p>
@@ -983,7 +983,7 @@ export default function ProfilePage() {
             {settings.fallbackStrategy === "round-robin" && (
               <div className="flex items-start sm:items-center justify-between gap-4 pt-2 border-t border-border/50">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">Sticky Limit</p>
+                  <p className="font-mono font-medium text-sm sm:text-base">Sticky Limit</p>
                   <p className="text-xs sm:text-sm text-text-muted">
                     Calls per account before switching
                   </p>
@@ -1003,7 +1003,7 @@ export default function ProfilePage() {
             {/* Combo Round Robin */}
             <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm sm:text-base">Combo Round Robin</p>
+                <p className="font-mono font-medium text-sm sm:text-base">Combo Round Robin</p>
                 <p className="text-xs sm:text-sm text-text-muted">
                   Cycle through providers in combos instead of always starting with first
                 </p>
@@ -1019,7 +1019,7 @@ export default function ProfilePage() {
             {settings.comboStrategy === "round-robin" && (
               <div className="flex items-center justify-between pt-2 border-t border-border/50">
                 <div>
-                  <p className="font-medium">Combo Sticky Limit</p>
+                  <p className="font-mono font-medium">Combo Sticky Limit</p>
                   <p className="text-sm text-text-muted">
                     Calls per combo model before switching
                   </p>
@@ -1050,16 +1050,16 @@ export default function ProfilePage() {
         {/* Network */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">wifi</span>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">Network</h3>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Network</h3>
           </div>
 
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm sm:text-base">Outbound Proxy</p>
+                <p className="font-mono font-medium text-sm sm:text-base">Outbound Proxy</p>
                 <p className="text-xs sm:text-sm text-text-muted">Enable proxy for OAuth + provider outbound requests.</p>
               </div>
               <Toggle
@@ -1072,7 +1072,7 @@ export default function ProfilePage() {
             {settings.outboundProxyEnabled === true && (
               <form onSubmit={updateOutboundProxy} className="flex flex-col gap-4 pt-2 border-t border-border/50">
                 <div className="flex flex-col gap-2">
-                  <label className="font-medium text-sm sm:text-base">Proxy URL</label>
+                  <label className="font-mono font-medium text-sm sm:text-base">Proxy URL</label>
                   <Input
                     placeholder="http://127.0.0.1:7897"
                     value={proxyForm.outboundProxyUrl}
@@ -1083,7 +1083,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-                  <label className="font-medium text-sm sm:text-base">No Proxy</label>
+                  <label className="font-mono font-medium text-sm sm:text-base">No Proxy</label>
                   <Input
                     placeholder="localhost,127.0.0.1"
                     value={proxyForm.outboundNoProxy}
@@ -1122,14 +1122,14 @@ export default function ProfilePage() {
         {/* Observability Settings */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500 shrink-0">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">monitoring</span>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">Observability</h3>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Observability</h3>
           </div>
           <div className="flex items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm sm:text-base">Enable Observability</p>
+              <p className="font-mono font-medium text-sm sm:text-base">Enable Observability</p>
               <p className="text-xs sm:text-sm text-text-muted">
                 Record request details for inspection in the logs view
               </p>
@@ -1165,7 +1165,7 @@ export default function ProfilePage() {
 
         {/* App Info */}
         <div className="text-center text-xs sm:text-sm text-text-muted py-4">
-          <p>{APP_CONFIG.name} v{APP_CONFIG.version}</p>
+          <p className="font-mono">{APP_CONFIG.name} v{APP_CONFIG.version}</p>
           <p className="mt-1">Local Mode - All data stored on your machine</p>
         </div>
       </div>

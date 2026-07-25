@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, Button, Input, Modal, Toggle, ConfirmModal } from "@/shared/components";
-import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Card, Button, Input, Modal, Toggle, ConfirmModal, TerminalBlock } from "@/shared/components";
 import { getCurrentLocale, onLocaleChange } from "@/i18n/runtime";
 import {
   WENYAN_LOCALES,
@@ -58,8 +57,6 @@ export default function TokenSaverClient() {
   const [pxpipeActionLoading, setPxpipeActionLoading] = useState(false);
   const [pxpipeActionError, setPxpipeActionError] = useState("");
   const [locale, setLocale] = useState("en");
-
-  const { copied, copy } = useCopyToClipboard();
 
   useEffect(() => {
     setLocale(getCurrentLocale());
@@ -468,7 +465,7 @@ export default function TokenSaverClient() {
     <div className="space-y-6 p-6">
       <Card id="rtk">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+          <h2 className="text-lg font-semibold font-mono flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">
               bolt
             </span>
@@ -512,7 +509,7 @@ export default function TokenSaverClient() {
                 </a>
               </p>
               <span
-                className={`text-xs px-2 py-0.5 rounded ${headroomRunning ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}
+                className={`text-xs font-mono px-2 py-0.5 rounded-sm ${headroomRunning ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}
               >
                 {headroomStatusLabel}
               </span>
@@ -554,7 +551,7 @@ export default function TokenSaverClient() {
                   return (
                     <div
                       key={extra}
-                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-success/40 bg-success/5 text-text"
+                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-sm border border-success/40 bg-success/5 text-text"
                       title={extraTitle}
                     >
                       <Toggle
@@ -563,12 +560,12 @@ export default function TokenSaverClient() {
                         disabled={restartingProxy}
                         onChange={() => toggleExtraActive(extra, !active)}
                       />
-                      <span className="font-medium">[{extra}]</span>
+                      <span className="font-mono font-medium">[{extra}]</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveExtra(extra)}
                         disabled={removingExtra === extra}
-                        className="ml-1 text-error underline hover:opacity-80 disabled:opacity-50"
+                        className="ml-1 font-mono text-error underline hover:opacity-80 disabled:opacity-50"
                         title={`Uninstall [${extra}]`}
                       >
                         {removingExtra === extra ? "Uninstalling…" : "Uninstall"}
@@ -580,7 +577,7 @@ export default function TokenSaverClient() {
                 return (
                   <label
                     key={extra}
-                    className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded border cursor-pointer transition-colors ${
+                    className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-sm border cursor-pointer transition-colors ${
                       pending
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border text-text-muted hover:bg-surface-2"
@@ -593,7 +590,7 @@ export default function TokenSaverClient() {
                       checked={pending}
                       onChange={() => togglePendingExtra(extra)}
                     />
-                    <span className="font-medium">[{extra}]</span>
+                    <span className="font-mono font-medium">[{extra}]</span>
                     <span className="opacity-70">not installed</span>
                   </label>
                 );
@@ -602,7 +599,7 @@ export default function TokenSaverClient() {
                 <button
                   onClick={handleInstallExtras}
                   disabled={extrasActionLoading}
-                  className="text-xs px-2.5 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                  className="text-xs font-mono px-2.5 py-1 rounded-sm bg-primary text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {extrasActionLoading
                     ? "Installing…"
@@ -617,7 +614,7 @@ export default function TokenSaverClient() {
               <p className="text-xs text-text-muted mt-1">Restarting proxy…</p>
             )}
             {(extrasActionLoading || removingExtra) && installLog && (
-              <pre className="mt-2 max-h-32 overflow-auto rounded bg-surface-2 p-2 text-[10px] leading-tight text-text-muted whitespace-pre-wrap">
+              <pre className="mt-2 max-h-32 overflow-auto border border-border bg-surface-2 p-2 font-mono text-[10px] leading-tight text-text-muted whitespace-pre-wrap">
                 {installLog}
               </pre>
             )}
@@ -657,7 +654,7 @@ export default function TokenSaverClient() {
                     <button
                       key={lvl.id}
                       onClick={() => handleCavemanLevel(lvl.id)}
-                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                      className={`px-3 py-1.5 rounded-sm font-mono text-xs font-medium border transition-colors ${
                         cavemanLevel === lvl.id
                           ? "bg-primary text-white border-primary"
                           : "bg-transparent border-border text-text-muted hover:bg-surface-2"
@@ -708,7 +705,7 @@ export default function TokenSaverClient() {
                     <button
                       key={lvl.id}
                       onClick={() => handlePonytailLevel(lvl.id)}
-                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                      className={`px-3 py-1.5 rounded-sm font-mono text-xs font-medium border transition-colors ${
                         ponytailLevel === lvl.id
                           ? "bg-primary text-white border-primary"
                           : "bg-transparent border-border text-text-muted hover:bg-surface-2"
@@ -749,7 +746,7 @@ export default function TokenSaverClient() {
                   (PXPIPE)
                 </a>
               </p>
-              <span className={`text-xs px-2 py-0.5 rounded ${pxpipeChipClass}`}>
+              <span className={`text-xs font-mono px-2 py-0.5 rounded-sm ${pxpipeChipClass}`}>
                 {pxpipeStatusLabel}
               </span>
               <button
@@ -790,7 +787,7 @@ export default function TokenSaverClient() {
           <div className="flex items-center justify-between text-sm">
             <span>Status</span>
             <span
-              className={headroomRunning ? "text-success" : "text-warning"}
+              className={`font-mono ${headroomRunning ? "text-success" : "text-warning"}`}
             >
               {headroomStatusLabel}
             </span>
@@ -800,7 +797,7 @@ export default function TokenSaverClient() {
               href="/api/headroom/proxy/dashboard"
               target="_blank"
               rel="noreferrer"
-              className="w-full rounded border border-border px-4 py-2 text-center text-sm hover:bg-surface-2"
+              className="w-full rounded-sm border border-border px-4 py-2 text-center font-mono text-sm hover:bg-surface-2"
             >
               Open Headroom Dashboard
             </a>
@@ -852,20 +849,7 @@ export default function TokenSaverClient() {
           ) : (
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Install then click Start:</p>
-              <div className="flex items-center gap-2">
-                <pre className="flex-1 rounded bg-black/5 dark:bg-white/5 p-2 text-xs font-mono overflow-x-auto">
-                  {`pip install "headroom-ai[proxy]"`}
-                </pre>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    copy(`pip install "headroom-ai[proxy]"`)
-                  }
-                >
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
+              <TerminalBlock command={`pip install "headroom-ai[proxy]"`} />
             </div>
           )}
           {headroomActionError && (
@@ -901,17 +885,17 @@ export default function TokenSaverClient() {
           </p>
           <div className="flex items-center justify-between text-sm">
             <span>Status</span>
-            <span className={pxpipeHealthy || pxpipeStatus.running ? "text-success" : "text-warning"}>
+            <span className={`font-mono ${pxpipeHealthy || pxpipeStatus.running ? "text-success" : "text-warning"}`}>
               {pxpipeStatusLabel}
               {pxpipeStatus.version ? ` · v${pxpipeStatus.version}` : ""}
             </span>
           </div>
           {pxpipeHealth?.checks?.length > 0 && (
-            <div className="flex flex-col gap-1 rounded border border-border p-3">
+            <div className="flex flex-col gap-1 border border-border p-3">
               <p className="text-sm font-medium mb-1">Health check</p>
               {pxpipeHealth.checks.map((check) => (
                 <div key={check.id} className="flex items-center justify-between text-xs">
-                  <span className={check.ok ? "text-success" : "text-warning"}>
+                  <span className={`font-mono ${check.ok ? "text-success" : "text-warning"}`}>
                     {check.ok ? "●" : "○"} {check.label}
                   </span>
                   {check.detail && (
@@ -960,7 +944,7 @@ export default function TokenSaverClient() {
               </Button>
               <a
                 href="/dashboard/pxpipe#logs"
-                className="col-span-2 rounded border border-border px-4 py-2 text-center text-sm hover:bg-surface-2"
+                className="col-span-2 rounded-sm border border-border px-4 py-2 text-center font-mono text-sm hover:bg-surface-2"
               >
                 Open Logs
               </a>

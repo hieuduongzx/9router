@@ -1,18 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { UsageStats, CardSkeleton, SegmentedControl } from "@/shared/components";
-import RequestDetailsTab from "./components/RequestDetailsTab";
-
-const PERIODS = [
-  { value: "today", label: "Today" },
-  { value: "24h", label: "24h" },
-  { value: "7d", label: "7D" },
-  { value: "30d", label: "30D" },
-  { value: "60d", label: "60D" },
-  { value: "all", label: "All" },
-];
+import { UsageStats, CardSkeleton, PeriodDropdown } from "@/shared/components";
 
 export default function UsagePage() {
   return (
@@ -23,10 +12,7 @@ export default function UsagePage() {
 }
 
 function UsageContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const [period, setPeriod] = useState("today");
+  const [period, setPeriod] = useState("24h");
   const [apiKeyId, setApiKeyId] = useState("all");
   const [apiKeys, setApiKeys] = useState([]);
 
@@ -37,78 +23,45 @@ function UsageContent() {
       .catch(() => {});
   }, []);
 
-
-  const tabFromUrl = searchParams.get("tab");
-  const allowedTabs = ["overview", "details"];
-  const activeTab = tabFromUrl && allowedTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
-
-  const handleTabChange = (value) => {
-    if (value === activeTab) return;
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", value);
-    router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
-  };
-
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
       <header>
-        <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Model usage</h1>
+        <h1 className="font-mono text-xl font-semibold tracking-tight text-text-main">{"// "}Usage</h1>
         <p className="mt-1 max-w-2xl text-sm text-text-muted">
-          Review request volume, tokens, cache utilization, latency, and estimated cost by routed model.
+          Review request volume, tokens, cache utilization, and estimated cost by routed model.
         </p>
       </header>
 
-      {/* Model analytics views and account-scoped filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <SegmentedControl
-          options={[
-            { value: "overview", label: "Overview" },
-            { value: "details", label: "Request history" },
-          ]}
-          value={activeTab}
-          onChange={handleTabChange}
-          className="w-full sm:w-auto"
-        />
-        {activeTab === "overview" && (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
-              <label className="flex min-w-0 items-center gap-2 text-sm text-text-muted">
-                <span className="material-symbols-outlined text-[18px] shrink-0">key</span>
-                <select
-                  value={apiKeyId}
-                  onChange={(e) => setApiKeyId(e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-bg-subtle px-2.5 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 sm:w-44"
-                  title="Filter usage by API key"
-                >
-                  <option value="all">All API keys</option>
-                  {apiKeys.map((k) => (
-                    <option key={k.id} value={k.id}>
-                      {k.name || k.key?.slice(0, 12) + "…"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            <SegmentedControl
-              options={PERIODS}
-              value={period}
-              onChange={setPeriod}
-              size="sm"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+          <label className="flex min-w-0 items-center gap-2 font-mono text-sm text-text-muted">
+            <span className="material-symbols-outlined text-[18px] shrink-0">key</span>
+            <select
+              value={apiKeyId}
+              onChange={(e) => setApiKeyId(e.target.value)}
+              className="min-w-0 flex-1 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary/40 sm:w-44"
+              title="Filter usage by API key"
+            >
+              <option value="all">All API keys</option>
+              {apiKeys.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name || k.key?.slice(0, 12) + "…"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <PeriodDropdown value={period} onChange={setPeriod} />
+        </div>
       </div>
 
-      {activeTab === "overview" && (
-        <Suspense fallback={<CardSkeleton />}>
-          <UsageStats
-            period={period}
-            setPeriod={setPeriod}
-            apiKeyId={apiKeyId}
-            hidePeriodSelector
-          />
-        </Suspense>
-      )}
-      {activeTab === "details" && <RequestDetailsTab />}
+      <Suspense fallback={<CardSkeleton />}>
+        <UsageStats
+          period={period}
+          setPeriod={setPeriod}
+          apiKeyId={apiKeyId}
+          hidePeriodSelector
+        />
+      </Suspense>
     </div>
   );
 }

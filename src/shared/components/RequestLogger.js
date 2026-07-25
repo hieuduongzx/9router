@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import Card from "./Card";
-import Pagination from "./Pagination";
+import CursorPagination from "./CursorPagination";
 import RequestDetailDrawer, { useRequestDetailDrawer } from "./RequestDetailDrawer";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
@@ -18,11 +18,27 @@ function formatCost(value) {
   return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
 }
 
-function statusClass(status) {
+function formatTiming(ms) {
+  const value = Number(ms);
+  if (!Number.isFinite(value)) return "—";
+  return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
+}
+
+function StatusPill({ status }) {
   const value = String(status || "").toLowerCase();
-  if (value.includes("success") || value.includes("ok") || value === "200") return "text-success";
-  if (value.includes("fail") || value.includes("error")) return "text-error";
-  return "text-primary";
+  const completed = value.includes("success") || value.includes("ok") || value === "200";
+  const label = completed ? "Completed" : value === "-" || value === "" ? "Unknown" : "Failed";
+  return (
+    <span
+      className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+        completed
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+          : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
+      }`}
+    >
+      {label}
+    </span>
+  );
 }
 
 export default function RequestLogger({ period = "all" }) {
@@ -30,10 +46,10 @@ export default function RequestLogger({ period = "all" }) {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [pageSize, setPageSize] = useState(10);
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 30,
+    pageSize: 10,
     totalItems: 0,
     totalPages: 0,
   });
@@ -45,6 +61,10 @@ export default function RequestLogger({ period = "all" }) {
     selectedDetail,
     viewDetail,
   } = useRequestDetailDrawer();
+
+  const activeLogIndex = selectedDetail ? logs.findIndex((l) => l.detailId === selectedDetail.id) : -1;
+  const hasPrevLog = activeLogIndex > 0;
+  const hasNextLog = activeLogIndex >= 0 && activeLogIndex < logs.length - 1;
 
   const fetchLogs = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -85,18 +105,18 @@ export default function RequestLogger({ period = "all" }) {
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-text-main">Request Logs</h2>
+          <h2 className="font-mono text-lg font-semibold text-text-main">Request Logs</h2>
           <p className="mt-0.5 text-xs text-text-muted">Account ownership is resolved from the API key used for each request.</p>
         </div>
         <button
           type="button"
           onClick={() => setAutoRefresh((value) => !value)}
           aria-pressed={autoRefresh}
-          className="inline-flex items-center gap-2 self-start text-sm font-medium text-text-muted sm:self-auto"
+          className="inline-flex items-center gap-2 self-start font-mono text-xs font-medium text-text-muted sm:self-auto"
         >
           <span>Auto refresh</span>
           <span className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors ${
-            autoRefresh ? "border-primary bg-primary" : "border-border bg-bg-subtle"
+            autoRefresh ? "border-primary bg-primary" : "border-border bg-surface-2"
           }`}>
             <span className={`inline-block size-3 rounded-full bg-white transition-transform ${
               autoRefresh ? "translate-x-5" : "translate-x-1"
@@ -106,7 +126,7 @@ export default function RequestLogger({ period = "all" }) {
       </div>
 
       {detailError && (
-        <div className="rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
+        <div className="rounded-sm border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
           {detailError}
         </div>
       )}
@@ -118,66 +138,61 @@ export default function RequestLogger({ period = "all" }) {
           ) : logs.length === 0 ? (
             <div className="p-8 text-center text-sm text-text-muted">No request details recorded yet.</div>
           ) : (
-            <table className="w-full min-w-[1120px] border-collapse text-left text-xs">
-              <thead className="sticky top-0 z-10 border-b border-border bg-bg-subtle text-text-muted">
+            <table className="w-full min-w-[1080px] border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 border-b border-border font-mono text-text-muted">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Date & time</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
-                  <th className="px-3 py-2 font-medium">API key</th>
-                  <th className="px-3 py-2 font-medium">Model</th>
-                  <th className="px-3 py-2 font-medium">Provider</th>
-                  <th className="px-3 py-2 text-right font-medium">Input</th>
-                  <th className="px-3 py-2 text-right font-medium">Output</th>
-                  <th className="px-3 py-2 text-right font-medium">Price</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 text-right font-medium">Action</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Time</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Account</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Total Cost</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Input Tokens</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Output Tokens</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Timing</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Model</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Mode</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/50">
-                {logs.map((log) => (
-                  <tr key={log.detailId} className="transition-colors hover:bg-primary/5">
-                    <td className="whitespace-nowrap px-3 py-2 text-text-muted tabular-nums">
+              <tbody>
+                {logs.map((log, index) => (
+                  <tr
+                    key={log.detailId}
+                    onClick={() => viewDetail(log)}
+                    className={`cursor-pointer transition-colors hover:bg-surface-2/70 ${
+                      loadingDetailId === log.detailId ? "opacity-60" : ""
+                    } ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
+                  >
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted tabular-nums">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
-                    <td className="max-w-[190px] px-3 py-2">
+                    <td className="max-w-[190px] px-4 py-2.5">
                       <span className="block truncate font-medium text-text-main" title={log.username}>{log.username}</span>
                       {log.email && <span className="block truncate text-[10px] text-text-muted" title={log.email}>{log.email}</span>}
                     </td>
-                    <td className="max-w-[150px] truncate px-3 py-2 text-text-muted" title={log.apiKeyName}>{log.apiKeyName}</td>
-                    <td className="max-w-[190px] truncate px-3 py-2 font-mono text-text-main" title={log.model}>{log.model}</td>
-                    <td className="max-w-[180px] truncate px-3 py-2 text-text-main" title={log.provider}>{log.provider}</td>
-                    <td className="px-3 py-2 text-right font-mono text-primary tabular-nums">{NUMBER_FORMAT.format(log.inputTokens || 0)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-success tabular-nums">{NUMBER_FORMAT.format(log.outputTokens || 0)}</td>
-                    <td className="px-3 py-2 text-right font-mono font-medium text-warning tabular-nums">{formatCost(log.cost)}</td>
-                    <td className={`px-3 py-2 font-medium ${statusClass(log.status)}`}>{log.status}</td>
-                    <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => viewDetail(log)}
-                        disabled={loadingDetailId === log.detailId}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] font-medium text-text-main transition-colors hover:bg-bg-hover disabled:cursor-wait disabled:opacity-60"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">visibility</span>
-                        {loadingDetailId === log.detailId ? "Loading" : "Detail"}
-                      </button>
-                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main">{formatCost(log.cost)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{NUMBER_FORMAT.format(log.inputTokens || 0)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{NUMBER_FORMAT.format(log.outputTokens || 0)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted">{formatTiming(log.timingMs)}</td>
+                    <td className="max-w-[190px] truncate px-4 py-2.5 font-mono text-text-main" title={log.model}>{log.model}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted">{log.mode || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5"><StatusPill status={log.status} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
-        <Pagination
-          currentPage={pagination.page}
+        <CursorPagination
+          count={logs.length}
+          page={pagination.page}
           pageSize={pagination.pageSize}
-          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
           onPageChange={setPage}
           onPageSizeChange={(value) => {
             setPage(1);
             setPageSize(value);
           }}
           pageSizeOptions={[10, 30, 50, 100]}
-          className="border-t border-border-subtle px-4"
+          className="border-t border-border"
         />
       </Card>
 
@@ -186,6 +201,10 @@ export default function RequestLogger({ period = "all" }) {
         isOpen={isDrawerOpen}
         onClose={closeDetail}
         providerName={selectedDetail?.provider}
+        onPrev={hasPrevLog ? () => viewDetail(logs[activeLogIndex - 1]) : undefined}
+        onNext={hasNextLog ? () => viewDetail(logs[activeLogIndex + 1]) : undefined}
+        hasPrev={hasPrevLog}
+        hasNext={hasNextLog}
       />
     </div>
   );

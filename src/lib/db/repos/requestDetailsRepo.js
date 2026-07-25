@@ -1,6 +1,6 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
-import { calculateRequestCost } from "./usageRepo.js";
+import { calculateRequestCost, calculateRequestCostBreakdown } from "./usageRepo.js";
 
 const DEFAULT_MAX_RECORDS = 200;
 const DEFAULT_BATCH_SIZE = 20;
@@ -159,11 +159,20 @@ function addApiKeyFilter(filter, conds, params) {
 }
 
 async function withRequestCost(detail) {
-  if (!detail || Number.isFinite(detail.cost)) return detail;
-  if (!detail.provider || !detail.model || !detail.tokens) return detail;
+  if (!detail) return detail;
+  const hasCost = Number.isFinite(detail.cost);
+  const canPrice = detail.provider && detail.model && detail.tokens;
+  if (hasCost && !canPrice) return detail;
+
+  const breakdown = canPrice
+    ? await calculateRequestCostBreakdown(detail.provider, detail.model, detail.tokens)
+    : null;
+
   return {
     ...detail,
-    cost: await calculateRequestCost(detail.provider, detail.model, detail.tokens),
+    cost: hasCost ? detail.cost : (breakdown ? breakdown.total : await calculateRequestCost(detail.provider, detail.model, detail.tokens)),
+    costInput: breakdown?.input ?? null,
+    costOutput: breakdown?.output ?? null,
   };
 }
 

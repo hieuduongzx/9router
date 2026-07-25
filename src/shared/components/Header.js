@@ -311,7 +311,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   };
 
   return (
-    <header className="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 py-3 backdrop-blur-md lg:px-8">
+    <header className="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 lg:px-8">
       {/* Mobile menu button */}
       <div className="flex items-center gap-3 lg:hidden shrink-0">
         {showMenuButton && (
@@ -352,11 +352,11 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
                         src={crumb.image}
                         alt={crumb.label}
                         size={28}
-                        className="object-contain rounded max-w-[28px] max-h-[28px]"
+                        className="object-contain rounded-sm max-w-[28px] max-h-[28px]"
                         fallbackText={crumb.label.slice(0, 2).toUpperCase()}
                       />
                     )}
-                    <h1 className="text-base lg:text-2xl font-semibold text-text-main tracking-tight truncate">
+                    <h1 className="font-mono text-base lg:text-xl font-semibold text-text-main tracking-tight truncate">
                       {translate(crumb.label)}
                     </h1>
                   </div>
@@ -368,11 +368,11 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
           <div>
             <div className="flex items-center gap-2">
               {icon && (
-                <span className="material-symbols-outlined text-primary text-xl lg:text-2xl">
+                <span className="material-symbols-outlined text-text-main text-xl lg:text-2xl">
                   {icon}
                 </span>
               )}
-              <h1 className="text-base lg:text-2xl font-semibold tracking-tight truncate">
+              <h1 className="font-mono text-base lg:text-xl font-semibold tracking-tight truncate">
                 {translate(title)}
               </h1>
             </div>
@@ -405,7 +405,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       {viewModeError && (
         <div
           role="alert"
-          className="fixed right-4 top-16 z-50 max-w-sm rounded-lg border border-danger/25 bg-surface px-4 py-3 text-sm font-medium text-danger shadow-[var(--shadow-elev)]"
+          className="fixed right-4 top-16 z-50 max-w-sm rounded-sm border border-danger/25 bg-surface px-4 py-3 text-sm font-medium text-danger"
         >
           {viewModeError}
         </div>
@@ -428,9 +428,9 @@ function DashboardViewToggle({ mode, pending, onToggle }) {
       aria-busy={pending}
       disabled={pending}
       onClick={onToggle}
-      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-2 text-xs font-medium text-text-main transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-wait disabled:opacity-60 sm:h-9 xl:px-2.5"
+      className="inline-flex h-11 items-center gap-2 rounded-sm border border-border bg-surface px-2 font-mono text-xs font-medium text-text-main transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60 sm:h-9 xl:px-2.5"
     >
-      <span className={`material-symbols-outlined text-[18px] ${pending ? "animate-spin text-primary" : adminView ? "text-primary" : "text-text-muted"}`}>
+      <span className={`material-symbols-outlined text-[18px] ${pending ? "animate-spin text-text-main" : adminView ? "text-text-main" : "text-text-muted"}`}>
         {pending ? "progress_activity" : adminView ? "admin_panel_settings" : "person"}
       </span>
       <span>{adminView ? "Admin" : "User"}<span className="hidden xl:inline"> view</span></span>
@@ -468,7 +468,7 @@ function HeaderSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-8 pl-7 pr-7 rounded-lg border border-border bg-surface/60 text-sm focus:outline-none focus:border-primary/50 transition-colors"
+        className="w-full h-8 pl-7 pr-7 rounded-sm border border-border bg-surface/60 font-mono text-sm focus:outline-none focus:border-primary transition-colors"
       />
       {query && (
         <button

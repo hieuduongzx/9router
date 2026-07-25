@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
-import Button from "@/shared/components/Button";
 import RequestDetailDrawer from "@/shared/components/RequestDetailDrawer";
-import Pagination from "@/shared/components/Pagination";
-import SegmentedControl from "@/shared/components/SegmentedControl";
-import { cn } from "@/shared/utils/cn";
+import CursorPagination from "@/shared/components/CursorPagination";
+import { getUsagePeriodStartIso } from "@/shared/constants/usagePeriods";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -15,24 +14,14 @@ const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 6,
 });
 
-const QUICK_PERIODS = [
-  { value: "today", label: "Today" },
-  { value: "24h", label: "24h" },
-  { value: "7d", label: "7D" },
-  { value: "30d", label: "30D" },
-  { value: "60d", label: "60D" },
-  { value: "all", label: "All" },
-];
-const QUICK_PERIODS_WITH_CUSTOM = [...QUICK_PERIODS, { value: "custom", label: "Custom" }];
-
-function getQuickPeriodStart(period) {
+function getPeriodStart(period) {
   if (period === "today") {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     return start.toISOString();
   }
-  const days = { "24h": 1, "7d": 7, "30d": 30, "60d": 60 }[period];
-  return days ? new Date(Date.now() - days * 86_400_000).toISOString() : "";
+  if (period === "all") return "";
+  return getUsagePeriodStartIso(period);
 }
 
 function formatCost(value) {
@@ -43,24 +32,38 @@ function getCachedTokens(tokens) {
   return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
 }
 
-function getCacheCreationTokens(tokens) {
-  return tokens?.cache_creation_input_tokens || 0;
-}
-
 function getInputTokens(tokens) {
   const prompt = tokens?.prompt_tokens || tokens?.input_tokens || 0;
   const cache = getCachedTokens(tokens);
   return prompt < cache ? cache : prompt;
 }
 
-export default function RequestDetailsTab() {
+function formatTiming(ms) {
+  const value = Number(ms);
+  if (!Number.isFinite(value)) return "—";
+  return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
+}
+
+function StatusPill({ status }) {
+  const completed = status === "success" || status === "ok";
+  return (
+    <span
+      className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+        completed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
+      }`}
+    >
+      {completed ? "Completed" : "Failed"}
+    </span>
+  );
+}
+
+export default function RequestDetailsTab({ period = "all", apiKeyId = "all" }) {
   const [details, setDetails] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [filters, setFilters] = useState({ period: "all", startDate: "", endDate: "" });
 
   const fetchDetails = useCallback(async () => {
     setLoading(true);
@@ -69,10 +72,8 @@ export default function RequestDetailsTab() {
         page: pagination.page.toString(),
         pageSize: pagination.pageSize.toString(),
       });
-      const quickPeriodStart = getQuickPeriodStart(filters.period);
-      if (filters.startDate) params.append("startDate", filters.startDate);
-      else if (quickPeriodStart) params.append("startDate", quickPeriodStart);
-      if (filters.endDate) params.append("endDate", filters.endDate);
+      const periodStart = getPeriodStart(period);
+      if (periodStart) params.append("startDate", periodStart);
 
       const response = await fetch(`/api/usage/request-details?${params}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
@@ -85,7 +86,7 @@ export default function RequestDetailsTab() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, filters]);
+  }, [pagination.page, pagination.pageSize, period]);
 
   useEffect(() => {
     const id = setTimeout(fetchDetails, 0);
@@ -96,133 +97,61 @@ export default function RequestDetailsTab() {
     setPagination((previous) => ({ ...previous, pageSize, page: 1 }));
   };
 
-  const handleQuickPeriodChange = (period) => {
-    if (period === "custom") return;
-    setFilters({ period, startDate: "", endDate: "" });
-    setPagination((previous) => ({ ...previous, page: 1 }));
+  const openDetail = (detail) => {
+    setSelectedDetail(detail);
+    setIsDrawerOpen(true);
   };
 
-  const handleDateChange = (field, value) => {
-    setFilters((previous) => ({ ...previous, period: "custom", [field]: value }));
-    setPagination((previous) => ({ ...previous, page: 1 }));
-  };
+  const activeIndex = selectedDetail ? details.findIndex((d) => d.id === selectedDetail.id) : -1;
+  const hasPrev = activeIndex > 0;
+  const hasNext = activeIndex >= 0 && activeIndex < details.length - 1;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <Card padding="md">
-        <div className="flex flex-col gap-4">
-          <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-medium text-text-main">Quick range</p>
-              <p className="mt-0.5 text-xs text-text-muted">Filter requests without entering exact dates.</p>
-            </div>
-            <SegmentedControl
-              options={filters.period === "custom" ? QUICK_PERIODS_WITH_CUSTOM : QUICK_PERIODS}
-              value={filters.period}
-              onChange={handleQuickPeriodChange}
-              size="sm"
-              className="w-full lg:w-auto"
-            />
-          </div>
-          <div className="flex flex-col gap-4 border-t border-border-subtle pt-4 lg:flex-row lg:items-end">
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex min-w-0 flex-col gap-2">
-                <label htmlFor="start-date-filter" className="text-sm font-medium text-text-main">Start date</label>
-                <input
-                  id="start-date-filter"
-                  type="datetime-local"
-                  value={filters.startDate}
-                  onChange={(event) => handleDateChange("startDate", event.target.value)}
-                  className={cn(
-                    "h-9 w-full min-w-0 rounded-lg border border-black/10 bg-surface px-3 text-sm text-text-main dark:border-white/10",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                  )}
-                />
-              </div>
-              <div className="flex min-w-0 flex-col gap-2">
-                <label htmlFor="end-date-filter" className="text-sm font-medium text-text-main">End date</label>
-                <input
-                  id="end-date-filter"
-                  type="datetime-local"
-                  value={filters.endDate}
-                  onChange={(event) => handleDateChange("endDate", event.target.value)}
-                  className={cn(
-                    "h-9 w-full min-w-0 rounded-lg border border-black/10 bg-surface px-3 text-sm text-text-main dark:border-white/10",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                  )}
-                />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setFilters({ period: "all", startDate: "", endDate: "" });
-                setPagination((previous) => ({ ...previous, page: 1 }));
-              }}
-              disabled={filters.period === "all" && !filters.startDate && !filters.endDate}
-              className="w-full lg:w-auto"
-            >
-              Clear filters
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {error && <div role="alert" className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      {error && <div role="alert" className="rounded-sm border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
 
       <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-main">Model request history</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Token, latency, and price details for requests in your current account scope.</p>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Model request history</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Token, timing, and price details for requests in your current account scope.</p>
           </div>
-          <span className="shrink-0 text-xs tabular-nums text-text-muted">{pagination.totalItems || 0} requests</span>
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{pagination.totalItems || 0} requests</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-xs leading-tight">
             <caption className="sr-only">Model request history for the current account and date filters</caption>
-            <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
+            <thead className="border-b border-border font-mono text-text-muted">
               <tr>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left font-medium">Timestamp</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left font-medium">Model</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Input</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Cached</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Cache create</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Output</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Price</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left font-medium">Latency</th>
-                <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-center font-medium">Action</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Time</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Total Cost</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Input Tokens</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Output Tokens</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Timing</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Model</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Mode</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-10 text-center text-sm text-text-muted">Loading model requests…</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-text-muted">Loading model requests…</td></tr>
               ) : details.length === 0 ? (
-                <tr><td colSpan={9} className="px-3 py-10 text-center text-sm text-text-muted">No model requests found.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-text-muted">No model requests found.</td></tr>
               ) : details.map((detail, index) => (
-                <tr key={`${detail.id}-${index}`} className="transition-colors hover:bg-bg-alt/60">
-                  <td className="whitespace-nowrap px-3 py-2.5 text-text-muted tabular-nums">{new Date(detail.timestamp).toLocaleString()}</td>
-                  <td className="max-w-[240px] truncate px-3 py-2.5 font-mono font-medium text-text-main" title={detail.model}>{detail.model}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-text-muted">{getCachedTokens(detail.tokens) > 0 ? getCachedTokens(detail.tokens).toLocaleString() : "—"}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-text-muted">{getCacheCreationTokens(detail.tokens) > 0 ? getCacheCreationTokens(detail.tokens).toLocaleString() : "—"}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-text-muted">{detail.tokens?.completion_tokens?.toLocaleString() || 0}</td>
-                  <td className="px-3 py-2.5 text-right font-mono font-medium tabular-nums text-warning">{formatCost(detail.cost)}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 font-mono text-text-muted tabular-nums" title={`TTFT ${detail.latency?.ttft || 0}ms · Total ${detail.latency?.total || 0}ms`}>
-                    {detail.latency?.ttft || 0}ms <span className="text-text-subtle">·</span> {detail.latency?.total || 0}ms
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDetail(detail);
-                        setIsDrawerOpen(true);
-                      }}
-                      className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[11px] font-medium text-text-main transition-colors hover:bg-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    >
-                      Detail
-                    </button>
-                  </td>
+                <tr
+                  key={`${detail.id}-${index}`}
+                  onClick={() => openDetail(detail)}
+                  className={`cursor-pointer transition-colors hover:bg-surface-2/70 ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
+                >
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted tabular-nums">{new Date(detail.timestamp).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main">{formatCost(detail.cost)}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{(detail.tokens?.completion_tokens || 0).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted">{formatTiming(detail.latency?.total)}</td>
+                  <td className="max-w-[240px] truncate px-4 py-2.5 font-mono text-text-main" title={detail.model}>{detail.model}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted">{detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5"><StatusPill status={detail.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -230,13 +159,14 @@ export default function RequestDetailsTab() {
         </div>
 
         {!loading && details.length > 0 && (
-          <Pagination
-            currentPage={pagination.page}
+          <CursorPagination
+            count={details.length}
+            page={pagination.page}
             pageSize={pagination.pageSize}
-            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
             onPageChange={(page) => setPagination((previous) => ({ ...previous, page }))}
             onPageSizeChange={handlePageSizeChange}
-            className="border-t border-border-subtle px-4"
+            className="border-t border-border"
           />
         )}
       </Card>
@@ -246,7 +176,16 @@ export default function RequestDetailsTab() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         showProviderDetails={false}
+        onPrev={hasPrev ? () => setSelectedDetail(details[activeIndex - 1]) : undefined}
+        onNext={hasNext ? () => setSelectedDetail(details[activeIndex + 1]) : undefined}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
       />
     </div>
   );
 }
+
+RequestDetailsTab.propTypes = {
+  period: PropTypes.string,
+  apiKeyId: PropTypes.string,
+};

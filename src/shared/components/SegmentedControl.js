@@ -18,7 +18,7 @@ export default function SegmentedControl({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-surface-2 p-1",
+        "inline-flex items-center gap-0.5 overflow-x-auto rounded-sm border border-border bg-surface-2 p-1",
         className
       )}
     >
@@ -27,10 +27,10 @@ export default function SegmentedControl({
           key={option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-md px-3 font-medium transition-colors",
+            "inline-flex shrink-0 items-center justify-center rounded-sm px-3 font-mono font-medium transition-colors",
             sizes[size],
             value === option.value
-              ? "bg-surface text-text-main shadow-sm"
+              ? "bg-surface text-text-main border border-border"
               : "text-text-muted hover:text-text-main"
           )}
         >

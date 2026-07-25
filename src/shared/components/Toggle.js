@@ -35,7 +35,7 @@ export default function Toggle({
       >
         <span
           className={cn(
-            "pointer-events-none block rounded-full bg-white shadow-lg ring-0 transition-transform",
+            "pointer-events-none block rounded-full bg-white ring-0 transition-transform",
             sizes[size].thumb,
             checked ? sizes[size].on : sizes[size].off
           )}
@@ -43,7 +43,7 @@ export default function Toggle({
       </button>
       {(label || description) && (
         <div className="flex flex-col gap-0.5">
-          {label && <span className="text-sm font-medium leading-none text-text-main">{label}</span>}
+          {label && <span className="font-mono text-sm font-medium leading-none text-text-main">{label}</span>}
           {description && <span className="text-xs text-text-muted">{description}</span>}
         </div>
       )}

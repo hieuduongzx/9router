@@ -3,19 +3,19 @@
 import { cn } from "@/shared/utils/cn";
 
 const variants = {
-  default: "border-transparent bg-surface-2 text-text-muted",
-  primary: "border-transparent bg-primary/10 text-primary",
-  success: "border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-  warning: "border-transparent bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  error: "border-transparent bg-red-500/10 text-red-700 dark:text-red-400",
-  info: "border-transparent bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  default: "border-border bg-surface-2 text-text-muted",
+  primary: "border-border text-text-main",
+  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  warning: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  error: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
+  info: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
   outline: "border-border text-text-main",
 };
 
 const sizes = {
   sm: "px-1.5 py-0 text-[10px]",
-  md: "px-2.5 py-0.5 text-xs",
-  lg: "px-3 py-1 text-sm",
+  md: "px-2 py-0.5 text-[11px]",
+  lg: "px-2.5 py-1 text-xs",
 };
 
 export default function Badge({
@@ -29,7 +29,7 @@ export default function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border font-semibold transition-colors",
+        "inline-flex items-center gap-1 rounded-sm border font-mono font-semibold uppercase tracking-wide transition-colors",
         variants[variant],
         sizes[size],
         className
@@ -38,17 +38,17 @@ export default function Badge({
       {dot && (
         <span
           className={cn(
-            "size-1.5 rounded-full",
+            "size-1.5",
             variant === "success" && "bg-emerald-500",
             variant === "warning" && "bg-amber-500",
             variant === "error" && "bg-red-500",
             variant === "info" && "bg-blue-500",
-            variant === "primary" && "bg-primary",
+            variant === "primary" && "bg-text-main",
             (variant === "default" || variant === "outline") && "bg-text-muted"
           )}
         />
       )}
-      {icon && <span className="material-symbols-outlined text-[14px]">{icon}</span>}
+      {icon && <span className="material-symbols-outlined text-[14px] normal-case">{icon}</span>}
       {children}
     </span>
   );

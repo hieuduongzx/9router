@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
+import StatTile from "@/shared/components/StatTile";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 
 const ProviderTopology = dynamic(() => import("./ProviderTopology"), { ssr: false });
@@ -29,28 +30,6 @@ function connectionStatus(connection) {
   if (connection.testStatus === "active") return { label: "Healthy", dot: "bg-success", text: "text-success" };
   return { label: "Unchecked", dot: "bg-warning", text: "text-warning" };
 }
-
-function SummaryCard({ icon, label, value, detail }) {
-  return (
-    <Card padding="md" className="min-w-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-text-muted">{label}</p>
-          <p className="mt-2 truncate text-2xl font-semibold tabular-nums text-text-main">{value}</p>
-          {detail && <p className="mt-1 truncate text-[11px] text-text-muted">{detail}</p>}
-        </div>
-        <span className="material-symbols-outlined text-[20px] text-primary">{icon}</span>
-      </div>
-    </Card>
-  );
-}
-
-SummaryCard.propTypes = {
-  icon: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  value: PropTypes.string.isRequired,
-  detail: PropTypes.string,
-};
 
 export default function ProviderActivityTab({ period }) {
   const [connections, setConnections] = useState([]);
@@ -140,25 +119,25 @@ export default function ProviderActivityTab({ period }) {
   );
 
   if (loading && !stats) {
-    return <div className="h-72 animate-pulse rounded-[14px] bg-surface-2" aria-label="Loading provider activity" />;
+    return <div className="h-72 animate-pulse bg-surface-2" aria-label="Loading provider activity" />;
   }
   if (error) {
-    return <div role="alert" className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>;
+    return <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>;
   }
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon="hub" label="Configured accounts" value={formatNumber(connections.length)} detail={`${activeConnections.length} enabled`} />
-        <SummaryCard icon="dns" label="Active providers" value={formatNumber(topologyProviders.length)} detail="Unique routing targets" />
-        <SummaryCard icon="check_circle" label="Healthy accounts" value={formatNumber(healthyCount)} detail={`${activeConnections.length - healthyCount - issueCount} unchecked`} />
-        <SummaryCard icon="error" label="Unavailable accounts" value={formatNumber(issueCount)} detail={issueCount ? "Needs operator attention" : "No reported failures"} />
+      <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile chip="info" label="Configured accounts" value={formatNumber(connections.length)} sub={`${activeConnections.length} enabled`} />
+        <StatTile chip="requests" label="Active providers" value={formatNumber(topologyProviders.length)} sub="Unique routing targets" />
+        <StatTile chip="cost" label="Healthy accounts" value={formatNumber(healthyCount)} sub={`${activeConnections.length - healthyCount - issueCount} unchecked`} />
+        <StatTile chip="danger" label="Unavailable accounts" value={formatNumber(issueCount)} sub={issueCount ? "Needs operator attention" : "No reported failures"} />
       </div>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="text-sm font-semibold text-text-main">Live routing topology</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Live routing topology</h2>
             <p className="mt-0.5 text-xs text-text-muted">Active request paths and the most recently selected provider.</p>
           </div>
           <div className="p-3">
@@ -174,7 +153,7 @@ export default function ProviderActivityTab({ period }) {
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-text-main">Connection health</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Connection health</h2>
               <p className="mt-0.5 text-xs text-text-muted">Account-level availability reported by provider checks.</p>
             </div>
             <Link href="/dashboard/providers" className="shrink-0 text-xs font-medium text-primary hover:underline">Manage</Link>
@@ -186,10 +165,10 @@ export default function ProviderActivityTab({ period }) {
                 <Link key={connection.id} href={`/dashboard/providers/${connection.provider}`} className="flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
                   <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-text-main">{connection.name || providerLabel(connection.provider, nodeNames)}</span>
-                    <span className="mt-0.5 block truncate text-[10px] text-text-muted">{providerLabel(connection.provider, nodeNames)}</span>
+                    <span className="block truncate font-mono text-xs font-medium text-text-main">{connection.name || providerLabel(connection.provider, nodeNames)}</span>
+                    <span className="mt-0.5 block truncate font-mono text-[10px] text-text-muted">{providerLabel(connection.provider, nodeNames)}</span>
                   </span>
-                  <span className={`shrink-0 text-[10px] font-medium ${status.text}`}>{status.label}</span>
+                  <span className={`shrink-0 font-mono text-[10px] font-medium ${status.text}`}>{status.label}</span>
                 </Link>
               );
             })}
@@ -201,32 +180,32 @@ export default function ProviderActivityTab({ period }) {
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-main">Usage by provider</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Usage by provider</h2>
             <p className="mt-0.5 text-xs text-text-muted">Operational traffic distribution for the selected period.</p>
           </div>
-          <span className="shrink-0 text-xs tabular-nums text-text-muted">{providerUsage.length} providers</span>
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{providerUsage.length} providers</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-xs">
             <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Provider</th>
-                <th className="px-4 py-3 text-right font-medium">Requests</th>
-                <th className="px-4 py-3 text-right font-medium">Input</th>
-                <th className="px-4 py-3 text-right font-medium">Output</th>
-                <th className="px-4 py-3 text-right font-medium">Cost</th>
-                <th className="px-5 py-3 text-right font-medium">Last request</th>
+                <th className="px-5 py-3 font-mono font-medium">Provider</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Requests</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Input</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Output</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Cost</th>
+                <th className="px-5 py-3 text-right font-mono font-medium">Last request</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {providerUsage.map((item) => (
                 <tr key={item.providerId} className="hover:bg-bg-alt/60">
-                  <td className="px-5 py-3.5 font-medium text-text-main">{providerLabel(item.providerId, nodeNames)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-main">{formatNumber(item.requests)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-muted">{formatNumber(item.promptTokens)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-muted">{formatNumber(item.completionTokens)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(item.cost) || 0)}</td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-right text-text-muted">{formatTime(item.lastUsed)}</td>
+                  <td className="px-5 py-3.5 font-mono font-medium text-text-main">{providerLabel(item.providerId, nodeNames)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-main">{formatNumber(item.requests)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(item.promptTokens)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(item.completionTokens)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(item.cost) || 0)}</td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-text-muted">{formatTime(item.lastUsed)}</td>
                 </tr>
               ))}
               {providerUsage.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-text-muted">No provider traffic in this period.</td></tr>}
@@ -238,32 +217,32 @@ export default function ProviderActivityTab({ period }) {
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-main">Usage by provider account</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Usage by provider account</h2>
             <p className="mt-0.5 text-xs text-text-muted">Traffic attributed to individual configured credentials.</p>
           </div>
-          <span className="shrink-0 text-xs tabular-nums text-text-muted">{accountUsage.length} accounts</span>
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{accountUsage.length} accounts</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-xs">
             <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Account</th>
-                <th className="px-4 py-3 font-medium">Provider</th>
-                <th className="px-4 py-3 text-right font-medium">Requests</th>
-                <th className="px-4 py-3 text-right font-medium">Tokens</th>
-                <th className="px-4 py-3 text-right font-medium">Cost</th>
-                <th className="px-5 py-3 text-right font-medium">Last request</th>
+                <th className="px-5 py-3 font-mono font-medium">Account</th>
+                <th className="px-4 py-3 font-mono font-medium">Provider</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Requests</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Tokens</th>
+                <th className="px-4 py-3 text-right font-mono font-medium">Cost</th>
+                <th className="px-5 py-3 text-right font-mono font-medium">Last request</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {accountUsage.map((item, index) => (
                 <tr key={item.connectionId || `${item.accountName}-${index}`} className="hover:bg-bg-alt/60">
-                  <td className="px-5 py-3.5 font-medium text-text-main">{item.accountName || "Unnamed account"}</td>
-                  <td className="px-4 py-3.5 text-text-muted">{providerLabel(item.provider, nodeNames)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-main">{formatNumber(item.requests)}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-muted">{formatNumber((item.promptTokens || 0) + (item.completionTokens || 0))}</td>
-                  <td className="px-4 py-3.5 text-right tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(item.cost) || 0)}</td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-right text-text-muted">{formatTime(item.lastUsed)}</td>
+                  <td className="px-5 py-3.5 font-mono font-medium text-text-main">{item.accountName || "Unnamed account"}</td>
+                  <td className="px-4 py-3.5 font-mono text-text-muted">{providerLabel(item.provider, nodeNames)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-main">{formatNumber(item.requests)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber((item.promptTokens || 0) + (item.completionTokens || 0))}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(item.cost) || 0)}</td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-text-muted">{formatTime(item.lastUsed)}</td>
                 </tr>
               ))}
               {accountUsage.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-text-muted">No account-attributed provider traffic in this period.</td></tr>}

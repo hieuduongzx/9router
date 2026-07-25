@@ -3,7 +3,7 @@ import { getChartData } from "@/lib/usageDb";
 import { getApiKeyById, getApiKeys } from "@/lib/localDb";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
-const VALID_PERIODS = new Set(["today", "24h", "7d", "30d", "60d", "all"]);
+const VALID_PERIODS = new Set(["today", "5m", "15m", "1h", "6h", "12h", "24h", "3d", "7d", "14d", "30d", "60d", "all"]);
 
 async function resolveApiKeyFilter(apiKeyId, owner, systemScope) {
   if (systemScope) return owner.role === "admin" ? null : "__none__";

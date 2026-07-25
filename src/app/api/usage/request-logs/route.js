@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getRequestLogsPage } from "@/lib/usageDb";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
-const VALID_PERIODS = new Set(["today", "24h", "7d", "30d", "60d", "all"]);
+const VALID_PERIODS = new Set(["today", "5m", "15m", "1h", "6h", "12h", "24h", "3d", "7d", "14d", "30d", "60d", "all"]);
 const VALID_PAGE_SIZES = new Set([10, 30, 50, 100]);
 
 export async function GET(request) {

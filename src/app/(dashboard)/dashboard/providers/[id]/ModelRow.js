@@ -44,7 +44,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
             type="button"
             onClick={onTest}
             disabled={isTesting}
-            className="inline-flex size-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60"
             title={isTesting ? "Testing model" : "Test model"}
             aria-label={isTesting ? "Testing model" : `Test ${displayModel}`}
           >
@@ -57,7 +57,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
         <button
           type="button"
           onClick={() => onCopy(displayModel, copyKey)}
-          className="inline-flex size-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           title={copied === copyKey ? "Copied" : "Copy model ID"}
           aria-label={copied === copyKey ? `Copied ${displayModel}` : `Copy ${displayModel}`}
         >
@@ -70,7 +70,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           <button
             type="button"
             onClick={onDeleteAlias}
-            className="inline-flex size-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+            className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
             title="Remove custom model"
             aria-label={`Remove ${displayModel}`}
           >
@@ -80,7 +80,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           <button
             type="button"
             onClick={onDisable}
-            className="inline-flex size-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+            className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
             title="Disable model"
             aria-label={`Disable ${displayModel}`}
           >

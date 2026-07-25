@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, ModelSelectModal } from "@/shared/components";
+import { Card, ModelSelectModal, TerminalBlock } from "@/shared/components";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Image from "next/image";
@@ -62,12 +62,12 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           value={modelValue}
           onChange={(e) => setModelValue(e.target.value)}
           placeholder="provider/model-id"
-          className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary rounded-lg text-sm border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary rounded font-mono text-sm border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
         />
         <button
           onClick={() => setShowModelModal(true)}
           disabled={!hasActiveProviders}
-          className={`shrink-0 px-3 py-2 rounded-lg border text-sm transition-colors ${
+          className={`shrink-0 px-3 py-2 rounded border font-mono text-sm transition-colors ${
             hasActiveProviders
               ? "bg-bg-secondary border-border text-text-main hover:border-primary cursor-pointer"
               : "opacity-50 cursor-not-allowed border-border"
@@ -79,7 +79,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           <>
             <button
               onClick={() => handleCopy(modelValue, "model")}
-              className="shrink-0 px-3 py-2 bg-bg-secondary hover:bg-bg-tertiary rounded-lg border border-border transition-colors"
+              className="shrink-0 px-3 py-2 bg-bg-secondary hover:bg-bg-tertiary rounded border border-border transition-colors"
             >
               <span className="material-symbols-outlined text-lg">
                 {copiedField === "model" ? "check" : "content_copy"}
@@ -128,7 +128,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           }
           
           return (
-            <div key={index} className={`flex items-start gap-3 p-3 rounded-lg border ${bgClass}`}>
+            <div key={index} className={`flex items-start gap-3 p-3 border ${bgClass}`}>
               <span className={`material-symbols-outlined text-lg ${iconClass}`}>{icon}</span>
               <p className={`text-sm ${textClass}`}>{note.text}</p>
             </div>
@@ -152,45 +152,38 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
         {renderNotes()}
         {canShowGuide() && tool.guideSteps.map((item) => (
           <div key={item.step} className="flex items-start gap-4">
-            <div 
-              className="size-8 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold text-white"
-              style={{ backgroundColor: tool.color }}
-            >
-              {item.step}
+            <div className="flex size-8 shrink-0 items-center justify-center border border-border">
+              <span className="step-index">{String(item.step).padStart(2, "0")}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-text">{item.title}</p>
+              <p className="font-mono font-medium text-text">{item.title}</p>
               {item.desc && <p className="text-sm text-text-muted mt-0.5">{item.desc}</p>}
               {item.type === "apiKeySelector" && renderApiKeySelector()}
               {item.type === "modelSelector" && renderModelSelector()}
               {item.value && (
-                <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                  <code className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary rounded-lg text-sm font-mono border border-border truncate">
-                    {replaceVars(item.value)}
-                  </code>
-                  {item.copyable && (
-                    <button
-                      onClick={() => handleCopy(item.value, `${item.step}-${item.title}`)}
-                      className="shrink-0 px-3 py-2 bg-bg-secondary hover:bg-bg-tertiary rounded-lg border border-border transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-lg">
-                        {copiedField === `${item.step}-${item.title}` ? "check" : "content_copy"}
-                      </span>
-                    </button>
-                  )}
-                </div>
+                item.copyable ? (
+                  <div className="mt-2">
+                    <TerminalBlock command={replaceVars(item.value)} />
+                  </div>
+                ) : (
+                  <div className="mt-2">
+                    <code className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary text-sm font-mono border border-border truncate">
+                      {replaceVars(item.value)}
+                    </code>
+                  </div>
+                )
               )}
             </div>
           </div>
         ))}
 
         {canShowGuide() && tool.codeBlock && (
-          <div className="mt-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-text-muted uppercase tracking-wide">{tool.codeBlock.language}</span>
+          <div className="terminal-block mt-2 rounded-sm px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">{tool.codeBlock.language}</span>
               <button
                 onClick={() => handleCopy(tool.codeBlock.code, "codeblock")}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-bg-secondary hover:bg-bg-tertiary rounded border border-border transition-colors"
+                className="flex items-center gap-1 rounded-sm border border-white/15 px-2 py-1 font-mono text-xs text-zinc-400 transition-colors hover:border-white/30 hover:text-white"
               >
                 <span className="material-symbols-outlined text-sm">
                   {copiedField === "codeblock" ? "check" : "content_copy"}
@@ -198,7 +191,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
                 {copiedField === "codeblock" ? "Copied!" : "Copy"}
               </button>
             </div>
-            <pre className="p-4 bg-bg-secondary rounded-lg border border-border overflow-x-auto">
+            <pre className="overflow-x-auto">
               <code className="text-sm font-mono whitespace-pre">{replaceVars(tool.codeBlock.code)}</code>
             </pre>
           </div>
@@ -215,7 +208,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           alt={tool.name}
           width={32}
           height={32}
-          className="size-8 object-contain rounded-lg"
+          className="size-8 object-contain"
           sizes="32px"
           onError={(e) => { e.target.style.display = "none"; }}
         loading="lazy"
@@ -236,7 +229,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
         alt={tool.name}
         width={32}
         height={32}
-        className="size-8 object-contain rounded-lg"
+        className="size-8 object-contain"
         sizes="32px"
         onError={(e) => {
           markProviderIconMissing(toolId);
@@ -252,11 +245,11 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
     <Card padding="xs" className="overflow-hidden overflow-x-hidden">
       <div className="flex items-center justify-between hover:cursor-pointer" onClick={onToggle}>
         <div className="flex items-center gap-3">
-          <div className="size-8 rounded-lg flex items-center justify-center shrink-0">
+          <div className="size-8 flex items-center justify-center shrink-0">
             {renderIcon()}
           </div>
           <div className="min-w-0">
-            <h3 className="font-medium text-sm">{tool.name}</h3>
+            <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
             <p className="text-xs text-text-muted truncate">{tool.description}</p>
           </div>
         </div>

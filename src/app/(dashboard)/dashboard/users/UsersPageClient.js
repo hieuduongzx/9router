@@ -139,29 +139,29 @@ export default function UsersPageClient() {
     <div className="flex min-w-0 flex-col gap-5 px-1 sm:px-0">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card padding="sm" className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><span className="material-symbols-outlined">group</span></span>
-          <div><p className="text-2xl font-semibold text-text-main">{users.length}</p><p className="text-xs text-text-muted">Registered accounts</p></div>
+          <span className="flex size-10 items-center justify-center border border-border bg-surface-2 text-text-main"><span className="material-symbols-outlined">group</span></span>
+          <div><p className="font-mono text-2xl font-semibold text-text-main">{users.length}</p><p className="text-xs text-text-muted">Registered accounts</p></div>
         </Card>
         <Card padding="sm" className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-success/10 text-success"><span className="material-symbols-outlined">verified_user</span></span>
-          <div><p className="text-2xl font-semibold text-text-main">{activeCount}</p><p className="text-xs text-text-muted">Active accounts</p></div>
+          <span className="flex size-10 items-center justify-center border border-border bg-surface-2 text-text-main"><span className="material-symbols-outlined">verified_user</span></span>
+          <div><p className="font-mono text-2xl font-semibold text-text-main">{activeCount}</p><p className="text-xs text-text-muted">Active accounts</p></div>
         </Card>
         <Card padding="sm" className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-300"><span className="material-symbols-outlined">admin_panel_settings</span></span>
-          <div><p className="text-2xl font-semibold text-text-main">{adminCount}</p><p className="text-xs text-text-muted">Administrators</p></div>
+          <span className="flex size-10 items-center justify-center border border-border bg-surface-2 text-text-main"><span className="material-symbols-outlined">admin_panel_settings</span></span>
+          <div><p className="font-mono text-2xl font-semibold text-text-main">{adminCount}</p><p className="text-xs text-text-muted">Administrators</p></div>
         </Card>
         <Card padding="sm" className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-300"><span className="material-symbols-outlined">account_balance_wallet</span></span>
-          <div><p className="text-2xl font-semibold text-text-main">{formatCredit(totalCreditCents)}</p><p className="text-xs text-text-muted">Total account credit</p></div>
+          <span className="flex size-10 items-center justify-center border border-border bg-surface-2 text-text-main"><span className="material-symbols-outlined">account_balance_wallet</span></span>
+          <div><p className="font-mono text-2xl font-semibold text-text-main">{formatCredit(totalCreditCents)}</p><p className="text-xs text-text-muted">Total account credit</p></div>
         </Card>
       </div>
 
-      {error && <div role="alert" className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      {error && <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
 
       <Card padding="none" className="overflow-hidden">
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="font-semibold text-text-main">Account access</h2>
+            <h2 className="font-mono font-semibold text-text-main">Account access</h2>
             <p className="mt-1 text-xs text-text-muted">Manage roles, access, credit balances, and account removal.</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadUsers}>Refresh</Button>
@@ -176,10 +176,10 @@ export default function UsersPageClient() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-semibold text-text-main">{user.username}</p>
-                    {isCurrent && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">You</span>}
+                    {isCurrent && <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-primary">You</span>}
                   </div>
                   <p className="mt-1 truncate text-xs text-text-muted">{user.email}</p>
-                  <p className="mt-1 text-[11px] text-text-muted/70">Joined {formatDate(user.createdAt)}</p>
+                  <p className="mt-1 font-mono text-[11px] text-text-muted/70">Joined {formatDate(user.createdAt)}</p>
                 </div>
 
                 <label className="flex items-center justify-between gap-3 lg:block">
@@ -188,7 +188,7 @@ export default function UsersPageClient() {
                     value={user.role}
                     disabled={busy || isCurrent}
                     onChange={(event) => updateUser(user.id, { role: event.target.value })}
-                    className="h-9 min-w-28 rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+                    className="h-9 min-w-28 rounded-sm border border-border bg-surface px-3 font-mono text-sm text-text-main outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
                   >
                     <option value="user">User</option>
                     <option value="admin">Admin</option>
@@ -201,7 +201,7 @@ export default function UsersPageClient() {
                     type="button"
                     disabled={busy || isCurrent}
                     onClick={() => updateUser(user.id, { isActive: !user.isActive })}
-                    className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-colors disabled:opacity-60 ${user.isActive ? "border-success/25 bg-success/10 text-success" : "border-border bg-surface-2 text-text-muted"}`}
+                    className={`inline-flex h-9 items-center gap-2 rounded-sm border px-3 font-mono text-xs font-medium uppercase tracking-wide transition-colors disabled:opacity-60 ${user.isActive ? "border-success/25 bg-success/10 text-success" : "border-border bg-surface-2 text-text-muted"}`}
                   >
                     <span className={`size-1.5 rounded-full ${user.isActive ? "bg-success" : "bg-text-muted"}`} />
                     {user.isActive ? "Active" : "Suspended"}
@@ -211,7 +211,7 @@ export default function UsersPageClient() {
                 <div className="flex items-center justify-between gap-3 lg:block">
                   <span className="text-xs text-text-muted lg:mb-1.5 lg:block">Credit</span>
                   <div className="flex items-center gap-2">
-                    <span className="min-w-20 text-sm font-semibold text-text-main tabular-nums">
+                    <span className="min-w-20 font-mono text-sm font-semibold text-text-main tabular-nums">
                       {formatCredit(user.creditCents)}
                     </span>
                     <Button
@@ -276,9 +276,9 @@ export default function UsersPageClient() {
         }
       >
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-bg-alt/60 px-4 py-3">
+          <div className="border border-border bg-bg-alt/60 px-4 py-3">
             <p className="text-xs text-text-muted">Current balance</p>
-            <p className="mt-1 text-2xl font-semibold text-text-main tabular-nums">
+            <p className="mt-1 font-mono text-2xl font-semibold text-text-main tabular-nums">
               {formatCredit(creditTarget?.creditCents)}
             </p>
           </div>
@@ -297,7 +297,7 @@ export default function UsersPageClient() {
             autoFocus
           />
           {creditError && (
-            <div role="alert" className="rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger">
+            <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger">
               {creditError}
             </div>
           )}

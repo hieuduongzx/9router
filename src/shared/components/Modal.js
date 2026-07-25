@@ -54,7 +54,7 @@ export default function Modal({
       {/* Modal content */}
       <div
         className={cn(
-          "relative w-full rounded-xl border border-border bg-surface shadow-lg",
+          "relative w-full border border-border bg-surface",
           "fade-in",
           sizes[size],
           className
@@ -81,7 +81,7 @@ export default function Modal({
                 </div>
               )}
               {title && (
-                <h2 className="truncate text-base font-semibold tracking-tight text-text-main">{title}</h2>
+                <h2 className="truncate font-mono text-base font-semibold tracking-tight text-text-main">{title}</h2>
               )}
             </div>
             <button

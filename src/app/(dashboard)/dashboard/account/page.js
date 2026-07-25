@@ -7,6 +7,7 @@ import Badge from "@/shared/components/Badge";
 import Button from "@/shared/components/Button";
 import Card from "@/shared/components/Card";
 import Input from "@/shared/components/Input";
+import StatTile from "@/shared/components/StatTile";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 const EMPTY_PASSWORDS = { current: "", next: "", confirm: "" };
@@ -73,7 +74,7 @@ function StatusMessage({ status }) {
   return (
     <div
       role={status.type === "error" ? "alert" : "status"}
-      className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+      className={`flex items-start gap-2 border px-3 py-2.5 text-sm ${
         status.type === "success"
           ? "border-success/25 bg-success/10 text-success"
           : "border-danger/25 bg-danger/10 text-danger"
@@ -87,27 +88,12 @@ function StatusMessage({ status }) {
   );
 }
 
-function Metric({ icon, label, value, detail }) {
-  return (
-    <Card padding="md" className="min-w-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-text-muted">{label}</p>
-          <p className="mt-2 truncate text-xl font-semibold tracking-[-0.025em] text-text-main tabular-nums">{value}</p>
-          <p className="mt-1 truncate text-[11px] text-text-subtle">{detail}</p>
-        </div>
-        <span className="material-symbols-outlined text-[20px] text-text-subtle">{icon}</span>
-      </div>
-    </Card>
-  );
-}
-
 function ProfileSkeleton() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5" aria-label="Loading account">
-      <div className="h-28 animate-pulse rounded-[16px] bg-surface-2" />
-      <div className="h-12 animate-pulse rounded-[12px] bg-surface-2" />
-      <div className="h-80 animate-pulse rounded-[14px] bg-surface-2" />
+      <div className="h-28 animate-pulse bg-surface-2" />
+      <div className="h-12 animate-pulse bg-surface-2" />
+      <div className="h-80 animate-pulse bg-surface-2" />
     </div>
   );
 }
@@ -318,9 +304,9 @@ function AccountPage() {
 
   if (loadError || !account) {
     return (
-      <div className="mx-auto flex min-h-72 w-full max-w-xl flex-col items-center justify-center rounded-[14px] border border-border bg-surface px-6 text-center">
+      <div className="mx-auto flex min-h-72 w-full max-w-xl flex-col items-center justify-center border border-border bg-surface px-6 text-center">
         <span className="material-symbols-outlined text-3xl text-danger">account_circle_off</span>
-        <h2 className="mt-3 text-base font-semibold text-text-main">Account unavailable</h2>
+        <h2 className="mt-3 font-mono text-base font-semibold text-text-main">Account unavailable</h2>
         <p className="mt-1 max-w-md text-sm text-text-muted">{loadError || "Your account could not be loaded."}</p>
         <Button className="mt-5" variant="outline" onClick={() => loadProfile()}>Try again</Button>
       </div>
@@ -329,15 +315,15 @@ function AccountPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-8">
-      <section className="overflow-hidden rounded-[16px] border border-border bg-surface shadow-sm">
+      <section className="overflow-hidden border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-base font-semibold text-primary">
+            <span className="flex size-12 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-base font-semibold text-text-main">
               {String(displayName).trim().charAt(0).toUpperCase() || "A"}
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-xl font-semibold tracking-[-0.03em] text-text-main">{displayName}</h1>
+                <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-text-main">{displayName}</h1>
                 <Badge variant={identity?.role === "admin" ? "primary" : "neutral"}>
                   {identity?.role || account.role || "user"}
                 </Badge>
@@ -345,16 +331,13 @@ function AccountPage() {
               <p className="mt-1 truncate text-sm text-text-muted">{displayEmail}</p>
             </div>
           </div>
-          <div className="rounded-xl border border-primary/15 bg-primary/[0.06] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Available balance</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-text-main">
-              {CREDIT_FORMAT.format(balanceCents / 100)}
-            </p>
+          <div className="tile-grid grid-cols-1 shrink-0 sm:w-60">
+            <StatTile chip="cost" label="Available balance" value={CREDIT_FORMAT.format(balanceCents / 100)} />
           </div>
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-1 rounded-[12px] border border-border bg-surface p-1">
+      <div className="flex flex-wrap gap-1 rounded-sm border border-border bg-surface p-1">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -362,7 +345,7 @@ function AccountPage() {
               key={tab.id}
               type="button"
               onClick={() => setTab(tab.id)}
-              className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${
+              className={`inline-flex h-9 items-center gap-2 rounded-sm px-3 font-mono text-sm font-medium transition-colors ${
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-text-muted hover:bg-surface-2 hover:text-text-main"
@@ -378,10 +361,10 @@ function AccountPage() {
       {activeTab === "profile" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
           <Card padding="lg" className="min-w-0">
-            <h2 className="text-base font-semibold text-text-main">Identity</h2>
+            <h2 className="font-mono text-base font-semibold text-text-main">Identity</h2>
             <p className="mt-1 text-sm text-text-muted">Update the username and email on this account.</p>
             {isOidc ? (
-              <div className="mt-5 rounded-xl border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
+              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
                 This session is managed by your identity provider. Profile fields are read-only here.
               </div>
             ) : (
@@ -415,15 +398,15 @@ function AccountPage() {
           </Card>
 
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <Metric icon="vpn_key" label="Active API keys" value={String(activeKeys)} detail={`${keys.length} total keys`} />
-              <Metric icon="token" label="Tokens · 30d" value={COMPACT_FORMAT.format(totalTokens)} detail="Prompt + completion" />
-              <Metric icon="payments" label="Usage cost · 30d" value={COST_FORMAT.format(usage?.totalCost || 0)} detail="Estimated routing cost" />
+            <div className="tile-grid grid-cols-1">
+              <StatTile chip="info" label="Active API keys" value={String(activeKeys)} sub={`${keys.length} total keys`} />
+              <StatTile chip="tokens" label="Tokens · 30d" value={COMPACT_FORMAT.format(totalTokens)} sub="Prompt + completion" />
+              <StatTile chip="cost" label="Usage cost · 30d" value={COST_FORMAT.format(usage?.totalCost || 0)} sub="Estimated routing cost" />
             </div>
             <Card padding="md">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-text-main">Wallet snapshot</p>
+                  <p className="font-mono text-sm font-semibold text-text-main">Wallet snapshot</p>
                   <p className="mt-1 text-xs text-text-muted">Open the wallet tab for full credit history.</p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setTab("wallet")}>Open wallet</Button>
@@ -438,7 +421,7 @@ function AccountPage() {
           <Card padding="none" className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
               <div>
-                <h2 className="text-sm font-semibold text-text-main">Wallet history</h2>
+                <h2 className="font-mono text-sm font-semibold text-text-main">Wallet history</h2>
                 <p className="text-xs text-text-muted">
                   Top-ups, admin adjustments, and signup bonuses. LLM usage is tracked under Usage, not here.
                 </p>
@@ -461,7 +444,7 @@ function AccountPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b border-border-subtle bg-bg-alt/70 text-[11px] uppercase tracking-wide text-text-muted">
+                  <thead className="border-b border-border-subtle bg-bg-alt/70 font-mono text-[11px] uppercase tracking-wide text-text-muted">
                     <tr>
                       <th className="px-4 py-2.5 font-medium">When</th>
                       <th className="px-4 py-2.5 font-medium">Type</th>
@@ -476,11 +459,11 @@ function AccountPage() {
                       const negative = (entry.amountCents || 0) < 0;
                       return (
                         <tr key={entry.id} className="hover:bg-bg-alt/50">
-                          <td className="px-4 py-3 text-xs text-text-muted whitespace-nowrap">
+                          <td className="px-4 py-3 font-mono text-xs text-text-muted whitespace-nowrap">
                             {formatDateTime(entry.createdAt)}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            <span className={`inline-flex rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                               positive
                                 ? "bg-success/10 text-success"
                                 : negative
@@ -492,7 +475,7 @@ function AccountPage() {
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-sm text-text-main">{ledgerLabel(entry)}</p>
-                            <p className="mt-0.5 text-[11px] text-text-subtle">
+                            <p className="mt-0.5 font-mono text-[11px] text-text-subtle">
                               {[entry.source, entry.meta?.model, entry.meta?.provider].filter(Boolean).join(" · ") || "—"}
                             </p>
                           </td>
@@ -518,10 +501,10 @@ function AccountPage() {
       {activeTab === "security" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
           <Card padding="lg">
-            <h2 className="text-base font-semibold text-text-main">Password</h2>
+            <h2 className="font-mono text-base font-semibold text-text-main">Password</h2>
             <p className="mt-1 text-sm text-text-muted">Change the password used for dashboard sign-in.</p>
             {isOidc ? (
-              <div className="mt-5 rounded-xl border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
+              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
                 Password changes are managed by your OIDC provider.
               </div>
             ) : (
@@ -554,20 +537,20 @@ function AccountPage() {
           </Card>
 
           <Card padding="lg">
-            <h2 className="text-base font-semibold text-text-main">Quick links</h2>
+            <h2 className="font-mono text-base font-semibold text-text-main">Quick links</h2>
             <div className="mt-4 space-y-2">
-              <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
+              <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
                 <span className="material-symbols-outlined text-[18px] text-text-muted">vpn_key</span>
                 Manage API keys
               </Link>
-              <Link href="/dashboard/usage" className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
+              <Link href="/dashboard/usage" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
                 <span className="material-symbols-outlined text-[18px] text-text-muted">bar_chart</span>
                 View usage
               </Link>
               <button
                 type="button"
                 onClick={() => copy(displayEmail, "email")}
-                className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-sm text-text-main hover:bg-surface-2"
+                className="flex w-full items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-left text-sm text-text-main hover:bg-surface-2"
               >
                 <span className="material-symbols-outlined text-[18px] text-text-muted">
                   {copied === "email" ? "check" : "mail"}

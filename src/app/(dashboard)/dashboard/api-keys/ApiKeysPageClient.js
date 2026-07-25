@@ -124,7 +124,7 @@ export default function ApiKeysPageClient() {
           <div>
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[20px] text-primary">vpn_key</span>
-              <h2 className="text-base font-semibold text-text-main">API keys</h2>
+              <h2 className="font-mono text-base font-semibold text-text-main">API keys</h2>
             </div>
             <p className="mt-1 text-sm text-text-muted">
               Every AI request must include an active key.
@@ -137,15 +137,15 @@ export default function ApiKeysPageClient() {
 
         {keys.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-bg-subtle px-4 py-2.5 text-xs text-text-muted sm:px-5">
-            <span><strong className="font-semibold text-text-main">{keys.length}</strong> total</span>
-            <span><strong className="font-semibold text-success">{activeKeyCount}</strong> active</span>
-            <span><strong className="font-semibold text-text-main">{keys.length - activeKeyCount}</strong> paused</span>
+            <span><strong className="font-mono font-semibold text-text-main">{keys.length}</strong> total</span>
+            <span><strong className="font-mono font-semibold text-success">{activeKeyCount}</strong> active</span>
+            <span><strong className="font-mono font-semibold text-text-main">{keys.length - activeKeyCount}</strong> paused</span>
           </div>
         )}
 
         {keys.length === 0 ? (
           <div className="px-4 py-12 text-center">
-            <div className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="mb-4 inline-flex size-12 items-center justify-center border border-border bg-surface-2 text-text-main">
               <span className="material-symbols-outlined text-[26px]">vpn_key</span>
             </div>
             <p className="mb-1 font-medium text-text-main">No API keys yet</p>
@@ -159,7 +159,7 @@ export default function ApiKeysPageClient() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] table-fixed text-left text-sm">
-              <thead className="border-b border-border bg-bg-subtle/70 text-xs text-text-muted">
+              <thead className="border-b border-border bg-bg-subtle/70 font-mono text-xs text-text-muted">
                 <tr>
                   <th className="w-[22%] px-4 py-2.5 font-medium sm:px-5">Name</th>
                   <th className="w-[36%] px-4 py-2.5 font-medium">Key</th>
@@ -190,7 +190,7 @@ export default function ApiKeysPageClient() {
                           <button
                             type="button"
                             onClick={() => toggleKeyVisibility(key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title={isVisible ? "Hide key" : "Show key"}
                             aria-label={isVisible ? `Hide ${key.name}` : `Show ${key.name}`}
                           >
@@ -201,7 +201,7 @@ export default function ApiKeysPageClient() {
                           <button
                             type="button"
                             onClick={() => copy(key.key, key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title="Copy key"
                             aria-label={`Copy ${key.name}`}
                           >
@@ -211,11 +211,11 @@ export default function ApiKeysPageClient() {
                           </button>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-text-muted">
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-text-muted">
                         {new Date(key.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-mono text-xs font-medium uppercase tracking-wide ${
                           isActive ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                         }`}>
                           <span className={`size-1.5 rounded-full ${isActive ? "bg-success" : "bg-warning"}`} />
@@ -240,7 +240,7 @@ export default function ApiKeysPageClient() {
                                 handleToggleKey(key.id, true);
                               }
                             }}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-8 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title={isActive ? "Pause key" : "Resume key"}
                             aria-label={isActive ? `Pause ${key.name}` : `Resume ${key.name}`}
                           >
@@ -251,7 +251,7 @@ export default function ApiKeysPageClient() {
                           <button
                             type="button"
                             onClick={() => handleDeleteKey(key.id)}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-error transition-colors hover:bg-error/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30"
+                            className="inline-flex size-8 items-center justify-center rounded-sm text-error transition-colors hover:bg-error/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30"
                             title="Delete key"
                             aria-label={`Delete ${key.name}`}
                           >
@@ -307,7 +307,7 @@ export default function ApiKeysPageClient() {
         onClose={() => setCreatedKey(null)}
       >
         <div className="flex flex-col gap-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
             <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2 font-medium">
               Save this key now!
             </p>

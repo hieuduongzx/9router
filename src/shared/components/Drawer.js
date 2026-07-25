@@ -7,9 +7,11 @@ export default function Drawer({
   isOpen,
   onClose,
   title,
+  headerActions,
   children,
   width = "md",
-  className
+  className,
+  accentClassName,
 }) {
   const widths = {
     sm: "w-[400px]",
@@ -49,25 +51,31 @@ export default function Drawer({
 
       {/* Drawer panel */}
       <div className={cn(
-        "absolute right-0 top-0 flex h-full max-w-full flex-col border-l border-border bg-surface shadow-lg",
+        "absolute right-0 top-0 flex h-full max-w-full flex-col border-l border-border bg-surface",
         "slide-in-right",
         widths[width] || widths.md,
         className
       )}>
+        {accentClassName && (
+          <span className={cn("absolute left-0 top-0 h-10 w-[3px]", accentClassName)} aria-hidden />
+        )}
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             {title && (
-              <h2 className="text-base font-semibold tracking-tight text-text-main">{title}</h2>
+              <h2 className="font-mono text-base font-semibold tracking-tight text-text-main">{title}</h2>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {headerActions}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-8 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
         </div>
 
         {/* Body */}

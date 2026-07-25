@@ -64,24 +64,25 @@ function NavItem({ href, label, icon, active, onClick, nested = false }) {
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-2.5 rounded-md text-sm font-medium outline-none transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-primary/30",
-        nested ? "h-8 px-2.5" : "h-9 px-2.5",
+        "group relative flex items-center gap-2.5 font-mono text-[13px] font-medium outline-none transition-colors",
+        "focus-visible:ring-1 focus-visible:ring-primary/40",
+        nested ? "h-8 pl-3 pr-2.5" : "h-8 pl-3 pr-2.5",
         active
-          ? "bg-primary/10 text-primary"
+          ? "text-text-main"
           : "text-text-muted hover:bg-surface-2 hover:text-text-main"
       )}
     >
-      {active && (
-        <span
-          aria-hidden
-          className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-        />
-      )}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 bg-text-main transition-opacity",
+          active ? "opacity-100" : "opacity-0"
+        )}
+      />
       <span
         className={cn(
-          "material-symbols-outlined shrink-0 text-[18px] transition-colors",
-          active ? "fill-1 text-primary" : "text-text-muted group-hover:text-text-main"
+          "material-symbols-outlined shrink-0 text-[17px] transition-colors",
+          active ? "fill-1 text-text-main" : "text-text-muted group-hover:text-text-main"
         )}
       >
         {icon}
@@ -102,10 +103,10 @@ NavItem.propTypes = {
 
 function NavSection({ title, children, className }) {
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("space-y-0.5", className)}>
       {title ? (
-        <p className="px-2.5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted/70">
-          {title}
+        <p className="px-2.5 pb-1 pt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted/70">
+          {"// "}{title}
         </p>
       ) : null}
       <div className="space-y-0.5">{children}</div>
@@ -122,8 +123,8 @@ NavSection.propTypes = {
 function NavSubsection({ title, children }) {
   return (
     <div className="pt-2">
-      <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted/60">
-        {title}
+      <p className="px-2.5 pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted/60">
+        {"// "}{title}
       </p>
       <div className="ml-2 space-y-0.5 border-l border-border/70 pl-2">{children}</div>
     </div>
@@ -227,16 +228,16 @@ export default function Sidebar({ onClose }) {
           <Link
             href="/dashboard"
             onClick={onClose}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-2"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-sm px-1.5 py-1.5 transition-colors hover:bg-surface-2"
           >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-white shadow-sm">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border bg-primary text-[hsl(var(--primary-foreground))]">
               <span className="material-symbols-outlined text-[18px]">route</span>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold tracking-tight text-text-main">
+              <div className="truncate font-mono text-sm font-semibold tracking-tight text-text-main">
                 {APP_CONFIG.name}
               </div>
-              <div className="truncate text-[11px] text-text-muted">
+              <div className="truncate font-mono text-[11px] text-text-muted">
                 v{APP_CONFIG.version}
               </div>
             </div>
@@ -246,7 +247,7 @@ export default function Sidebar({ onClose }) {
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main lg:hidden"
+              className="flex size-8 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main lg:hidden"
             >
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
@@ -256,8 +257,8 @@ export default function Sidebar({ onClose }) {
         {/* Update banner */}
         {isAdmin && updateInfo ? (
           <div className="shrink-0 border-b border-border px-3 py-2.5">
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-primary">
+            <div className="border border-border bg-surface-2/50 p-2.5">
+              <div className="mb-2 flex items-center gap-1.5 font-mono text-xs font-medium text-text-main">
                 <span className="material-symbols-outlined text-[14px]">system_update</span>
                 <span>v{updateInfo.latestVersion} available</span>
               </div>
@@ -265,7 +266,7 @@ export default function Sidebar({ onClose }) {
                 <button
                   type="button"
                   onClick={() => setShowUpdateModal(true)}
-                  className="inline-flex h-7 items-center rounded-md bg-primary px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-primary-hover"
+                  className="inline-flex h-7 items-center rounded-sm bg-primary px-2.5 font-mono text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85"
                 >
                   Update
                 </button>
@@ -273,7 +274,7 @@ export default function Sidebar({ onClose }) {
                   type="button"
                   onClick={() => copy(INSTALL_CMD)}
                   title={INSTALL_CMD}
-                  className="min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-2 py-1 text-left font-mono text-[10px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+                  className="min-w-0 flex-1 truncate rounded-sm border border-border bg-surface px-2 py-1 text-left font-mono text-[10px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
                 >
                   {copied ? "✓ copied" : INSTALL_CMD}
                 </button>
@@ -318,17 +319,17 @@ export default function Sidebar({ onClose }) {
                   onClick={() => setMediaOpen((value) => !value)}
                   aria-expanded={mediaExpanded}
                   className={cn(
-                    "group flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                    "group flex h-8 w-full items-center gap-2.5 rounded-sm px-2.5 font-mono text-[13px] font-medium transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
                     onMediaRoute
-                      ? "bg-primary/10 text-primary"
+                      ? "text-text-main"
                       : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                   )}
                 >
                   <span
                     className={cn(
                       "material-symbols-outlined text-[18px]",
-                      onMediaRoute ? "fill-1 text-primary" : "text-text-muted group-hover:text-text-main"
+                      onMediaRoute ? "fill-1 text-text-main" : "text-text-muted group-hover:text-text-main"
                     )}
                   >
                     perm_media
@@ -435,9 +436,9 @@ export default function Sidebar({ onClose }) {
               onClick={onClose}
             />
           ) : null}
-          <div className="flex items-center justify-between px-2.5 py-1.5">
-            <span className="text-[11px] text-text-muted">Gateway</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-text-muted">
+          <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[11px]">
+            <span className="text-text-muted">Gateway</span>
+            <span className="inline-flex items-center gap-1.5 font-medium text-text-muted">
               <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
               Online
             </span>
@@ -470,10 +471,10 @@ export default function Sidebar({ onClose }) {
             />
           ) : (
             <div className="p-8 text-center">
-              <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-red-500/20 text-red-500">
+              <div className="mx-auto mb-4 flex size-16 items-center justify-center border border-red-500/30 bg-red-500/10 text-red-500">
                 <span className="material-symbols-outlined text-[32px]">power_off</span>
               </div>
-              <h2 className="mb-2 text-xl font-semibold text-white">Server Disconnected</h2>
+              <h2 className="mb-2 font-mono text-xl font-semibold text-white">Server Disconnected</h2>
               <p className="mb-6 text-text-muted">The proxy server has been stopped.</p>
               <Button variant="secondary" onClick={() => globalThis.location.reload()}>
                 Reload Page
@@ -501,13 +502,13 @@ function ManualUpdatePanel({
 }) {
   const isCountingDown = countdown > 0;
   return (
-    <div className="w-full max-w-lg rounded-xl border border-white/10 bg-neutral-900/95 p-6 text-white shadow-xl">
+    <div className="w-full max-w-lg border border-white/15 bg-[#0a0a0a] p-6 text-white">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex size-11 items-center justify-center rounded-full bg-primary/20 text-primary">
-          <span className="material-symbols-outlined text-[24px]">content_copy</span>
+        <div className="flex size-11 shrink-0 items-center justify-center border border-white/15 text-white">
+          <span className="material-symbols-outlined text-[22px]">content_copy</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="font-mono text-lg font-semibold">
             Update Router2k{latestVersion ? ` to v${latestVersion}` : ""}
           </h2>
           <p className="text-xs text-white/60">
@@ -520,9 +521,9 @@ function ManualUpdatePanel({
         </div>
       </div>
 
-      <p className="mb-2 text-sm text-white/80">Install command:</p>
-      <div className="mb-4 w-full rounded-md bg-white/5 px-3 py-2">
-        <code className="break-all font-mono text-xs text-sky-300">{installCmd}</code>
+      <p className="section-label mb-2 !text-white/50">Install command</p>
+      <div className="mb-4 w-full rounded-sm border border-white/10 bg-white/5 px-3 py-2">
+        <code className="break-all font-mono text-xs text-emerald-400">{installCmd}</code>
       </div>
 
       <ol className="mb-4 list-inside list-decimal space-y-1 text-xs text-white/70">
@@ -532,7 +533,7 @@ function ManualUpdatePanel({
         <li>Paste the command into your terminal and press Enter.</li>
         <li>
           Run{" "}
-          <code className="rounded bg-white/10 px-1 text-emerald-400">9router</code> again after
+          <code className="rounded-sm bg-white/10 px-1 text-emerald-400">9router</code> again after
           install.
         </li>
       </ol>

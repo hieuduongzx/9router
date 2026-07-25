@@ -19,7 +19,7 @@ export default function MitmLinkCard({ tool }) {
                 alt={tool.name}
                 width={32}
                 height={32}
-                className="size-8 object-contain rounded-lg"
+                className="size-8 object-contain"
                 sizes="32px"
                 onError={(e) => { e.target.style.display = "none"; }}
               loading="lazy"
@@ -28,8 +28,8 @@ export default function MitmLinkCard({ tool }) {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-medium text-sm">{tool.name}</h3>
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full">MITM</span>
+                <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
+                <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400">MITM</span>
               </div>
               <p className="text-xs text-text-muted truncate">{tool.description}</p>
             </div>

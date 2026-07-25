@@ -19,7 +19,7 @@ export default function Select({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
-        <label className="text-sm font-medium text-text-main">
+        <label className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -30,8 +30,8 @@ export default function Select({
           onChange={onChange}
           disabled={disabled}
           className={cn(
-            "flex h-9 w-full appearance-none rounded-md border border-border bg-transparent px-3 py-1 pr-10 text-sm text-text-main shadow-sm",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50",
+            "flex h-9 w-full appearance-none rounded-sm border border-border bg-transparent px-3 py-1 pr-10 font-mono text-sm text-text-main",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary",
             "transition-colors disabled:cursor-not-allowed disabled:opacity-50",
             "text-[16px] sm:text-sm",
             error && "border-red-500 focus-visible:ring-red-500/30",

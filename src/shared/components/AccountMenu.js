@@ -45,7 +45,7 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout }
             {displayName}
           </span>
           {formattedCredit && (
-            <span className="mt-0.5 block whitespace-nowrap text-[11px] font-medium leading-none text-primary tabular-nums">
+            <span className="mt-0.5 block whitespace-nowrap font-mono text-[11px] font-medium leading-none text-text-main tabular-nums">
               {formattedCredit}
             </span>
           )}
@@ -56,14 +56,14 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout }
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-elev)]">
-          <div className="border-b border-border-subtle px-4 py-3">
+        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 border border-border bg-surface">
+          <div className="border-b border-border px-4 py-3">
             <p className="truncate text-sm font-semibold text-text-main">{displayName}</p>
             <p className="mt-0.5 text-xs capitalize text-text-muted">{role || "user"} account</p>
             {Number.isSafeInteger(creditCents) && (
-              <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-primary/[0.06] px-2.5 py-2">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Balance</span>
-                <span className="text-xs font-semibold tabular-nums text-text-main">
+              <div className="mt-2 flex items-center justify-between gap-3 border border-border bg-surface-2/50 px-2.5 py-2">
+                <span className="font-mono text-[10px] font-medium uppercase tracking-wide text-text-muted">Balance</span>
+                <span className="font-mono text-xs font-semibold tabular-nums text-text-main">
                   {CREDIT_FORMAT.format(creditCents / 100)}
                 </span>
               </div>
@@ -74,7 +74,7 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout }
               href="/dashboard/account"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text-main transition-colors hover:bg-surface-2"
+              className="flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-text-main transition-colors hover:bg-surface-2"
             >
               <span className="material-symbols-outlined text-[19px] text-text-muted">manage_accounts</span>
               Profile & account
@@ -83,7 +83,7 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout }
               type="button"
               role="menuitem"
               onClick={() => { setOpen(false); onLogout(); }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-danger transition-colors hover:bg-danger/10"
+              className="flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-danger transition-colors hover:bg-danger/10"
             >
               <span className="material-symbols-outlined text-[19px]">logout</span>
               Sign out

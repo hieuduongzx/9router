@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Input } from "@/shared/components";
+import { Button, Input, CropFrame } from "@/shared/components";
 
 export default function LoginPage() {
   const [ready, setReady] = useState(false);
@@ -163,52 +163,51 @@ export default function LoginPage() {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
-        <div className="size-8 animate-spin rounded-full border-2 border-border border-t-brand-500" aria-label="Loading" />
+        <div className="size-8 animate-spin rounded-full border-2 border-border border-t-text-main" aria-label="Loading" />
       </div>
     );
   }
 
   return (
     <main className="min-h-screen bg-bg p-4 sm:p-6 lg:flex lg:items-center lg:justify-center">
-      <div className="mx-auto grid w-full max-w-5xl overflow-hidden rounded-[20px] border border-border-subtle bg-surface shadow-[var(--shadow-elev)] lg:min-h-[680px] lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="relative hidden overflow-hidden bg-[#28221f] p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute -right-24 -top-24 size-72 rounded-full border-[48px] border-brand-500/20" aria-hidden="true" />
+      <CropFrame className="mx-auto grid w-full max-w-5xl border border-border bg-surface lg:min-h-[680px] lg:grid-cols-[0.9fr_1.1fr]">
+        <section className="relative hidden overflow-hidden bg-[#0a0a0a] p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="relative">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-[12px] bg-brand-500 text-white">
-                <span className="material-symbols-outlined text-[24px]">hub</span>
+              <span className="flex size-10 items-center justify-center border border-white/15 text-white">
+                <span className="material-symbols-outlined text-[20px]">route</span>
               </span>
               <div>
-                <p className="text-lg font-semibold">Router2k</p>
-                <p className="text-xs text-white/55">AI infrastructure gateway</p>
+                <p className="font-mono text-sm font-semibold">Router2k</p>
+                <p className="section-label !text-white/40">AI Infrastructure Gateway</p>
               </div>
             </div>
           </div>
 
           <div className="relative max-w-sm">
-            <h1 className="text-3xl font-semibold leading-tight tracking-[-0.03em]">One gateway. Individual access.</h1>
-            <p className="mt-4 text-sm leading-6 text-white/65">
+            <h1 className="font-mono text-3xl font-semibold leading-tight tracking-tight">One gateway.<br />Individual access.</h1>
+            <p className="mt-4 text-sm leading-6 text-white/60">
               Every operator signs in with a personal account. Admin and user roles keep identity explicit without changing your routing workflow.
             </p>
-            <div className="mt-8 space-y-3 text-sm text-white/75">
-              <div className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-brand-400" />Account-based sessions</div>
-              <div className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-brand-400" />Admin and user roles</div>
-              <div className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-brand-400" />Local recovery for the admin account</div>
+            <div className="mt-8 space-y-2.5 font-mono text-xs text-white/70">
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />account-based sessions</div>
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />admin and user roles</div>
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />local recovery for the admin account</div>
             </div>
           </div>
 
-          <p className="relative text-xs text-white/40">Credentials stay on this Router2k instance.</p>
+          <p className="relative font-mono text-[11px] text-white/35">{"// "}credentials stay on this Router2k instance</p>
         </section>
 
         <section className="flex items-center px-5 py-8 sm:px-12 lg:px-16">
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 lg:hidden">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-[11px] bg-brand-500 text-white">
-                  <span className="material-symbols-outlined text-[22px]">hub</span>
+                <span className="flex size-10 items-center justify-center border border-border bg-primary text-[hsl(var(--primary-foreground))]">
+                  <span className="material-symbols-outlined text-[20px]">route</span>
                 </span>
                 <div>
-                  <p className="font-semibold text-text-main">Router2k</p>
+                  <p className="font-mono font-semibold text-text-main">Router2k</p>
                   <p className="text-xs text-text-muted">AI infrastructure gateway</p>
                 </div>
               </div>
@@ -217,20 +216,17 @@ export default function LoginPage() {
             {mustChange ? (
               <form onSubmit={handleSetNewPassword} className="space-y-5">
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-[-0.025em] text-text-main">Secure the admin account</h2>
+                  <h2 className="font-mono text-xl font-semibold tracking-tight text-text-main">Secure the admin account</h2>
                   <p className="mt-2 text-sm leading-6 text-text-muted">Choose a new password before using this account remotely.</p>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="new-password" className="text-sm font-medium text-text-main">New password</label>
-                  <Input id="new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required autoFocus />
-                </div>
-                {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+                <Input id="new-password" label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required autoFocus />
+                {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                 <Button type="submit" variant="primary" className="w-full" loading={loading}>Update password</Button>
               </form>
             ) : (
               <>
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-[-0.025em] text-text-main">
+                  <h2 className="font-mono text-xl font-semibold tracking-tight text-text-main">
                     {mode === "login" ? "Welcome back" : "Create your account"}
                   </h2>
                   <p className="mt-2 text-sm text-text-muted">
@@ -239,33 +235,21 @@ export default function LoginPage() {
                 </div>
 
                 {accountAvailable && registrationEnabled && (
-                  <div className="mt-7 grid grid-cols-2 rounded-[10px] border border-border bg-bg-alt p-1">
-                    <button type="button" onClick={() => switchMode("login")} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "login" ? "bg-surface text-text-main shadow-sm" : "text-text-muted hover:text-text-main"}`}>Sign in</button>
-                    <button type="button" onClick={() => switchMode("register")} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-surface text-text-main shadow-sm" : "text-text-muted hover:text-text-main"}`}>Register</button>
+                  <div className="mt-7 grid grid-cols-2 border border-border p-1">
+                    <button type="button" onClick={() => switchMode("login")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "login" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-text-muted hover:text-text-main"}`}>Sign in</button>
+                    <button type="button" onClick={() => switchMode("register")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "register" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-text-muted hover:text-text-main"}`}>Register</button>
                   </div>
                 )}
 
                 {mode === "register" && accountAvailable && registrationEnabled ? (
                   <form onSubmit={handleRegister} className="mt-6 space-y-4">
-                    <div className="space-y-2">
-                      <label htmlFor="register-username" className="text-sm font-medium text-text-main">Username</label>
-                      <Input id="register-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" minLength={3} maxLength={32} autoComplete="username" required autoFocus />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="register-email" className="text-sm font-medium text-text-main">Email</label>
-                      <Input id="register-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" maxLength={254} autoComplete="email" required />
-                    </div>
+                    <Input id="register-username" label="Username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" minLength={3} maxLength={32} autoComplete="username" required autoFocus />
+                    <Input id="register-email" label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" maxLength={254} autoComplete="email" required />
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <label htmlFor="register-password" className="text-sm font-medium text-text-main">Password</label>
-                        <Input id="register-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="confirm-password" className="text-sm font-medium text-text-main">Confirm</label>
-                        <Input id="confirm-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
-                      </div>
+                      <Input id="register-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
+                      <Input id="confirm-password" label="Confirm" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
                     </div>
-                    {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+                    {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                     <Button type="submit" variant="primary" className="w-full" loading={loading}>Create user account</Button>
                   </form>
                 ) : (
@@ -276,21 +260,15 @@ export default function LoginPage() {
                       </Button>
                     )}
                     {oidcAvailable && accountAvailable && (
-                      <div className="flex items-center gap-3 text-xs text-text-subtle"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
+                      <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-wide text-text-subtle"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
                     )}
                     {accountAvailable && (
                       <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="space-y-2">
-                          <label htmlFor="login-username" className="text-sm font-medium text-text-main">Username or email</label>
-                          <Input id="login-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="admin" autoComplete="username" required autoFocus={!oidcAvailable} />
-                        </div>
-                        <div className="space-y-2">
-                          <label htmlFor="login-password" className="text-sm font-medium text-text-main">Password</label>
-                          <Input id="login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
-                        </div>
-                        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-                        {retryAfter > 0 && <p className="text-sm text-warning">Locked. Retry in <span className="font-mono">{retryAfter}s</span>.</p>}
-                        {resetHint && <p className="text-xs leading-5 text-text-muted">Reset the admin account from the local Router2k CLI (<code className="rounded bg-surface-2 px-1.5 py-0.5">9router</code>) → Settings → Reset Admin Account.</p>}
+                        <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="admin" autoComplete="username" required autoFocus={!oidcAvailable} />
+                        <Input id="login-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
+                        {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
+                        {retryAfter > 0 && <p className="font-mono text-sm text-warning">Locked. Retry in <span className="font-semibold">{retryAfter}s</span>.</p>}
+                        {resetHint && <p className="text-xs leading-5 text-text-muted">Reset the admin account from the local Router2k CLI (<code className="rounded-sm bg-surface-2 px-1.5 py-0.5 font-mono">9router</code>) → Settings → Reset Admin Account.</p>}
                         <Button type="submit" variant="primary" className="w-full" loading={loading} disabled={retryAfter > 0}>
                           {retryAfter > 0 ? `Wait ${retryAfter}s` : "Sign in"}
                         </Button>
@@ -303,7 +281,7 @@ export default function LoginPage() {
             )}
           </div>
         </section>
-      </div>
+      </CropFrame>
     </main>
   );
 }

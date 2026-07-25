@@ -37,6 +37,12 @@ export { default as SegmentedControl } from "./SegmentedControl";
 export { default as Tooltip } from "./Tooltip";
 export { default as ProviderInfoCard } from "./ProviderInfoCard";
 export { default as CapacityBadges } from "./CapacityBadges";
+export { default as SectionLabel } from "./SectionLabel";
+export { default as CropFrame } from "./CropFrame";
+export { default as TerminalBlock } from "./TerminalBlock";
+export { default as StatTile } from "./StatTile";
+export { default as PeriodDropdown } from "./PeriodDropdown";
+export { default as CursorPagination } from "./CursorPagination";
 
 // Layouts
 export * from "./layouts";

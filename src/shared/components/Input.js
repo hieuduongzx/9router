@@ -26,7 +26,10 @@ export default function Input({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium leading-none text-text-main peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        <label
+          htmlFor={inputId}
+          className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
           {label}
           {required && <span className="ml-1 text-red-500">*</span>}
         </label>
@@ -45,10 +48,10 @@ export default function Input({
           onChange={onChange}
           disabled={disabled}
           className={cn(
-            "flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm text-text-main shadow-sm transition-colors",
+            "flex h-9 w-full rounded-sm border border-border bg-transparent px-3 py-1 font-mono text-sm text-text-main transition-colors",
             "file:border-0 file:bg-transparent file:text-sm file:font-medium",
-            "placeholder:text-text-muted",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50",
+            "placeholder:font-sans placeholder:text-text-muted",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary",
             "disabled:cursor-not-allowed disabled:opacity-50",
             "text-[16px] sm:text-sm",
             icon && "pl-10",
@@ -59,7 +62,7 @@ export default function Input({
         />
       </div>
       {error && (
-        <p className="flex items-center gap-1 text-xs text-red-500">
+        <p className="flex items-center gap-1 font-mono text-xs text-red-500">
           <span className="material-symbols-outlined text-[14px]">error</span>
           {error}
         </p>

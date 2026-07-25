@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card, Button } from "@/shared/components";
+import { Card, Button, SegmentedControl, StatTile } from "@/shared/components";
 
 const fmtTokens = (n) => {
   if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`;
@@ -47,16 +47,6 @@ const REASON_LABELS = {
   disabled: "Disabled",
   not_installed: "Not installed",
 };
-
-function SummaryCard({ label, value, sub, tone }) {
-  return (
-    <Card className="p-4">
-      <p className="text-xs text-text-muted uppercase tracking-wide">{label}</p>
-      <p className={`text-xl font-semibold mt-1 ${tone || ""}`}>{value}</p>
-      {sub && <p className="text-xs text-text-muted mt-0.5">{sub}</p>}
-    </Card>
-  );
-}
 
 export default function PxpipeClient() {
   const [status, setStatus] = useState(null);
@@ -104,7 +94,7 @@ export default function PxpipeClient() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
+        <h2 className="font-mono text-lg font-semibold flex items-center gap-2">
           <span className="material-symbols-outlined text-primary">image</span>
           PXPIPE Dashboard
         </h2>
@@ -118,55 +108,46 @@ export default function PxpipeClient() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <SummaryCard
+      <div className="tile-grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <StatTile
+          chip={health?.healthy ? "cost" : status?.installed ? "danger" : "muted"}
           label="Status"
           value={statusLabel}
-          tone={health?.healthy ? "text-success" : status?.installed ? "text-warning" : "text-text-muted"}
           sub={status?.enabled ? "Enabled in pipeline" : "Disabled in pipeline"}
         />
-        <SummaryCard label="Version" value={status?.version ? `v${status.version}` : "—"} sub="pxpipe-proxy" />
-        <SummaryCard label="Uptime" value={fmtUptime(status?.uptimeMs)} sub="module loaded" />
-        <SummaryCard label="Requests" value={w ? w.requests.toLocaleString() : "—"} />
-        <SummaryCard label="Compressed" value={w ? w.compressed.toLocaleString() : "—"} tone="text-success" />
-        <SummaryCard label="Bypassed" value={w ? w.bypassed.toLocaleString() : "—"} />
+        <StatTile chip="info" label="Version" value={status?.version ? `v${status.version}` : "—"} sub="pxpipe-proxy" />
+        <StatTile chip="info" label="Uptime" value={fmtUptime(status?.uptimeMs)} sub="module loaded" />
+        <StatTile chip="requests" label="Requests" value={w ? w.requests.toLocaleString() : "—"} />
+        <StatTile chip="cost" label="Compressed" value={w ? w.compressed.toLocaleString() : "—"} />
+        <StatTile chip="muted" label="Bypassed" value={w ? w.bypassed.toLocaleString() : "—"} />
       </div>
 
       <Card className="p-4">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h3 className="font-medium">Token savings (estimated)</h3>
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1">
-            {WINDOW_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setWindowId(tab.id)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  windowId === tab.id
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-text-muted hover:text-text hover:bg-bg-hover"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <h3 className="font-mono font-medium">Token savings (estimated)</h3>
+          <SegmentedControl
+            size="sm"
+            options={WINDOW_TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
+            value={windowId}
+            onChange={setWindowId}
+          />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-xs text-text-muted">Original tokens</p>
-            <p className="text-lg font-semibold">{w ? fmtTokens(w.tokensBeforeEst) : "—"}</p>
+            <p className="font-mono text-lg font-semibold">{w ? fmtTokens(w.tokensBeforeEst) : "—"}</p>
           </div>
           <div>
             <p className="text-xs text-text-muted">After PXPIPE</p>
-            <p className="text-lg font-semibold">{w ? fmtTokens(w.tokensAfterEst) : "—"}</p>
+            <p className="font-mono text-lg font-semibold">{w ? fmtTokens(w.tokensAfterEst) : "—"}</p>
           </div>
           <div>
             <p className="text-xs text-text-muted">Saved</p>
-            <p className="text-lg font-semibold text-success">{w ? fmtTokens(w.tokensSavedEst) : "—"}</p>
+            <p className="font-mono text-lg font-semibold text-success">{w ? fmtTokens(w.tokensSavedEst) : "—"}</p>
           </div>
           <div>
             <p className="text-xs text-text-muted">Reduction</p>
-            <p className="text-lg font-semibold text-success">{w ? `${w.savedPct}%` : "—"}</p>
+            <p className="font-mono text-lg font-semibold text-success">{w ? `${w.savedPct}%` : "—"}</p>
           </div>
         </div>
         <p className="text-xs text-text-muted mt-3">
@@ -178,7 +159,7 @@ export default function PxpipeClient() {
       </Card>
 
       <Card className="p-4">
-        <h3 className="font-medium mb-3">Tokens saved — last 30 days</h3>
+        <h3 className="font-mono font-medium mb-3">Tokens saved — last 30 days</h3>
         {stats?.timeline?.some((d) => d.tokensSavedEst > 0) ? (
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={stats.timeline} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -203,11 +184,11 @@ export default function PxpipeClient() {
       </Card>
 
       <Card className="p-4">
-        <h3 className="font-medium mb-3">History</h3>
+        <h3 className="font-mono font-medium mb-3">History</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-text-muted border-b border-border">
+              <tr className="text-left text-xs font-mono text-text-muted border-b border-border">
                 <th className="py-2 pr-3">Time</th>
                 <th className="py-2 pr-3">Model</th>
                 <th className="py-2 pr-3 text-right">Original</th>
@@ -221,7 +202,7 @@ export default function PxpipeClient() {
             <tbody>
               {(stats?.recent || []).slice(0, 50).map((ev, i) => (
                 <tr key={`${ev.ts}-${i}`} className="border-b border-border/50">
-                  <td className="py-1.5 pr-3 whitespace-nowrap text-text-muted">
+                  <td className="py-1.5 pr-3 whitespace-nowrap font-mono text-text-muted">
                     {new Date(ev.ts).toLocaleString()}
                   </td>
                   <td className="py-1.5 pr-3 font-mono text-xs">{ev.provider ? `${ev.provider}/${ev.model}` : ev.model || "—"}</td>
@@ -242,7 +223,7 @@ export default function PxpipeClient() {
                   </td>
                   <td className="py-1.5">
                     <span
-                      className={`text-xs px-2 py-0.5 rounded ${
+                      className={`text-xs font-mono px-2 py-0.5 rounded-sm ${
                         ev.applied
                           ? "bg-success/15 text-success"
                           : ev.reason === "transform_error" || ev.reason === "timeout"
@@ -269,9 +250,9 @@ export default function PxpipeClient() {
       </Card>
 
       <Card className="p-4" id="logs">
-        <h3 className="font-medium mb-3">PXPIPE Logs</h3>
+        <h3 className="font-mono font-medium mb-3">PXPIPE Logs</h3>
         {logs?.installLog ? (
-          <pre className="rounded bg-black/5 dark:bg-white/5 p-3 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
+          <pre className="terminal-block p-3 text-xs overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
             {logs.installLog}
           </pre>
         ) : (

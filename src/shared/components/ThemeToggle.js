@@ -8,16 +8,15 @@ export default function ThemeToggle({ className, variant = "default" }) {
 
   const variants = {
     default: cn(
-      "flex items-center justify-center size-10 rounded-full",
+      "flex items-center justify-center size-10 rounded-sm",
       "text-text-muted hover:text-text-main",
       "hover:bg-surface-2 transition-colors"
     ),
     card: cn(
-      "flex items-center justify-center size-11 rounded-full",
-      "bg-surface/60 hover:bg-surface",
+      "flex items-center justify-center size-11 rounded-sm",
+      "bg-surface hover:bg-surface-2",
       "border border-border",
-      "backdrop-blur-md shadow-sm hover:shadow-[var(--shadow-warm)]",
-      "text-text-muted hover:text-brand-500",
+      "text-text-muted hover:text-text-main",
       "transition-all group"
     ),
   };

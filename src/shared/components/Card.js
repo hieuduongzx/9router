@@ -25,8 +25,7 @@ export default function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-surface text-text-main",
-        elev ? "shadow-md" : "shadow-sm",
+        "border border-border bg-surface text-text-main",
         hover && "transition-colors hover:bg-surface-2/40 cursor-pointer",
         paddings[padding],
         className
@@ -37,12 +36,14 @@ export default function Card({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="flex size-9 items-center justify-center rounded-md border border-border bg-surface-2 text-text-muted">
-                <span className="material-symbols-outlined text-[18px]">{icon}</span>
+              <div className="flex size-8 shrink-0 items-center justify-center border border-border bg-surface-2 text-text-muted">
+                <span className="material-symbols-outlined text-[16px]">{icon}</span>
               </div>
             )}
             <div>
-              {title && <h3 className="text-sm font-semibold leading-none tracking-tight">{title}</h3>}
+              {title && (
+                <h3 className="font-mono text-sm font-semibold leading-none tracking-tight">{title}</h3>
+              )}
               {subtitle && <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>}
             </div>
           </div>
@@ -58,7 +59,7 @@ Card.Section = function CardSection({ children, className, ...props }) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-bg p-4",
+        "border border-border bg-bg p-4",
         className
       )}
       {...props}

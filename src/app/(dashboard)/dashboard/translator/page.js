@@ -215,16 +215,16 @@ export default function TranslatorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Translator Debug</h1>
+          <h1 className="font-mono text-2xl font-semibold tracking-tight text-text-main">{"// "}Translator Debug</h1>
           <p className="text-sm text-text-muted mt-1">Replay request flow — matches log files</p>
         </div>
         {meta && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <MetaBadge label="src" value={meta.sourceFormat} color="blue" />
+            <MetaBadge label="src" value={meta.sourceFormat} />
             <span className="material-symbols-outlined text-text-muted text-[14px]">arrow_forward</span>
-            <MetaBadge label="dst" value={meta.targetFormat} color="orange" />
-            <MetaBadge label="provider" value={meta.provider} color="green" />
-            <MetaBadge label="model" value={meta.model} color="purple" />
+            <MetaBadge label="dst" value={meta.targetFormat} />
+            <MetaBadge label="provider" value={meta.provider} />
+            <MetaBadge label="model" value={meta.model} />
           </div>
         )}
       </div>
@@ -244,9 +244,9 @@ export default function TranslatorPage() {
                     {isExpanded ? "expand_more" : "chevron_right"}
                   </span>
                   <span className="text-xs font-mono text-text-muted/60 w-4">{step.id}</span>
-                  <h3 className="text-sm font-semibold text-text-main">{step.label}</h3>
+                  <h3 className="font-mono text-sm font-semibold text-text-main">{step.label}</h3>
                   <span className="text-xs text-text-muted/60 font-mono">{step.file}</span>
-                  {content && <span className="text-xs text-green-500">({content.length} chars)</span>}
+                  {content && <span className="text-xs font-mono text-[var(--color-chip-cost)]">({content.length} chars)</span>}
                 </button>
                 {!isExpanded && (
                   <div className="flex gap-1 shrink-0">
@@ -259,7 +259,7 @@ export default function TranslatorPage() {
               {/* Expanded content */}
               {isExpanded && (
                 <>
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border overflow-hidden">
                     <Editor
                       height="400px"
                       defaultLanguage={step.lang === "text" ? "plaintext" : "json"}
@@ -288,16 +288,10 @@ export default function TranslatorPage() {
   );
 }
 
-function MetaBadge({ label, value, color }) {
-  const colors = {
-    blue: "bg-blue-500/10 text-blue-500",
-    orange: "bg-orange-500/10 text-orange-500",
-    green: "bg-green-500/10 text-green-500",
-    purple: "bg-purple-500/10 text-purple-500",
-  };
+function MetaBadge({ label, value }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono ${colors[color]}`}>
-      <span className="text-text-muted/70 font-sans text-[10px]">{label}:</span>{value}
+    <span className="inline-flex items-center gap-1 border border-border bg-surface-2 px-2 py-0.5 rounded-sm text-xs font-mono text-text-main">
+      <span className="text-text-muted/70 text-[10px] uppercase tracking-wide">{label}:</span>{value}
     </span>
   );
 }

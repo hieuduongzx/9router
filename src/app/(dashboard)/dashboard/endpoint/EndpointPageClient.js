@@ -18,11 +18,11 @@ export default function EndpointPageClient() {
     <Card padding="none" className="min-w-0 overflow-hidden">
       <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-surface-2 text-text-main">
             <span className="material-symbols-outlined text-[18px]">api</span>
           </span>
-          <h2 className="text-sm font-semibold text-text-main">API endpoint</h2>
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+          <h2 className="font-mono text-sm font-semibold text-text-main">API endpoint</h2>
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-success">
             <span className="size-1.5 rounded-full bg-success" />
             Local
           </span>
@@ -36,12 +36,12 @@ export default function EndpointPageClient() {
             id="local-api-endpoint"
             value={baseUrl}
             readOnly
-            className="min-w-0 flex-1 rounded-lg border border-border bg-bg-alt px-3 py-1.5 font-mono text-xs text-text-main outline-none"
+            className="min-w-0 flex-1 rounded-sm border border-border bg-bg-alt px-3 py-1.5 font-mono text-xs text-text-main outline-none"
           />
           <button
             type="button"
             onClick={() => copy(baseUrl, "local-endpoint")}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             aria-label="Copy local API endpoint"
             title="Copy local API endpoint"
           >

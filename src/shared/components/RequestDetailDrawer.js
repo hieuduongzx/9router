@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import Drawer from "./Drawer";
 import { cn } from "@/shared/utils/cn";
+import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -11,6 +12,7 @@ const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 6,
 });
+const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 
 function getCachedTokens(tokens) {
   return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
@@ -26,19 +28,71 @@ function getInputTokens(tokens) {
   return prompt < cache ? cache : prompt;
 }
 
+function formatCost(value) {
+  return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
+}
+
+function formatTiming(ms) {
+  const value = Number(ms);
+  if (!Number.isFinite(value)) return "—";
+  return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
+}
+
+function SummarySection({ icon, title, action, children }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="relative z-10 flex size-5 shrink-0 items-center justify-center bg-surface">
+        <span className="material-symbols-outlined text-[16px] text-text-muted">{icon}</span>
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{title}</span>
+          {action}
+        </div>
+        <div className="border border-border">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, strong = false, mono = true }) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+      <span className="text-text-muted">{label}</span>
+      <span className={cn(mono && "font-mono tabular-nums", strong ? "font-semibold text-text-main" : "text-text-main")}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function NavButton({ icon, onClick, disabled, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="flex size-8 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+    </button>
+  );
+}
+
 function CollapsibleSection({ title, children, defaultOpen = false, icon = null }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-black/5 dark:border-white/5">
+    <div className="border border-border">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between bg-black/[0.02] p-3 transition-colors hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+        className="flex w-full items-center justify-between bg-surface-2/40 p-3 transition-colors hover:bg-surface-2"
       >
         <div className="flex items-center gap-2">
           {icon && <span className="material-symbols-outlined text-[18px] text-text-muted">{icon}</span>}
-          <span className="text-sm font-semibold text-text-main">{title}</span>
+          <span className="font-mono text-sm font-semibold text-text-main">{title}</span>
         </div>
         <span className={cn(
           "material-symbols-outlined text-[20px] text-text-muted transition-transform duration-200",
@@ -47,7 +101,7 @@ function CollapsibleSection({ title, children, defaultOpen = false, icon = null 
           chevron_right
         </span>
       </button>
-      {isOpen && <div className="border-t border-black/5 p-4 dark:border-white/5">{children}</div>}
+      {isOpen && <div className="border-t border-border p-4">{children}</div>}
     </div>
   );
 }
@@ -114,102 +168,112 @@ export function useRequestDetailDrawer() {
   };
 }
 
-export default function RequestDetailDrawer({ detail, isOpen, onClose, providerName, showProviderDetails = true }) {
+export default function RequestDetailDrawer({
+  detail,
+  isOpen,
+  onClose,
+  providerName,
+  showProviderDetails = true,
+  onPrev,
+  onNext,
+  hasPrev = false,
+  hasNext = false,
+}) {
   const resolvedProviderName = providerName || detail?.provider || "Unknown";
+  const { copied, copy } = useCopyToClipboard(1500);
+  const completed = detail?.status === "success" || detail?.status === "ok";
+
+  const headerActions = (onPrev || onNext) ? (
+    <>
+      <NavButton icon="expand_less" onClick={onPrev} disabled={!hasPrev} label="Previous request" />
+      <NavButton icon="expand_more" onClick={onNext} disabled={!hasNext} label="Next request" />
+    </>
+  ) : null;
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title="Request Details" width="lg">
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Usage Details"
+      headerActions={headerActions}
+      width="lg"
+      accentClassName={detail ? (completed ? "bg-emerald-500" : "bg-red-500") : undefined}
+    >
       {detail && (
         <div className="space-y-6">
-          <div className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <span className="text-text-muted">ID:</span>{" "}
-              <span className="break-all font-mono text-text-main">{detail.id}</span>
-            </div>
-            <div>
-              <span className="text-text-muted">Timestamp:</span>{" "}
-              <span className="text-text-main">{new Date(detail.timestamp).toLocaleString()}</span>
-            </div>
-            {detail.account && (
-              <>
-                <div>
-                  <span className="text-text-muted">Account:</span>{" "}
-                  <span className="font-medium text-text-main">{detail.account.username}</span>
-                  {detail.account.email && (
-                    <span className="ml-1 text-xs text-text-muted">({detail.account.email})</span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-text-muted">API Key:</span>{" "}
-                  <span className="font-medium text-text-main">{detail.account.apiKeyName}</span>
-                </div>
-              </>
-            )}
-            {showProviderDetails && (
-              <div>
-                <span className="text-text-muted">Provider:</span>{" "}
-                <span className="font-medium text-text-main">{resolvedProviderName}</span>
-              </div>
-            )}
-            <div>
-              <span className="text-text-muted">Model:</span>{" "}
-              <span className="font-mono text-text-main">{detail.model}</span>
-            </div>
-            <div>
-              <span className="text-text-muted">Status:</span>{" "}
-              <span className={cn(
-                "font-medium",
-                detail.status === "success" ? "text-green-600" : "text-red-600",
-              )}>
-                {detail.status}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-muted">Latency:</span>{" "}
-              <span className="font-mono text-text-main">
-                TTFT {detail.latency?.ttft || 0}ms / Total {detail.latency?.total || 0}ms
-              </span>
-            </div>
-            <div>
-              <span className="text-text-muted">Input Tokens:</span>{" "}
-              <span className="font-mono text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</span>
-            </div>
-            {getCachedTokens(detail.tokens) > 0 && (
-              <div>
-                <span className="text-text-muted">Cached Tokens:</span>{" "}
-                <span className="font-mono text-text-main">{getCachedTokens(detail.tokens).toLocaleString()}</span>
-              </div>
-            )}
-            {getCacheCreationTokens(detail.tokens) > 0 && (
-              <div>
-                <span className="text-text-muted">Cache Creation:</span>{" "}
-                <span className="font-mono text-text-main">{getCacheCreationTokens(detail.tokens).toLocaleString()}</span>
-              </div>
-            )}
-            <div>
-              <span className="text-text-muted">Output Tokens:</span>{" "}
-              <span className="font-mono text-text-main">{detail.tokens?.completion_tokens?.toLocaleString() || 0}</span>
-            </div>
-            {Number.isFinite(detail.cost) && (
-              <div>
-                <span className="text-text-muted">Price:</span>{" "}
-                <span className="font-mono font-medium text-warning">
-                  {MONEY_FORMAT.format(detail.cost)}
+        <div className="relative space-y-6">
+          <span className="pointer-events-none absolute bottom-2 left-[9px] top-2 w-px bg-border" aria-hidden />
+          <SummarySection
+            icon="layers"
+            title="Request"
+            action={<span className="font-mono text-[11px] text-text-subtle">{new Date(detail.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }).toUpperCase()}</span>}
+          >
+            <SummaryRow label="Mode" value={detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"} />
+            {showProviderDetails && <SummaryRow label="Provider" value={resolvedProviderName} mono={false} />}
+            <SummaryRow label="Model" value={detail.model || "—"} />
+            {detail.account?.username && <SummaryRow label="Account" value={detail.account.username} mono={false} />}
+          </SummarySection>
+
+          <SummarySection icon="tag" title="Tokens">
+            <SummaryRow label="Input" value={NUMBER_FORMAT.format(getInputTokens(detail.tokens))} />
+            <SummaryRow label="Output" value={NUMBER_FORMAT.format(detail.tokens?.completion_tokens || 0)} />
+            <SummaryRow
+              label="Total"
+              strong
+              value={NUMBER_FORMAT.format(getInputTokens(detail.tokens) + (detail.tokens?.completion_tokens || 0))}
+            />
+            {getCachedTokens(detail.tokens) > 0 && <SummaryRow label="Cached" value={NUMBER_FORMAT.format(getCachedTokens(detail.tokens))} />}
+            {getCacheCreationTokens(detail.tokens) > 0 && <SummaryRow label="Cache creation" value={NUMBER_FORMAT.format(getCacheCreationTokens(detail.tokens))} />}
+          </SummarySection>
+
+          <SummarySection icon="payments" title="Cost">
+            {Number.isFinite(detail.costInput) && <SummaryRow label="Input" value={formatCost(detail.costInput)} />}
+            {Number.isFinite(detail.costOutput) && <SummaryRow label="Output" value={formatCost(detail.costOutput)} />}
+            <SummaryRow label="Total" strong value={formatCost(detail.cost)} />
+            {Number.isFinite(detail.cost) && <SummaryRow label="Credits Used" value={formatCost(detail.cost)} />}
+          </SummarySection>
+
+          <SummarySection icon="troubleshoot" title="Diagnostics">
+            <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <span className="text-text-muted">Trace ID</span>
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-sm border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-text-main">
+                  {String(detail.id || "").slice(0, 8)}…
                 </span>
+                <button
+                  type="button"
+                  onClick={() => copy(detail.id || "")}
+                  className="flex size-6 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+                  aria-label="Copy trace ID"
+                >
+                  <span className="material-symbols-outlined text-[13px]">{copied ? "check" : "content_copy"}</span>
+                </button>
               </div>
-            )}
+            </div>
+          </SummarySection>
+
+          <div className="flex items-start gap-3">
+            <span className="relative z-10 flex size-5 shrink-0 items-center justify-center bg-surface">
+              <span className={cn("size-2 rounded-full", completed ? "bg-emerald-500" : "bg-red-500")} />
+            </span>
+            <p className={cn("font-mono text-xs", completed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+              {completed
+                ? `Response completed in ${formatTiming(detail.latency?.total)}`
+                : `Response failed after ${formatTiming(detail.latency?.total)}`}
+            </p>
           </div>
+        </div>
 
           {detail.pxpipe && (
-            <div className="rounded-lg border border-black/5 p-4 dark:border-white/5">
+            <div className="border border-border p-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px] text-text-muted">image</span>
-                <span className="text-sm font-semibold text-text-main">PXPIPE</span>
+                <span className="font-mono text-sm font-semibold text-text-main">PXPIPE</span>
                 <span className={cn(
-                  "rounded px-2 py-0.5 text-xs",
+                  "rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase",
                   detail.pxpipe.applied
-                    ? "bg-green-500/15 text-green-600"
-                    : "bg-amber-500/15 text-amber-600",
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
                 )}>
                   {detail.pxpipe.applied ? "Activated" : "Skipped"}
                 </span>
@@ -226,7 +290,7 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
                   </div>
                   <div>
                     <span className="block text-xs text-text-muted">Saved</span>
-                    <span className="font-mono text-green-600">{detail.pxpipe.savedPct || 0}%</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400">{detail.pxpipe.savedPct || 0}%</span>
                   </div>
                   <div>
                     <span className="block text-xs text-text-muted">Images</span>
@@ -243,23 +307,28 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
           )}
 
           <div className="space-y-4">
-            <CollapsibleSection title="1. Client Request (Input)" defaultOpen icon="input">
-              <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-text-muted">code</span>
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Raw Payloads</span>
+              <span className="h-px flex-1 bg-border" aria-hidden />
+            </div>
+            <CollapsibleSection title="Client Request (Input)" icon="input">
+              <pre className="terminal-block max-h-[300px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                 {JSON.stringify(detail.request, null, 2)}
               </pre>
             </CollapsibleSection>
 
             {showProviderDetails && detail.providerRequest && (
-              <CollapsibleSection title="2. Provider Request (Translated)" icon="translate">
-                <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
+              <CollapsibleSection title="Provider Request (Translated)" icon="translate">
+                <pre className="terminal-block max-h-[300px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                   {JSON.stringify(detail.providerRequest, null, 2)}
                 </pre>
               </CollapsibleSection>
             )}
 
             {showProviderDetails && detail.providerResponse && (
-              <CollapsibleSection title="3. Provider Response (Raw)" icon="data_object">
-                <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
+              <CollapsibleSection title="Provider Response (Raw)" icon="data_object">
+                <pre className="terminal-block max-h-[300px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                   {typeof detail.providerResponse === "object"
                     ? JSON.stringify(detail.providerResponse, null, 2)
                     : detail.providerResponse}
@@ -267,20 +336,20 @@ export default function RequestDetailDrawer({ detail, isOpen, onClose, providerN
               </CollapsibleSection>
             )}
 
-            <CollapsibleSection title={showProviderDetails ? "4. Client Response (Final)" : "2. Client Response (Final)"} defaultOpen icon="output">
+            <CollapsibleSection title="Client Response (Final)" icon="output">
               {detail.response?.thinking && (
                 <div className="mb-4">
-                  <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-main opacity-70">
+                  <h4 className="mb-2 flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
                     <span className="material-symbols-outlined text-[16px]">psychology</span>
                     Thinking Process
                   </h4>
-                  <pre className="max-h-[200px] max-w-full overflow-auto rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:p-4">
+                  <pre className="terminal-block max-h-[200px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                     {detail.response.thinking}
                   </pre>
                 </div>
               )}
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-main opacity-70">Content</h4>
-              <pre className="max-h-[300px] max-w-full overflow-auto rounded-lg border border-black/5 bg-black/5 p-3 font-mono text-xs text-text-main dark:border-white/5 dark:bg-white/5 sm:p-4">
+              <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">Content</h4>
+              <pre className="terminal-block max-h-[300px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                 {detail.response?.content || "[No content]"}
               </pre>
             </CollapsibleSection>
@@ -297,4 +366,8 @@ RequestDetailDrawer.propTypes = {
   onClose: PropTypes.func.isRequired,
   providerName: PropTypes.string,
   showProviderDetails: PropTypes.bool,
+  onPrev: PropTypes.func,
+  onNext: PropTypes.func,
+  hasPrev: PropTypes.bool,
+  hasNext: PropTypes.bool,
 };

@@ -36,36 +36,6 @@ const STATUS_META = {
 };
 const MODEL_COLORS = ["#E56A4A", "#4F7CAC", "#2F9E8F", "#D99A32", "#8B6BB1"];
 
-const METRIC_ICONS = {
-  requests: (
-    <>
-      <path d="M4 8h13m0 0-3-3m3 3-3 3" />
-      <path d="M20 16H7m0 0 3 3m-3-3 3-3" />
-    </>
-  ),
-  tokens: (
-    <>
-      <path d="M8 4H6a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h2" />
-      <path d="M16 4h2a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-2" />
-    </>
-  ),
-  cache: (
-    <>
-      <path d="M20 7v5h-5" />
-      <path d="M4 17v-5h5" />
-      <path d="M6.1 8.2A7 7 0 0 1 18.8 7L20 12" />
-      <path d="M17.9 15.8A7 7 0 0 1 5.2 17L4 12" />
-    </>
-  ),
-  cost: (
-    <>
-      <rect x="3" y="6" width="18" height="12" rx="2" />
-      <circle cx="12" cy="12" r="3" />
-      <path d="M7 9h.01M17 15h.01" />
-    </>
-  ),
-};
-
 const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   maximumFractionDigits: 1,
@@ -104,28 +74,24 @@ async function fetchJson(path, signal) {
   return response.json();
 }
 
-function Metric({ icon, label, value, detail, tone }) {
-  const tones = {
-    coral: "bg-brand-500/10 text-brand-600 dark:text-brand-300",
-    blue: "bg-info/10 text-info",
-    green: "bg-success/10 text-success",
-    amber: "bg-warning/10 text-warning",
-  };
+const METRIC_CHIPS = {
+  coral: "bg-[var(--color-chip-requests)]",
+  blue: "bg-[var(--color-chip-tokens)]",
+  green: "bg-[var(--color-chip-cost)]",
+  amber: "bg-[var(--color-chip-info)]",
+};
 
+function Metric({ label, value, detail, tone }) {
   return (
-    <div className="flex min-w-0 gap-3 px-4 py-4 sm:px-5 lg:px-6">
-      <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[10px] ${tones[tone]}`} aria-hidden="true">
-        <svg viewBox="0 0 24 24" className="size-[19px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          {METRIC_ICONS[icon]}
-        </svg>
-      </span>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-text-muted">{label}</p>
-        <p className="mt-1 truncate text-2xl font-semibold tabular-nums tracking-[-0.025em] text-text-main">
-          {value}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-text-subtle">{detail}</p>
+    <div className="min-w-0 px-5 py-5 sm:px-6">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className={`size-2 shrink-0 ${METRIC_CHIPS[tone]}`} aria-hidden="true" />
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{label}</span>
       </div>
+      <p className="truncate font-mono text-2xl font-semibold tabular-nums tracking-tight text-text-main sm:text-[28px]">
+        {value}
+      </p>
+      <p className="mt-1 truncate text-xs text-text-subtle">{detail}</p>
     </div>
   );
 }
@@ -133,11 +99,11 @@ function Metric({ icon, label, value, detail, tone }) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5" aria-label="Loading dashboard">
-      <div className="h-16 animate-pulse rounded-[14px] bg-surface-2" />
-      <div className="h-32 animate-pulse rounded-[14px] bg-surface-2" />
+      <div className="h-16 animate-pulse bg-surface-2" />
+      <div className="h-32 animate-pulse bg-surface-2" />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.75fr)_minmax(280px,0.75fr)]">
-        <div className="h-[350px] animate-pulse rounded-[14px] bg-surface-2" />
-        <div className="h-[350px] animate-pulse rounded-[14px] bg-surface-2" />
+        <div className="h-[350px] animate-pulse bg-surface-2" />
+        <div className="h-[350px] animate-pulse bg-surface-2" />
       </div>
     </div>
   );
@@ -258,22 +224,22 @@ export default function DashboardHomeClient() {
     <div className="flex min-w-0 flex-col gap-5 pb-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-[-0.02em] text-text-main">Dashboard overview</h1>
+          <h1 className="font-mono text-xl font-semibold tracking-tight text-text-main">{"// "}Dashboard overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
             {isAdmin ? "Gateway-wide model traffic, token volume, and estimated cost." : "Your model traffic, token volume, and estimated cost."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex max-w-full overflow-x-auto rounded-[10px] border border-border bg-surface p-1 shadow-[var(--shadow-soft)]" aria-label="Dashboard period">
+          <div className="flex max-w-full overflow-x-auto border border-border bg-surface p-1" aria-label="Dashboard period">
             {PERIODS.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setPeriod(item.value)}
                 aria-pressed={period === item.value}
-                className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+                className={`shrink-0 rounded-sm px-2.5 py-1.5 font-mono text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 ${
                   period === item.value
-                    ? "bg-brand-500 text-white shadow-sm"
+                    ? "bg-primary text-[hsl(var(--primary-foreground))]"
                     : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                 }`}
               >
@@ -285,7 +251,7 @@ export default function DashboardHomeClient() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex size-9 items-center justify-center rounded-[10px] border border-border bg-surface text-text-muted shadow-[var(--shadow-soft)] transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:cursor-wait disabled:opacity-60"
+            className="flex size-9 items-center justify-center rounded-sm border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
             aria-label="Refresh dashboard"
             title="Refresh dashboard"
           >
@@ -295,7 +261,7 @@ export default function DashboardHomeClient() {
       </section>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-[12px] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">
+        <div className="flex items-start gap-3 border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">
           <span className="material-symbols-outlined mt-0.5 text-[18px] text-warning">warning</span>
           <p className="flex-1">{error}</p>
         </div>
@@ -304,44 +270,38 @@ export default function DashboardHomeClient() {
 
       {isAdmin && <EndpointPageClient />}
 
-      <Card padding="none" className="overflow-hidden">
-        <div className="grid divide-y divide-border-subtle sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
-          <Metric
-            icon="requests"
-            label="Requests"
-            value={formatNumber(stats?.totalRequests)}
-            detail={`${stats?.activeRequests?.length || 0} active now`}
-            tone="coral"
-          />
-          <Metric
-            icon="tokens"
-            label="Total tokens"
-            value={formatNumber(Number(stats?.totalPromptTokens || 0) + Number(stats?.totalCompletionTokens || 0))}
-            detail={`${formatNumber(stats?.totalCompletionTokens)} generated`}
-            tone="blue"
-          />
-          <Metric
-            icon="cache"
-            label="Cache utilization"
-            value={formatPercent(cacheRate)}
-            detail={`${formatNumber(stats?.totalCachedTokens)} cached tokens`}
-            tone="green"
-          />
-          <Metric
-            icon="cost"
-            label="Estimated cost"
-            value={formatCurrency(stats?.totalCost)}
-            detail={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Awaiting data"}
-            tone="amber"
-          />
-        </div>
-      </Card>
+      <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label="Requests"
+          value={formatNumber(stats?.totalRequests)}
+          detail={`${stats?.activeRequests?.length || 0} active now`}
+          tone="coral"
+        />
+        <Metric
+          label="Total tokens"
+          value={formatNumber(Number(stats?.totalPromptTokens || 0) + Number(stats?.totalCompletionTokens || 0))}
+          detail={`${formatNumber(stats?.totalCompletionTokens)} generated`}
+          tone="blue"
+        />
+        <Metric
+          label="Cache utilization"
+          value={formatPercent(cacheRate)}
+          detail={`${formatNumber(stats?.totalCachedTokens)} cached tokens`}
+          tone="green"
+        />
+        <Metric
+          label="Estimated cost"
+          value={formatCurrency(stats?.totalCost)}
+          detail={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Awaiting data"}
+          tone="amber"
+        />
+      </div>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-text-main">Token traffic</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Token traffic</h2>
               <p className="mt-0.5 text-xs text-text-muted">Prompt and completion volume over the selected period</p>
             </div>
             <Link href="/dashboard/usage" className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
@@ -366,7 +326,7 @@ export default function DashboardHomeClient() {
                     contentStyle={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
-                      borderRadius: 10,
+                      borderRadius: 0,
                       boxShadow: "var(--shadow-elevated)",
                       color: "var(--color-text-main)",
                       fontSize: 12,
@@ -398,7 +358,7 @@ export default function DashboardHomeClient() {
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-text-main">Spend over time</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Spend over time</h2>
               <p className="mt-0.5 text-xs text-text-muted">Estimated model cost across the selected period</p>
             </div>
             <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-warning">
@@ -423,7 +383,7 @@ export default function DashboardHomeClient() {
                     contentStyle={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
-                      borderRadius: 10,
+                      borderRadius: 0,
                       boxShadow: "var(--shadow-elevated)",
                       color: "var(--color-text-main)",
                       fontSize: 12,
@@ -456,7 +416,7 @@ export default function DashboardHomeClient() {
       <div className="grid min-w-0 gap-5 lg:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="text-sm font-semibold text-text-main">Model mix</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Model mix</h2>
             <p className="mt-0.5 text-xs text-text-muted">Share of requests by model</p>
           </div>
           {modelData.length ? (
@@ -473,7 +433,7 @@ export default function DashboardHomeClient() {
                       contentStyle={{
                         background: "var(--color-surface)",
                         border: "1px solid var(--color-border)",
-                        borderRadius: 10,
+                        borderRadius: 0,
                         color: "var(--color-text-main)",
                         fontSize: 12,
                       }}
@@ -507,7 +467,7 @@ export default function DashboardHomeClient() {
 
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="text-sm font-semibold text-text-main">Request outcomes</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Request outcomes</h2>
             <p className="mt-0.5 text-xs text-text-muted">Completion health across recorded request details</p>
           </div>
           {outcomeData.length ? (
@@ -524,7 +484,7 @@ export default function DashboardHomeClient() {
                       contentStyle={{
                         background: "var(--color-surface)",
                         border: "1px solid var(--color-border)",
-                        borderRadius: 10,
+                        borderRadius: 0,
                         color: "var(--color-text-main)",
                         fontSize: 12,
                       }}
@@ -563,7 +523,7 @@ export default function DashboardHomeClient() {
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-main">Today by hour</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Today by hour</h2>
             <p className="mt-0.5 text-xs text-text-muted">Token traffic across the current day</p>
           </div>
           <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${hourlyHasData ? "bg-success/10 text-success" : "bg-surface-2 text-text-muted"}`}>
@@ -595,14 +555,15 @@ export default function DashboardHomeClient() {
                   contentStyle={{
                     background: "var(--color-surface)",
                     border: "1px solid var(--color-border)",
-                    borderRadius: 10,
-                    boxShadow: "var(--shadow-elevated)",
+                    borderRadius: 0,
+                    boxShadow: "none",
                     color: "var(--color-text-main)",
                     fontSize: 12,
+                    fontFamily: "var(--font-mono)",
                   }}
                   formatter={(value) => [formatNumber(value), "Tokens"]}
                 />
-                <Bar dataKey="tokens" fill="#4F7CAC" radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                <Bar dataKey="tokens" fill="#4F7CAC" radius={[0, 0, 0, 0]} maxBarSize={22} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -616,7 +577,7 @@ export default function DashboardHomeClient() {
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-text-main">Recent requests</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Recent requests</h2>
               <p className="mt-0.5 text-xs text-text-muted">{isAdmin ? "Latest model traffic across the gateway" : "Latest model traffic for your API keys"}</p>
             </div>
             <Link href={isAdmin ? "/dashboard/activity?tab=requests" : "/dashboard/usage?tab=details"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
@@ -625,24 +586,24 @@ export default function DashboardHomeClient() {
           </div>
           {recentRequests.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-xs">
-                <thead className="bg-bg-alt text-text-muted">
+              <table className="w-full min-w-[520px] text-left font-mono text-xs">
+                <thead className="border-b border-border text-text-muted">
                   <tr>
-                    <th className="px-5 py-2.5 font-medium">Model</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Tokens</th>
-                    <th className="px-4 py-2.5 font-medium">Status</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Time</th>
+                    <th className="px-5 py-2.5 font-semibold uppercase tracking-wide">Model</th>
+                    <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">Tokens</th>
+                    <th className="px-4 py-2.5 font-semibold uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-2.5 text-right font-semibold uppercase tracking-wide">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-border">
                   {recentRequests.map((request, index) => {
                     const successful = request.status === "ok" || request.status === "success";
                     return (
-                      <tr key={`${request.timestamp}-${request.model}-${index}`} className="transition-colors hover:bg-bg-alt/70">
+                      <tr key={`${request.timestamp}-${request.model}-${index}`} className="transition-colors hover:bg-surface-2/50">
                         <td className="max-w-[190px] truncate px-5 py-3 font-medium text-text-main" title={request.model}>{request.model || "Unknown"}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-text-main">{formatNumber(Number(request.promptTokens || 0) + Number(request.completionTokens || 0))}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 font-medium ${successful ? "text-success" : "text-danger"}`}>
+                          <span className={`inline-flex items-center gap-1.5 font-medium uppercase ${successful ? "text-success" : "text-danger"}`}>
                             <span className={`size-1.5 rounded-full ${successful ? "bg-success" : "bg-danger"}`} />
                             {successful ? "Completed" : "Failed"}
                           </span>
@@ -666,12 +627,12 @@ export default function DashboardHomeClient() {
         {isAdmin ? (
           <Card padding="none" className="overflow-hidden">
             <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="text-sm font-semibold text-text-main">Admin workspace</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Admin workspace</h2>
               <p className="mt-0.5 text-xs text-text-muted">Operational and account management shortcuts</p>
             </div>
             <div className="divide-y divide-border-subtle">
               <Link href="/dashboard/activity" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">monitoring</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -681,7 +642,7 @@ export default function DashboardHomeClient() {
                 <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
               </Link>
               <Link href="/dashboard/users" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-info/10 text-info">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -691,7 +652,7 @@ export default function DashboardHomeClient() {
                 <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
               </Link>
               <Link href="/dashboard/settings" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">settings</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -715,12 +676,12 @@ export default function DashboardHomeClient() {
         ) : (
           <Card padding="none" className="overflow-hidden">
             <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="text-sm font-semibold text-text-main">Your access</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">Your access</h2>
               <p className="mt-0.5 text-xs text-text-muted">Account-owned resources</p>
             </div>
             <div className="divide-y divide-border-subtle">
               <Link href="/dashboard/api-keys" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">vpn_key</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -730,7 +691,7 @@ export default function DashboardHomeClient() {
                 <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
               </Link>
               <Link href="/dashboard/models" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-info/10 text-info">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">deployed_code</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -740,7 +701,7 @@ export default function DashboardHomeClient() {
                 <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
               </Link>
               <Link href="/dashboard/account" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success">
+                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
                   <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
                 </span>
                 <span className="min-w-0 flex-1">

@@ -95,7 +95,7 @@ export default function ModelAvailabilityBadge() {
     <div className="relative" ref={ref}>
       {/* <button
         onClick={() => setExpanded(!expanded)}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium border transition-all ${
           isHealthy
             ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/15"
             : "bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/15"
@@ -110,7 +110,7 @@ export default function ModelAvailabilityBadge() {
       </button> */}
 
       {expanded && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-border z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg">
             <div className="flex items-center gap-2">
               <span
@@ -119,11 +119,11 @@ export default function ModelAvailabilityBadge() {
               >
                 {isHealthy ? "verified" : "warning"}
               </span>
-              <span className="text-sm font-semibold text-text-main">Model Status</span>
+              <span className="font-mono text-sm font-semibold text-text-main">Model Status</span>
             </div>
             <button
               onClick={fetchStatus}
-              className="p-1 rounded-lg hover:bg-surface text-text-muted hover:text-text-main transition-colors"
+              className="p-1 rounded-sm hover:bg-surface text-text-muted hover:text-text-main transition-colors"
               title="Refresh"
             >
               <span className="material-symbols-outlined text-[14px]">refresh</span>
@@ -139,7 +139,7 @@ export default function ModelAvailabilityBadge() {
               <div className="flex flex-col gap-2.5">
                 {Object.entries(byProvider).map(([provider, provModels]) => (
                   <div key={provider}>
-                    <p className="text-xs font-semibold text-text-main mb-1.5 capitalize">{provider}</p>
+                    <p className="font-mono text-xs font-semibold text-text-main mb-1.5 capitalize">{provider}</p>
                     <div className="flex flex-col gap-1">
                       {provModels.map((m) => {
                         const status = STATUS_CONFIG[m.status] || STATUS_CONFIG.unknown;
@@ -147,7 +147,7 @@ export default function ModelAvailabilityBadge() {
                         return (
                           <div
                             key={`${m.provider}-${m.model}`}
-                            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface/30"
+                            className="flex items-center justify-between px-2.5 py-1.5 border border-border bg-surface/30"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span

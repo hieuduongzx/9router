@@ -56,7 +56,7 @@ export default function PassthroughModelsSection({ providerAlias, modelAliases, 
             onChange={(e) => setNewModel(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             placeholder="anthropic/claude-3-opus"
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+            className="w-full px-3 py-2 text-sm border border-border rounded-sm bg-background font-mono focus:outline-none focus:border-primary"
           />
         </div>
         <Button size="sm" icon="add" onClick={handleAdd} disabled={!newModel.trim() || adding}>
@@ -66,7 +66,7 @@ export default function PassthroughModelsSection({ providerAlias, modelAliases, 
 
       {/* Models list */}
       {allModels.length > 0 && (
-        <div role="list" className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+        <div role="list" className="divide-y divide-border overflow-hidden border border-border">
           {allModels.map(({ id, fullModel, alias, source }) => (
             <ModelRow
               key={`${source}-${fullModel}`}

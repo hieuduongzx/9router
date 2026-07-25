@@ -235,7 +235,7 @@ export default function AntigravityToolCard({
               alt={tool.name}
               width={32}
               height={32}
-              className="size-8 object-contain rounded-lg"
+              className="size-8 object-contain"
               sizes="32px"
               onError={(e) => { e.target.style.display = "none"; }}
             loading="lazy"
@@ -244,7 +244,7 @@ export default function AntigravityToolCard({
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h3 className="font-medium text-sm">{tool.name}</h3>
+              <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
               {isRunning ? (
                 <Badge variant="success" size="sm">Active</Badge>
               ) : (
@@ -269,7 +269,7 @@ export default function AntigravityToolCard({
               const isLoading = startingStep === key;
               return (
                 <div key={key} className="flex items-center">
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-md">
+                  <div className="flex items-center gap-1 px-2 py-1">
                     {isLoading ? (
                       <span className="material-symbols-outlined text-[14px] text-primary animate-spin">progress_activity</span>
                     ) : (
@@ -277,7 +277,7 @@ export default function AntigravityToolCard({
                         {ok ? "check_circle" : "radio_button_unchecked"}
                       </span>
                     )}
-                    <span className={`text-xs font-medium ${isLoading ? "text-primary" : ok ? "text-green-500" : "text-text-muted"}`}>
+                    <span className={`font-mono text-xs font-medium ${isLoading ? "text-primary" : ok ? "text-green-500" : "text-text-muted"}`}>
                       {label}
                     </span>
                   </div>
@@ -293,7 +293,7 @@ export default function AntigravityToolCard({
               <button
                 onClick={handleStop}
                 disabled={loading}
-                className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 font-medium text-sm flex items-center gap-2 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded bg-red-500/10 border border-red-500/30 text-red-500 font-mono font-medium text-sm flex items-center gap-2 hover:bg-red-500/20 transition-colors disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">stop_circle</span>
                 Stop MITM
@@ -302,7 +302,7 @@ export default function AntigravityToolCard({
               <button
                 onClick={handleStart}
                 disabled={loading || !hasActiveProviders}
-                className="px-4 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary font-medium text-sm flex items-center gap-2 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded bg-primary/10 border border-primary/30 text-primary font-mono font-medium text-sm flex items-center gap-2 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-[18px]">play_circle</span>
                 Start MITM
@@ -327,12 +327,12 @@ export default function AntigravityToolCard({
                   <select
                     value={selectedApiKey}
                     onChange={(e) => setSelectedApiKey(e.target.value)}
-                    className="w-full min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
+                    className="w-full min-w-0 px-2 py-2 bg-surface rounded font-mono text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
                   >
                     {apiKeys.map((key) => <option key={key.id} value={key.key}>{key.key}</option>)}
                   </select>
                 ) : (
-                  <span className="min-w-0 rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
+                  <span className="min-w-0 rounded bg-surface/40 px-2 py-2 font-mono text-xs text-text-muted sm:py-1.5">
                     {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_9router (default)"}
                   </span>
                 )}
@@ -348,7 +348,7 @@ export default function AntigravityToolCard({
                       value={modelMappings[model.alias] || ""}
                       onChange={(e) => handleModelMappingChange(model.alias, e.target.value)}
                       placeholder="provider/model-id"
-                      className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
+                      className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
                     />
                     {modelMappings[model.alias] && (
                       <button
@@ -363,7 +363,7 @@ export default function AntigravityToolCard({
                   <button
                     onClick={() => openModelSelector(model.alias)}
                     disabled={!hasActiveProviders}
-                    className={`w-full sm:w-auto rounded border px-2 py-2 text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${hasActiveProviders ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
+                    className={`w-full sm:w-auto rounded border px-2 py-2 font-mono text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${hasActiveProviders ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
                   >
                     Select
                   </button>
@@ -400,7 +400,7 @@ export default function AntigravityToolCard({
               </p>
               <div className="flex flex-col gap-0.5 text-[11px] text-text-muted">
                 <span>1. Generates SSL cert & adds to system keychain</span>
-                <span>2. Redirects <code className="text-[10px] bg-surface px-1 rounded">daily-cloudcode-pa.googleapis.com</code> → localhost</span>
+                <span>2. Redirects <code className="text-[10px] bg-surface px-1 rounded font-mono">daily-cloudcode-pa.googleapis.com</code> → localhost</span>
                 <span>3. Maps Antigravity models to any provider via Router2k</span>
               </div>
             </div>
@@ -420,7 +420,7 @@ export default function AntigravityToolCard({
         size="sm"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+          <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30">
             <span className="material-symbols-outlined text-yellow-500 text-[20px]">warning</span>
             <p className="text-xs text-text-muted">Required for SSL certificate and DNS configuration</p>
           </div>
