@@ -44,7 +44,7 @@ afterAll(() => {
 });
 
 describe("request details — tab crash-risk cases", () => {
-  it("corrupt data column → parseJson fallback {}, no throw", async () => {
+  it("corrupt data column → safe priced fallback, no throw", async () => {
     // Inject a row with invalid JSON directly, bypassing save path
     adapter.run(
       `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?)`,
@@ -53,8 +53,8 @@ describe("request details — tab crash-risk cases", () => {
 
     const res = await db.getRequestDetails({ provider: "openai" });
     expect(Array.isArray(res.details)).toBe(true);
-    const corrupt = res.details.find((d) => Object.keys(d).length === 0);
-    expect(corrupt).toEqual({});
+    const corrupt = res.details.find((d) => d.cost === 0 && d.costInput === null && d.costOutput === null);
+    expect(corrupt).toMatchObject({ cost: 0, costInput: null, costOutput: null });
   });
 
   it("pagination beyond last page → empty details, valid meta", async () => {
@@ -301,8 +301,8 @@ describe("backupDbLite — excludes requestDetails, keeps critical data", () => 
     expect(fs.existsSync(dest)).toBe(true);
 
     // Open backup and assert requestDetails is empty, settings present
-    const Database = (await import("better-sqlite3")).default;
-    const bak = new Database(dest);
+    const { DatabaseSync } = await import("node:sqlite");
+    const bak = new DatabaseSync(dest);
     try {
       // requestDetails is fully excluded — table must not exist in the backup
       const rdTable = bak.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='requestDetails'").get();
