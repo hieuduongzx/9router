@@ -38,6 +38,80 @@ function formatTiming(ms) {
   return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
 }
 
+const REPORT_FIELD_LIMIT = 4000;
+
+function clampForReport(value) {
+  if (value == null) return "—";
+  if (typeof value === "object") {
+    // Server-side truncation marker — say so instead of dumping the wrapper object.
+    if (value._truncated) {
+      return `[truncated by server · original ${value._originalSize} chars]\n${value._preview || ""}`;
+    }
+    const json = JSON.stringify(value, null, 2);
+    return json.length > REPORT_FIELD_LIMIT ? `${json.slice(0, REPORT_FIELD_LIMIT)}…[+${json.length - REPORT_FIELD_LIMIT} chars]` : json;
+  }
+  const text = String(value);
+  return text.length > REPORT_FIELD_LIMIT ? `${text.slice(0, REPORT_FIELD_LIMIT)}…[+${text.length - REPORT_FIELD_LIMIT} chars]` : text;
+}
+
+/**
+ * Flatten one request into a paste-ready plain-text report for bug reports.
+ * The API key is deliberately left out; everything else the drawer shows is kept.
+ */
+export function buildDetailReport(detail, providerName) {
+  if (!detail) return "";
+  const tokens = detail.tokens || {};
+  const request = detail.request || {};
+  const lines = [
+    "=== 9router request detail ===",
+    `id           : ${detail.id || "—"}`,
+    `time         : ${detail.timestamp || "—"}`,
+    `provider     : ${providerName || detail.provider || "—"}`,
+    `model        : ${detail.model || "—"}`,
+    `mode         : ${request.stream === true ? "stream" : request.stream === false ? "sync" : "—"}`,
+    `status       : ${detail.status || "—"}`,
+    `latency      : ttft ${formatTiming(detail.latency?.ttft)} / total ${formatTiming(detail.latency?.total)}`,
+    `tokens       : in ${getInputTokens(tokens)} (cached ${getCachedTokens(tokens)}, cacheCreate ${getCacheCreationTokens(tokens)}) / out ${tokens.completion_tokens || tokens.output_tokens || 0}`,
+    `cost         : total ${formatCost(detail.cost)} (in ${formatCost(detail.costInput)} / out ${formatCost(detail.costOutput)})`,
+  ];
+
+  if (detail.account?.username || detail.account?.apiKeyName) {
+    lines.push(`account      : ${detail.account.username || "—"} · key ${detail.account.apiKeyName || "—"}`);
+  }
+  if (detail.connectionId) lines.push(`connectionId : ${detail.connectionId}`);
+  if (detail.pxpipe) {
+    lines.push(`pxpipe       : ${detail.pxpipe.applied ? `applied · saved ${detail.pxpipe.savedPct || 0}% · ${detail.pxpipe.imageCount || 0} images` : `skipped${detail.pxpipe.reason ? ` (${detail.pxpipe.reason})` : ""}`}`);
+  }
+
+  const requestSummary = {
+    stream: request.stream,
+    max_tokens: request.max_tokens ?? request.max_completion_tokens,
+    messages: Array.isArray(request.messages) ? request.messages.length : request.messageCount,
+    tools: Array.isArray(request.tools) ? request.tools.length : request.toolCount,
+    tool_choice: request.tool_choice,
+    response_format: request.response_format,
+    thinking: request.thinking ?? request.reasoning ?? request.enable_thinking,
+    temperature: request.temperature,
+    top_p: request.top_p,
+  };
+  const definedSummary = Object.fromEntries(Object.entries(requestSummary).filter(([, value]) => value !== undefined));
+
+  lines.push(
+    "",
+    `--- request params ---\n${JSON.stringify(definedSummary)}`,
+    "",
+    `--- provider request ---\n${clampForReport(detail.providerRequest)}`,
+    "",
+    `--- provider response ---\n${clampForReport(detail.providerResponse)}`,
+    "",
+    `--- response content ---\n${clampForReport(detail.response?.content)}`,
+  );
+  if (detail.response?.thinking) lines.push("", `--- response thinking ---\n${clampForReport(detail.response.thinking)}`);
+  if (detail.response?.error) lines.push("", `--- error ---\n${clampForReport(detail.response.error)}`);
+
+  return lines.join("\n");
+}
+
 function SummarySection({ icon, title, action, children }) {
   return (
     <div className="flex items-start gap-3">
@@ -183,12 +257,23 @@ export default function RequestDetailDrawer({
   const { copied, copy } = useCopyToClipboard(1500);
   const completed = detail?.status === "success" || detail?.status === "ok";
 
-  const headerActions = (onPrev || onNext) ? (
+  const headerActions = (
     <>
-      <NavButton icon="expand_less" onClick={onPrev} disabled={!hasPrev} label="Previous request" />
-      <NavButton icon="expand_more" onClick={onNext} disabled={!hasNext} label="Next request" />
+      {detail && (
+        <NavButton
+          icon={copied === "report" ? "check" : "content_copy"}
+          onClick={() => copy(buildDetailReport(detail, resolvedProviderName), "report")}
+          label="Copy debug report"
+        />
+      )}
+      {(onPrev || onNext) && (
+        <>
+          <NavButton icon="expand_less" onClick={onPrev} disabled={!hasPrev} label="Previous request" />
+          <NavButton icon="expand_more" onClick={onNext} disabled={!hasNext} label="Next request" />
+        </>
+      )}
     </>
-  ) : null;
+  );
 
   return (
     <Drawer
@@ -242,13 +327,24 @@ export default function RequestDetailDrawer({
                 </span>
                 <button
                   type="button"
-                  onClick={() => copy(detail.id || "")}
+                  onClick={() => copy(detail.id || "", "trace")}
                   className="flex size-6 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
                   aria-label="Copy trace ID"
                 >
-                  <span className="material-symbols-outlined text-[13px]">{copied ? "check" : "content_copy"}</span>
+                  <span className="material-symbols-outlined text-[13px]">{copied === "trace" ? "check" : "content_copy"}</span>
                 </button>
               </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-sm">
+              <span className="text-text-muted">Debug report</span>
+              <button
+                type="button"
+                onClick={() => copy(buildDetailReport(detail, resolvedProviderName), "report")}
+                className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 font-mono text-[11px] text-text-main transition-colors hover:bg-surface-2"
+              >
+                <span className="material-symbols-outlined text-[13px]">{copied === "report" ? "check" : "content_copy"}</span>
+                {copied === "report" ? "Copied" : "Copy all"}
+              </button>
             </div>
           </SummarySection>
 

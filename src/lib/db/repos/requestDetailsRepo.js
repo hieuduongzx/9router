@@ -69,6 +69,26 @@ function truncateField(obj, maxSize) {
   return obj || {};
 }
 
+/**
+ * Truncating the whole request config throws away `stream`, `max_tokens`, `tools`
+ * and friends — the cheap scalars that explain a request — because one large
+ * `messages` array blew the size budget. Keep those, summarize the bulk.
+ */
+function truncateRequestConfig(request, maxSize) {
+  const full = truncateField(request, maxSize);
+  if (!full?._truncated || !request || typeof request !== "object") return full;
+
+  const { messages, tools, ...scalars } = request;
+  return {
+    ...scalars,
+    messageCount: Array.isArray(messages) ? messages.length : undefined,
+    toolCount: Array.isArray(tools) ? tools.length : undefined,
+    _truncated: true,
+    _originalSize: full._originalSize,
+    _preview: full._preview,
+  };
+}
+
 async function flushToDatabase() {
   if (isFlushing) return;
   if (writeBuffer.length === 0) return;
@@ -90,21 +110,30 @@ async function flushToDatabase() {
             id: item.id,
             provider: item.provider || null,
             model: item.model || null,
+            // Route name the client requested — needed to price the row on read.
+            publicModel: item.publicModel || undefined,
             connectionId: item.connectionId || null,
             timestamp: item.timestamp,
             status: item.status || null,
             latency: item.latency || {},
             tokens: item.tokens || {},
             cost: Number.isFinite(item.cost) ? item.cost : 0,
-            request: truncateField(item.request, config.maxJsonSize),
+            request: truncateRequestConfig(item.request, config.maxJsonSize),
             providerRequest: truncateField(item.providerRequest, config.maxJsonSize),
             providerResponse: truncateField(item.providerResponse, config.maxJsonSize),
             response: truncateField(item.response, config.maxJsonSize),
             pxpipe: item.pxpipe || undefined,
           };
 
+          // A streaming placeholder may reach this buffer after the same request's
+          // completion record (it is queued once the pipe is already flowing), so it
+          // must only ever create the row — never clobber real tokens/cost with zeros.
+          const conflictClause = item.streamPlaceholder
+            ? "ON CONFLICT(id) DO NOTHING"
+            : "ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, apiKey = excluded.apiKey, status = excluded.status, data = excluded.data";
+
           db.run(
-            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, apiKey, status, data) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, apiKey = excluded.apiKey, status = excluded.status, data = excluded.data`,
+            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, apiKey, status, data) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ${conflictClause}`,
             [record.id, record.timestamp, record.provider, record.model, record.connectionId, item.apiKey || null, record.status, stringifyJson(record)]
           );
         }
@@ -130,7 +159,7 @@ export async function saveRequestDetail(detail) {
   if (!config.enabled) return;
 
   if (!Number.isFinite(detail.cost)) {
-    detail.cost = await calculateRequestCost(detail.provider, detail.model, detail.tokens);
+    detail.cost = await calculateRequestCost(detail.provider, detail.model, detail.tokens, detail.publicModel);
   }
   writeBuffer.push(detail);
 
@@ -165,12 +194,12 @@ async function withRequestCost(detail) {
   if (hasCost && !canPrice) return detail;
 
   const breakdown = canPrice
-    ? await calculateRequestCostBreakdown(detail.provider, detail.model, detail.tokens)
+    ? await calculateRequestCostBreakdown(detail.provider, detail.model, detail.tokens, detail.publicModel)
     : null;
 
   return {
     ...detail,
-    cost: hasCost ? detail.cost : (breakdown ? breakdown.total : await calculateRequestCost(detail.provider, detail.model, detail.tokens)),
+    cost: hasCost ? detail.cost : (breakdown ? breakdown.total : await calculateRequestCost(detail.provider, detail.model, detail.tokens, detail.publicModel)),
     costInput: breakdown?.input ?? null,
     costOutput: breakdown?.output ?? null,
   };

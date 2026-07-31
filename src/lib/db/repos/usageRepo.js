@@ -171,11 +171,11 @@ async function ensureRingInitialized() {
   } catch {}
 }
 
-export async function calculateRequestCost(provider, model, tokens) {
+export async function calculateRequestCost(provider, model, tokens, publicModel = null) {
   if (!tokens || !provider || !model) return 0;
   try {
     const { getPricingForModel } = await import("./pricingRepo.js");
-    const pricing = await getPricingForModel(provider, model);
+    const pricing = await getPricingForModel(provider, model, publicModel);
     if (!pricing) return 0;
 
     // Delegate the actual math to the single source of truth (avoids the two
@@ -194,11 +194,11 @@ export async function calculateRequestCost(provider, model, tokens) {
  * Mirrors open-sse/providers/pricing.js's calculateCostFromTokens formula, split
  * into two buckets instead of one scalar. Returns null when pricing is unavailable.
  */
-export async function calculateRequestCostBreakdown(provider, model, tokens) {
+export async function calculateRequestCostBreakdown(provider, model, tokens, publicModel = null) {
   if (!tokens || !provider || !model) return null;
   try {
     const { getPricingForModel } = await import("./pricingRepo.js");
-    const pricing = await getPricingForModel(provider, model);
+    const pricing = await getPricingForModel(provider, model, publicModel);
     if (!pricing) return null;
 
     const inputTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
@@ -338,7 +338,7 @@ export async function saveRequestUsage(entry) {
     const db = await getAdapter();
 
     if (!entry.timestamp) entry.timestamp = new Date().toISOString();
-    entry.cost = await calculateRequestCost(entry.provider, entry.model, entry.tokens);
+    entry.cost = await calculateRequestCost(entry.provider, entry.model, entry.tokens, entry.publicModel);
 
     const tokens = entry.tokens || {};
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
@@ -504,7 +504,7 @@ function percentileSorted(sorted, p) {
 }
 
 const CHART_STACK_COLORS = [
-  "#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#a855f7", "#94a3b8",
+  "#7c3aed", "#16a34a", "#f59e0b", "#2563eb", "#dc2626", "#71717a",
 ];
 
 function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = {}) {
@@ -595,19 +595,21 @@ function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = 
   const latencyRows = db.all(
     `SELECT
         rd.status AS status,
-        CAST(json_extract(rd.data, '$.latency.total') AS REAL) AS totalMs
+        CASE
+          WHEN json_valid(rd.data)
+          THEN CAST(json_extract(rd.data, '$.latency.total') AS REAL)
+          ELSE NULL
+        END AS totalMs
        FROM requestDetails rd
        ${detWhere}`,
     detParams,
   );
 
-  const detailStatus = { success: 0, error: 0, rate_limited: 0, other: 0 };
   const allLat = [];
   const okLat = [];
   const errLat = [];
   for (const row of latencyRows) {
     const bucket = normalizeUsageStatus(row.status);
-    detailStatus[bucket] += 1;
     const ms = Number(row.totalMs);
     if (!Number.isFinite(ms) || ms < 0) continue;
     allLat.push(ms);
@@ -617,12 +619,6 @@ function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = 
   allLat.sort((a, b) => a - b);
   okLat.sort((a, b) => a - b);
   errLat.sort((a, b) => a - b);
-
-  // Prefer requestDetails status when present (has real error rows); else usageHistory.
-  const detailTotal = Object.values(detailStatus).reduce((s, n) => s + n, 0);
-  if (detailTotal > 0) {
-    stats.byStatus = detailStatus;
-  }
 
   const mkLat = (arr) => ({
     count: arr.length,
@@ -816,7 +812,9 @@ export async function getUsageStats(period = "all", options = {}) {
   // (5m/15m/1h/6h/12h/24h/3d/14d/today) fall through to the live usageHistory scan below.
   // When an API key filter is active, always aggregate from usageHistory.
   const DAILY_SUMMARY_PERIODS = new Set(["7d", "30d", "60d", "all"]);
-  const useDailySummary = !apiKeyFilter && DAILY_SUMMARY_PERIODS.has(period);
+  const useDailySummary = !apiKeyFilter
+    && options.forceHistory !== true
+    && DAILY_SUMMARY_PERIODS.has(period);
 
   if (useDailySummary) {
     // "all" → maxDays null → load every usageDaily row (stats API already accepts "all")
@@ -1049,6 +1047,48 @@ export async function getUsageStats(period = "all", options = {}) {
 
   attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap);
   return stats;
+}
+
+/**
+ * One aggregate row per key-owning account: lifetime totals, windowed totals, and
+ * last request timestamp. Cheap enough for the admin Accounts list, which needs
+ * per-user activity without running the full `getUsageStats` pipeline per user.
+ * @param {string} [period="30d"] window used for the `*InPeriod` fields
+ * @returns {Promise<Record<string, object>>} keyed by userId
+ */
+export async function getUsageByOwner(period = "30d") {
+  const db = await getAdapter();
+  const cutoff = getPeriodCutoffIso(period) || "";
+  const rows = db.all(
+    `SELECT ak.ownerUserId AS userId,
+            COUNT(*) AS requests,
+            COALESCE(SUM(uh.promptTokens), 0) AS promptTokens,
+            COALESCE(SUM(uh.completionTokens), 0) AS completionTokens,
+            COALESCE(SUM(uh.cost), 0) AS cost,
+            COALESCE(SUM(CASE WHEN uh.timestamp >= ? THEN 1 ELSE 0 END), 0) AS requestsInPeriod,
+            COALESCE(SUM(CASE WHEN uh.timestamp >= ? THEN uh.cost ELSE 0 END), 0) AS costInPeriod,
+            MAX(uh.timestamp) AS lastUsed
+       FROM usageHistory uh
+       JOIN apiKeys ak ON ak.key = uh.apiKey
+      WHERE ak.ownerUserId IS NOT NULL
+      GROUP BY ak.ownerUserId`,
+    [cutoff, cutoff],
+  );
+
+  const byOwner = {};
+  for (const row of rows) {
+    byOwner[row.userId] = {
+      userId: row.userId,
+      requests: Number(row.requests) || 0,
+      promptTokens: Number(row.promptTokens) || 0,
+      completionTokens: Number(row.completionTokens) || 0,
+      cost: Number(row.cost) || 0,
+      requestsInPeriod: Number(row.requestsInPeriod) || 0,
+      costInPeriod: Number(row.costInPeriod) || 0,
+      lastUsed: row.lastUsed || null,
+    };
+  }
+  return byOwner;
 }
 
 export async function getSystemUsageOverview(period = "today") {

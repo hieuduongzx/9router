@@ -44,6 +44,27 @@ export function extractUsageFromResponse(responseBody) {
     };
   }
 
+  // Partial / non-standard usage blocks. Some resellers omit prompt_tokens but do
+  // report a total or completion count; dropping those loses the whole request's cost.
+  const usage = responseBody.usage;
+  if (usage && typeof usage === "object") {
+    const total = usage.total_tokens ?? usage.totalTokens ?? 0;
+    const completion = usage.completion_tokens ?? usage.output_tokens ?? usage.eval_count ?? 0;
+    const prompt = usage.prompt_tokens ?? usage.input_tokens ?? usage.prompt_eval_count
+      ?? (total && completion ? Math.max(0, total - completion) : 0);
+    if (prompt || completion) {
+      return { prompt_tokens: prompt || 0, completion_tokens: completion || 0 };
+    }
+  }
+
+  // Ollama-style counters sit at the top level rather than under `usage`.
+  if (responseBody.prompt_eval_count !== undefined || responseBody.eval_count !== undefined) {
+    return {
+      prompt_tokens: responseBody.prompt_eval_count || 0,
+      completion_tokens: responseBody.eval_count || 0
+    };
+  }
+
   // Gemini format
   if (responseBody.usageMetadata) {
     return {
@@ -61,6 +82,7 @@ export function buildRequestDetail(base, overrides = {}) {
   return {
     provider: base.provider || "unknown",
     model: base.model || "unknown",
+    publicModel: base.publicModel || undefined,
     connectionId: base.connectionId || undefined,
     apiKey: base.apiKey || undefined,
     timestamp: new Date().toISOString(),
@@ -94,7 +116,7 @@ export function formatDoneLine({ usage, latency }) {
   return `DONE ${latency?.total ?? 0}ms${ttftStr} · ${inStr} · OUT ${outTok}`;
 }
 
-export function saveUsageStats({ provider, model, tokens, connectionId, apiKey, endpoint, label = "USAGE", silent = false }) {
+export function saveUsageStats({ provider, model, tokens, connectionId, apiKey, endpoint, publicModel = null, label = "USAGE", silent = false }) {
   if (!tokens || typeof tokens !== "object") return;
 
   const inTokens = tokens.input_tokens ?? tokens.prompt_tokens ?? 0;
@@ -122,6 +144,8 @@ export function saveUsageStats({ provider, model, tokens, connectionId, apiKey, 
     timestamp: new Date().toISOString(),
     connectionId: connectionId || undefined,
     apiKey: apiKey || undefined,
-    endpoint: endpoint || null
+    endpoint: endpoint || null,
+    // Public model id the client asked for — lets billing prefer the route's own price.
+    publicModel: publicModel || null
   }).catch(() => {});
 }

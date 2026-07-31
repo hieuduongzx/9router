@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
 import ProviderIcon from "@/shared/components/ProviderIcon";
-import HeaderMenu from "@/shared/components/HeaderMenu";
 import AccountMenu from "@/shared/components/AccountMenu";
 import HeaderLanguage from "@/shared/components/HeaderLanguage";
 import ThemeToggle from "@/shared/components/ThemeToggle";
@@ -83,9 +82,9 @@ const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/combos"))
     return {
-      title: "Combos",
-      description: "Model combos with fallback",
-      icon: "layers",
+      title: "Model Routes",
+      description: "Public model routing and ownership",
+      icon: "alt_route",
       breadcrumbs: [],
     };
   if (pathname.includes("/activity"))
@@ -171,6 +170,17 @@ const getPageInfo = (pathname) => {
       description: "API endpoint configuration",
       icon: "api",
       breadcrumbs: [],
+    };
+  // Account detail page: /dashboard/users/[id]
+  if (/\/users\/[^/]+$/.test(pathname))
+    return {
+      title: "Account detail",
+      description: "Access, credit, keys, and usage for one account",
+      icon: "manage_accounts",
+      breadcrumbs: [
+        { label: "Accounts", href: "/dashboard/users" },
+        { label: "Detail" },
+      ],
     };
   if (pathname.includes("/users"))
     return {
@@ -390,7 +400,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         <HeaderSearch />
         <div className="hidden sm:block"><ThemeToggle /></div>
         <HeaderLanguage />
-        <HeaderMenu />
         {canSwitchDashboardView && (
           <div className="sm:ml-1 sm:border-l sm:border-border sm:pl-2">
             <DashboardViewToggle

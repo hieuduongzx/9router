@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
@@ -11,6 +12,8 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 const ProviderTopology = dynamic(() => import("./ProviderTopology"), { ssr: false });
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
+const CHART_TOOLTIP_STYLE = { background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 0, fontFamily: "var(--font-mono)", fontSize: 12 };
+const CHART_TICK = { fill: "var(--color-text-muted)", fontSize: 10 };
 
 function formatNumber(value) {
   return NUMBER_FORMAT.format(Number(value) || 0);
@@ -132,6 +135,44 @@ export default function ProviderActivityTab({ period }) {
         <StatTile chip="requests" label="Active providers" value={formatNumber(topologyProviders.length)} sub="Unique routing targets" />
         <StatTile chip="cost" label="Healthy accounts" value={formatNumber(healthyCount)} sub={`${activeConnections.length - healthyCount - issueCount} unchecked`} />
         <StatTile chip="danger" label="Unavailable accounts" value={formatNumber(issueCount)} sub={issueCount ? "Needs operator attention" : "No reported failures"} />
+      </div>
+
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <Card padding="none" className="min-w-0 overflow-hidden">
+          <div className="border-b border-border-subtle px-5 py-4">
+            <h2 className="font-mono text-sm font-semibold text-text-main">Requests by provider</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Compare routing volume across providers.</p>
+          </div>
+          <div className="h-72 p-4">
+            {providerUsage.length ? <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={providerUsage.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 20 }}>
+                <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeOpacity={0.65} />
+                <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
+                <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value) => [formatNumber(value), "Requests"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Bar dataKey="requests" fill="#4F7CAC" maxBarSize={24} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No provider traffic in this period.</div>}
+          </div>
+        </Card>
+
+        <Card padding="none" className="min-w-0 overflow-hidden">
+          <div className="border-b border-border-subtle px-5 py-4">
+            <h2 className="font-mono text-sm font-semibold text-text-main">Spend by provider</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Estimated upstream cost by routing target.</p>
+          </div>
+          <div className="h-72 p-4">
+            {providerUsage.length ? <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[...providerUsage].sort((a, b) => (b.cost || 0) - (a.cost || 0)).slice(0, 10)} layout="vertical" margin={{ left: 8, right: 20 }}>
+                <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeOpacity={0.65} />
+                <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value) => [MONEY_FORMAT.format(Number(value) || 0), "Spend"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Bar dataKey="cost" fill="#C47A5A" maxBarSize={24} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No provider spend in this period.</div>}
+          </div>
+        </Card>
       </div>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">

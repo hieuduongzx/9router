@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProviderNode, getProviderNodes } from "@/models";
+import { createProviderConnection, createProviderNode, deleteProviderNode, getProviderNodes } from "@/models";
 import { OPENAI_COMPATIBLE_PREFIX, ANTHROPIC_COMPATIBLE_PREFIX, CUSTOM_EMBEDDING_PREFIX } from "@/shared/constants/providers";
 import { generateId } from "@/shared/utils";
 
@@ -17,6 +17,37 @@ const CUSTOM_EMBEDDING_DEFAULTS = {
   baseUrl: "https://api.openai.com/v1",
 };
 
+async function createNodeWithCredential(nodeData, rawApiKey, testStatus) {
+  const node = await createProviderNode(nodeData);
+  const apiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
+  if (!apiKey) return { node, connection: null };
+
+  try {
+    const providerSpecificData = {
+      prefix: node.prefix,
+      baseUrl: node.baseUrl,
+      nodeName: node.name,
+      ...(node.apiType ? { apiType: node.apiType } : {}),
+    };
+    const connection = await createProviderConnection({
+      provider: node.id,
+      authType: "apikey",
+      name: `${node.name} API Key`,
+      apiKey,
+      priority: 1,
+      isActive: true,
+      testStatus: testStatus === "active" ? "active" : "unknown",
+      providerSpecificData,
+    });
+    const safeConnection = { ...connection };
+    delete safeConnection.apiKey;
+    return { node, connection: safeConnection };
+  } catch (error) {
+    await deleteProviderNode(node.id);
+    throw error;
+  }
+}
+
 // GET /api/provider-nodes - List all provider nodes
 export async function GET() {
   try {
@@ -32,7 +63,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, prefix, apiType, baseUrl, type } = body;
+    const { name, prefix, apiType, baseUrl, type, apiKey, testStatus } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -50,15 +81,15 @@ export async function POST(request) {
         return NextResponse.json({ error: "Invalid OpenAI compatible API type" }, { status: 400 });
       }
 
-      const node = await createProviderNode({
+      const result = await createNodeWithCredential({
         id: `${OPENAI_COMPATIBLE_PREFIX}${apiType}-${generateId()}`,
         type: "openai-compatible",
         prefix: prefix.trim(),
         apiType,
         baseUrl: (baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl).trim(),
         name: name.trim(),
-      });
-      return NextResponse.json({ node }, { status: 201 });
+      }, apiKey, testStatus);
+      return NextResponse.json(result, { status: 201 });
     }
 
     if (nodeType === "custom-embedding") {
@@ -86,14 +117,14 @@ export async function POST(request) {
         sanitizedBaseUrl = sanitizedBaseUrl.slice(0, -9); // remove /messages
       }
 
-      const node = await createProviderNode({
+      const result = await createNodeWithCredential({
         id: `${ANTHROPIC_COMPATIBLE_PREFIX}${generateId()}`,
         type: "anthropic-compatible",
         prefix: prefix.trim(),
         baseUrl: sanitizedBaseUrl,
         name: name.trim(),
-      });
-      return NextResponse.json({ node }, { status: 201 });
+      }, apiKey, testStatus);
+      return NextResponse.json(result, { status: 201 });
     }
 
     return NextResponse.json({ error: "Invalid provider node type" }, { status: 400 });

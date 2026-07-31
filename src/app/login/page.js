@@ -245,9 +245,9 @@ export default function LoginPage() {
                   <form onSubmit={handleRegister} className="mt-6 space-y-4">
                     <Input id="register-username" label="Username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" minLength={3} maxLength={32} autoComplete="username" required autoFocus />
                     <Input id="register-email" label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" maxLength={254} autoComplete="email" required />
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4">
                       <Input id="register-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
-                      <Input id="confirm-password" label="Confirm" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
+                      <Input id="confirm-password" label="Confirm password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
                     </div>
                     {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                     <Button type="submit" variant="primary" className="w-full" loading={loading}>Create user account</Button>
@@ -264,7 +264,7 @@ export default function LoginPage() {
                     )}
                     {accountAvailable && (
                       <form onSubmit={handleLogin} className="space-y-4">
-                        <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="admin" autoComplete="username" required autoFocus={!oidcAvailable} />
+                        <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" autoComplete="username" required autoFocus={!oidcAvailable} />
                         <Input id="login-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
                         {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                         {retryAfter > 0 && <p className="font-mono text-sm text-warning">Locked. Retry in <span className="font-semibold">{retryAfter}s</span>.</p>}

@@ -45,6 +45,7 @@ describe("usage statistics scope", () => {
     expect(mocks.getApiKeys).toHaveBeenCalledWith("admin-id");
     expect(mocks.getUsageStats).toHaveBeenCalledWith("all", {
       apiKeyFilter: ["owned-key"],
+      forceHistory: false,
     });
   });
 
@@ -54,6 +55,7 @@ describe("usage statistics scope", () => {
     expect(mocks.getApiKeys).not.toHaveBeenCalled();
     expect(mocks.getUsageStats).toHaveBeenCalledWith("7d", {
       apiKeyFilter: null,
+      forceHistory: true,
     });
   });
 
@@ -64,6 +66,7 @@ describe("usage statistics scope", () => {
 
     expect(mocks.getUsageStats).toHaveBeenCalledWith("7d", {
       apiKeyFilter: "__none__",
+      forceHistory: true,
     });
   });
 });

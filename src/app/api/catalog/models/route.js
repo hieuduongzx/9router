@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { buildProviderModelsCatalog } from "@/lib/providerModelsCatalog";
-import { getCustomModels, getModelPricingCatalog, getProviderConnections } from "@/lib/localDb";
+import { getCombos, getModelPricingCatalog, getModelProviders, getPublishedModels } from "@/lib/localDb";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
-import { getDisabledModels } from "@/lib/disabledModelsDb";
-import { getProviderAlias, resolveProviderId } from "@/shared/constants/providers";
+import { buildPublishedModelsCatalog } from "@/lib/publishedModelsCatalog";
 import {
   DASHBOARD_VIEW_ADMIN,
   DASHBOARD_VIEW_COOKIE,
@@ -12,41 +10,18 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function getPricingTarget(model, providerByAlias) {
-  if (!model?.id || model.owned_by === "combo") return null;
-  const separator = model.id.indexOf("/");
-  if (separator < 1 || separator === model.id.length - 1) return null;
-
-  const alias = model.id.slice(0, separator);
-  const provider = providerByAlias.get(alias) || resolveProviderId(alias) || alias;
-  return {
-    provider,
-    // Keep nested vendor path (openrouter/google/lyria-...) intact after the first slash.
-    model: model.id.slice(separator + 1),
-  };
-}
-
 export async function GET(request) {
   try {
-    const activeConnections = (await getProviderConnections()).filter(
-      (connection) => connection.isActive !== false,
+    const [combos, publishedModels, modelProviders] = await Promise.all([
+      getCombos(),
+      getPublishedModels(),
+      getModelProviders(),
+    ]);
+    const models = buildPublishedModelsCatalog(combos, publishedModels);
+    const providerIconByName = new Map(
+      modelProviders.map((provider) => [provider.name.toLowerCase(), provider.iconKey]),
     );
-    if (activeConnections.length === 0) {
-      return NextResponse.json({ models: [], canEditPricing: false });
-    }
 
-    const providerByAlias = new Map();
-    for (const connection of activeConnections) {
-      const provider = connection.provider;
-      const alias = (
-        connection?.providerSpecificData?.prefix
-        || getProviderAlias(provider)
-        || provider
-      ).trim();
-      if (!providerByAlias.has(alias)) providerByAlias.set(alias, provider);
-    }
-
-    // Pricing edit controls only for signed-in admins. Guests still get the public catalog.
     let canEditPricing = false;
     try {
       const account = await getDashboardAccount(request);
@@ -59,46 +34,31 @@ export async function GET(request) {
       canEditPricing = false;
     }
 
-    // Mirror the checked "Available Models" shown on provider tabs:
-    // manually added models plus built-in LLM models that were not disabled.
-    const [customModels, disabledByAlias] = await Promise.all([
-      getCustomModels(),
-      getDisabledModels(),
-    ]);
-    const models = buildProviderModelsCatalog(
-      customModels,
-      activeConnections,
-      disabledByAlias,
-    );
-    const pricingTargets = models.map((model) => getPricingTarget(model, providerByAlias));
     const pricingEntries = await getModelPricingCatalog(
-      pricingTargets.map((target) => target || {}),
+      models.map((model) => model.pricingTarget),
     );
 
     return NextResponse.json({
       canEditPricing,
+      mode: "published",
       models: models.map((model, index) => {
-        const target = pricingTargets[index];
         const resolved = pricingEntries[index];
         return {
           id: model.id,
-          provider: model.owned_by || model.id.split("/")[0] || "other",
-          capabilities: model.capabilities || {},
+          provider: model.provider,
+          providerIcon: providerIconByName.get(model.provider.toLowerCase()) || "",
+          comboId: model.comboId,
+          memberCount: model.memberCount,
+          capabilities: model.capabilities,
+          pricingTarget: model.pricingTarget,
           pricing: resolved?.pricing || null,
           pricingSource: resolved?.source || "unpriced",
-          // Always expose target so admins can price previously unpriced models.
-          // UI only enables editors when canEditPricing is true.
-          ...(target
-            ? {
-                pricingTarget: target,
-                defaultPricing: resolved?.defaultPricing || null,
-              }
-            : {}),
+          defaultPricing: resolved?.defaultPricing || null,
         };
       }),
     });
   } catch (error) {
-    console.error("[API] Failed to build account model catalog:", error);
-    return NextResponse.json({ error: "Failed to load available models" }, { status: 500 });
+    console.error("[API] Failed to build published model catalog:", error);
+    return NextResponse.json({ error: "Failed to load published models" }, { status: 500 });
   }
 }

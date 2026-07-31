@@ -57,7 +57,7 @@ function StatusPill({ status }) {
   );
 }
 
-export default function RequestDetailsTab({ period = "all", apiKeyId = "all" }) {
+export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
   const [details, setDetails] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
@@ -74,6 +74,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all" }) 
       });
       const periodStart = getPeriodStart(period);
       if (periodStart) params.append("startDate", periodStart);
+      if (userId) params.append("userId", userId);
 
       const response = await fetch(`/api/usage/request-details?${params}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
@@ -86,7 +87,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all" }) 
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, period]);
+  }, [pagination.page, pagination.pageSize, period, userId]);
 
   useEffect(() => {
     const id = setTimeout(fetchDetails, 0);
@@ -188,4 +189,5 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all" }) 
 RequestDetailsTab.propTypes = {
   period: PropTypes.string,
   apiKeyId: PropTypes.string,
+  userId: PropTypes.string,
 };

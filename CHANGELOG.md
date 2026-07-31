@@ -8,6 +8,13 @@
 - **Dashboard**: let administrators persistently switch between Admin and account-scoped User views without changing backend permissions
 - **Dashboard**: add Today, 24h, 7D, 30D, 60D, and All quick ranges to account request history
 - **Dashboard**: add paired token and spend trends, request outcome health, and show hourly traffic only for Today
+- **Models**: expose only administrator-published combo models from `/v1/models`; provider connection catalogs no longer leak into the public model list
+- **Dashboard**: make Combos the source for Models and let administrators assign each combo's public model provider (`owned_by`)
+- **Dashboard**: rename Combos to Model Routes and add an editable virtual-provider registry with Lobe icons and provider filtering
+- **Dashboard**: replace Model Route cards with a dense table so more routes remain visible while preserving strategy and judge controls
+- **Dashboard**: test Model Routes from the table or editor with Fallback, Round Robin, and Fusion execution, per-model pass/fail markers, and judge status
+- **Dashboard**: remove the header grid menu together with its duplicate theme, changelog, and shutdown actions
+- **Dashboard**: add shared Fetch Models and Test All actions to every provider's Available Models panel
 
 ## Fixes
 - **Dashboard**: render Home token and hourly charts from the current chart API payload
@@ -20,6 +27,8 @@
 - **Alicode-intl**: split into Coding Plan + Model Studio providers
 - **Cursor**: HTTP/2 AgentService support + version bump 3.12.17
 - **Dashboard**: cut duplicate API/icon spam, lazy-load provider assets
+- **Dashboard**: mask account API keys behind an accessible reveal control and align account row actions
+- **Dashboard**: save compatible-provider check keys directly into the key pool and make connection default models optional
 
 
 # v0.5.35 (2026-07-16)

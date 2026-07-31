@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS = {
   comboStrategy: "fallback",
   comboStickyRoundRobinLimit: 1,
   comboStrategies: {},
+  // Only models published to Dashboard → Models may be requested through /v1/*.
+  restrictToPublishedModels: true,
   requireLogin: true,
   signupCreditCents: 0,
   authMode: "password",

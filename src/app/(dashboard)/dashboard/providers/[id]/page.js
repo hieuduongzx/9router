@@ -58,6 +58,7 @@ export default function ProviderDetailPage() {
   const [modelTestResults, setModelTestResults] = useState({});
   const [modelsTestError, setModelsTestError] = useState("");
   const [testingModelIds, setTestingModelIds] = useState(() => new Set());
+  const [testingAllModels, setTestingAllModels] = useState(false);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
@@ -78,7 +79,8 @@ export default function ProviderDetailPage() {
   const [oneByOneResults, setOneByOneResults] = useState({});
   const [oneByOneSummary, setOneByOneSummary] = useState(null);
   const stopOneByOneRef = useRef(false);
-  const [importingQoderModels, setImportingQoderModels] = useState(false);
+  const [fetchingProviderModels, setFetchingProviderModels] = useState(false);
+  const [modelsFetchStatus, setModelsFetchStatus] = useState(null);
   const { copied, copy } = useCopyToClipboard();
 
   const AG_RISK_STORAGE_KEY = "ag_risk_confirmed";
@@ -556,57 +558,79 @@ export default function ProviderDetailPage() {
     }
   };
 
-  // Fetch Qoder model list and automatically add to available models
-  const handleImportQoderModels = async () => {
-    if (importingQoderModels) return;
-    const activeConnection = connections.find((conn) => conn.isActive !== false);
+  const handleFetchProviderModels = async () => {
+    if (fetchingProviderModels) return;
+    const activeConnection = connections.find((connection) => connection.isActive !== false);
     if (!activeConnection) {
-      alert(translate("Please add an active Qoder connection first"));
+      setModelsFetchStatus({ type: "error", text: "Add an active connection before fetching models." });
       return;
     }
 
-    setImportingQoderModels(true);
+    setFetchingProviderModels(true);
+    setModelsFetchStatus(null);
     try {
-      const res = await fetch(`/api/providers/${activeConnection.id}/models`);
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || translate("Failed to fetch models"));
+      const response = await fetch(`/api/providers/${activeConnection.id}/models`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setModelsFetchStatus({ type: "error", text: data.error || "Unable to fetch models from this provider." });
         return;
       }
-      const models = data.models || [];
-      if (models.length === 0) {
-        alert(translate("No models returned"));
-        return;
+
+      const existingIds = new Set([
+        ...models.map((model) => model.id),
+        ...kiloFreeModels.map((model) => model.id),
+        ...customModels
+          .filter((model) => model.providerAlias === providerStorageAlias && (model.kind || model.type || "llm") === "llm")
+          .map((model) => model.id),
+      ]);
+      const fetchedIds = [];
+      for (const model of data.models || []) {
+        const kind = getModelKind(model);
+        if (kind && kind !== "llm") continue;
+        let modelId = String(model.id || model.name || model.model || "").trim();
+        if (!modelId) continue;
+        for (const prefix of new Set([providerStorageAlias, providerDisplayAlias])) {
+          if (modelId.startsWith(`${prefix}/`)) modelId = modelId.slice(prefix.length + 1);
+        }
+        if (providerId === "gemini" && modelId.startsWith("models/")) {
+          modelId = modelId.slice("models/".length);
+        }
+        if (!modelId || existingIds.has(modelId) || fetchedIds.includes(modelId)) continue;
+        fetchedIds.push(modelId);
       }
 
       let importedCount = 0;
-      for (const model of models) {
-        const modelId = model.id || model.name;
-        if (!modelId) continue;
-        
-        // Qoder model ID format may be "qoder/auto" or "auto", need to remove prefix
-        const cleanModelId = modelId.replace(/^qoder\//, "");
-        const alreadyExists = customModels.some(
-          (entry) => entry.providerAlias === providerStorageAlias && entry.id === cleanModelId && (entry.kind || entry.type || "llm") === "llm"
-        ) || Object.values(modelAliases).includes(`${providerStorageAlias}/${cleanModelId}`);
-        if (alreadyExists) {
-          continue;
+      let firstError = "";
+      for (const modelId of fetchedIds) {
+        const addResponse = await fetch("/api/models/custom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ providerAlias: providerStorageAlias, id: modelId, type: "llm" }),
+        });
+        if (addResponse.ok) {
+          importedCount += 1;
+        } else if (!firstError) {
+          const errorBody = await addResponse.json().catch(() => ({}));
+          firstError = errorBody.error || `Unable to add ${modelId}`;
         }
+      }
 
-        await handleAddCustomModel(cleanModelId, "llm", providerStorageAlias);
-        importedCount += 1;
+      if (importedCount > 0) {
+        await fetchCustomModels();
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("customModelChanged"));
       }
-      
-      if (importedCount === 0) {
-        alert(translate("All models already exist, no new models added"));
-      } else {
-        alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
-      }
+
+      const fetchedCount = Array.isArray(data.models) ? data.models.length : 0;
+      const text = firstError
+        ? `Fetched ${fetchedCount} models and added ${importedCount}. ${firstError}`
+        : importedCount > 0
+          ? `Fetched ${fetchedCount} models and added ${importedCount} new model${importedCount === 1 ? "" : "s"}.`
+          : `Fetched ${fetchedCount} models. No new models to add.`;
+      setModelsFetchStatus({ type: firstError ? "error" : "success", text: data.warning ? `${text} ${data.warning}` : text });
     } catch (error) {
-      console.log("Error importing Qoder models:", error);
-      alert(translate("Error fetching models") + ": " + error.message);
+      setModelsFetchStatus({ type: "error", text: error?.message || "Unable to fetch provider models." });
     } finally {
-      setImportingQoderModels(false);
+      setFetchingProviderModels(false);
     }
   };
 
@@ -1049,24 +1073,86 @@ export default function ProviderDetailPage() {
     </Modal>
   );
 
-  const handleTestModel = async (modelId) => {
-    if (testingModelIds.has(modelId)) return;
-    setTestingModelIds((prev) => new Set(prev).add(modelId));
+  const currentCustomModelRows = getProviderCustomModelRows({
+    customModels,
+    modelAliases,
+    providerAlias: providerStorageAlias,
+    builtInModels: isCompatible ? [] : models,
+    type: "llm",
+  });
+  const activeBuiltInModelIds = !isCompatible
+    ? [
+        ...models,
+        ...kiloFreeModels.filter((model) => !models.some((entry) => entry.id === model.id)),
+      ]
+        .filter((model) => {
+          const kind = getModelKind(model);
+          return (!kind || kind === "llm") && !disabledModelIds.includes(model.id);
+        })
+        .map((model) => model.id)
+    : [];
+  const availableModelIds = [...new Set([
+    ...activeBuiltInModelIds,
+    ...currentCustomModelRows.map((model) => model.id),
+  ])];
+  const hasActiveConnection = connections.some((connection) => connection.isActive !== false);
+  const canTestProviderModels = availableModelIds.length > 0 && (hasActiveConnection || isFreeNoAuth);
+
+  const probeModel = async (modelId) => {
     try {
-      const res = await fetch("/api/models/test", {
+      const response = await fetch("/api/models/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: `${providerStorageAlias}/${modelId}` }),
       });
-      const data = await res.json();
-      setModelTestResults((prev) => ({ ...prev, [modelId]: data.ok ? "ok" : "error" }));
-      setModelsTestError(data.ok ? "" : (data.error || "Model not reachable"));
-    } catch {
-      setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
-      setModelsTestError("Network error");
-    } finally {
-      setTestingModelIds((prev) => { const n = new Set(prev); n.delete(modelId); return n; });
+      const data = await response.json().catch(() => ({}));
+      return {
+        modelId,
+        ok: response.ok && data.ok === true,
+        error: data.error || (response.ok ? "" : `HTTP ${response.status}`),
+      };
+    } catch (error) {
+      return { modelId, ok: false, error: error?.message || "Network error" };
     }
+  };
+
+  const handleTestModel = async (modelId) => {
+    if (testingAllModels || testingModelIds.has(modelId)) return;
+    setTestingModelIds((previous) => new Set(previous).add(modelId));
+    const result = await probeModel(modelId);
+    setModelTestResults((previous) => ({ ...previous, [modelId]: result.ok ? "ok" : "error" }));
+    setModelsTestError(result.ok ? "" : (result.error || "Model not reachable"));
+    setTestingModelIds((previous) => {
+      const next = new Set(previous);
+      next.delete(modelId);
+      return next;
+    });
+  };
+
+  const handleTestAllModels = async () => {
+    if (!canTestProviderModels || testingAllModels || testingModelIds.size > 0) return;
+    setTestingAllModels(true);
+    setModelsTestError("");
+    setTestingModelIds(new Set(availableModelIds));
+
+    const [firstModelId, ...remainingModelIds] = availableModelIds;
+    const firstResult = await probeModel(firstModelId);
+    const remainingResults = await Promise.all(remainingModelIds.map(probeModel));
+    const results = [firstResult, ...remainingResults];
+    const failed = results.filter((result) => !result.ok);
+
+    setModelTestResults((previous) => {
+      const next = { ...previous };
+      for (const result of results) next[result.modelId] = result.ok ? "ok" : "error";
+      return next;
+    });
+    setModelsTestError(
+      failed.length > 0
+        ? `${failed.length}/${results.length} models failed. ${failed[0].modelId}: ${failed[0].error || "Model not reachable"}`
+        : "",
+    );
+    setTestingModelIds(new Set());
+    setTestingAllModels(false);
   };
 
   const renderModelsSection = () => {
@@ -1079,10 +1165,12 @@ export default function ProviderDetailPage() {
           customModels={customModels}
           copied={copied}
           onCopy={copy}
-          onSetAlias={handleSetAlias}
           onDeleteAlias={handleDeleteAlias}
           onAddCustomModel={(modelId) => handleAddCustomModel(modelId, "llm", providerStorageAlias)}
           onDeleteCustomModel={(modelId) => handleDeleteCustomModel(modelId, "llm", providerStorageAlias)}
+          onTestModel={handleTestModel}
+          modelTestResults={modelTestResults}
+          testingModelIds={testingModelIds}
           connections={connections}
           isAnthropic={isAnthropicCompatible}
         />
@@ -1127,7 +1215,7 @@ export default function ProviderDetailPage() {
               }
             }}
             testStatus={modelTestResults[model.id]}
-            onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
+            onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
             isTesting={testingModelIds.has(model.id)}
             isCustom
             isFree={false}
@@ -1153,7 +1241,7 @@ export default function ProviderDetailPage() {
               onSetAlias={(alias) => handleSetAlias(model.id, alias, providerStorageAlias)}
               onDeleteAlias={() => handleDeleteAlias(existingAlias)}
               testStatus={modelTestResults[model.id]}
-              onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
+              onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
               isTesting={testingModelIds.has(model.id)}
               isFree={model.isFree}
               onDisable={() => handleDisableModel(model.id)}
@@ -1176,19 +1264,6 @@ export default function ProviderDetailPage() {
           Add Model
         </button>
 
-        {/* Import Qoder models button — only show for qoder provider */}
-        {providerId === "qoder" && connections.some((conn) => conn.isActive !== false) && (
-          <button
-            onClick={handleImportQoderModels}
-            disabled={importingQoderModels}
-            className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-blue-500/40 px-3 py-2 text-xs text-blue-600 dark:text-blue-400 transition-colors hover:border-blue-500 hover:bg-blue-500/5 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-sm" style={importingQoderModels ? { animation: "spin 1s linear infinite" } : undefined}>
-              {importingQoderModels ? "progress_activity" : "download"}
-            </span>
-            {importingQoderModels ? translate("Fetching...") : translate("Fetch Qoder Models")}
-          </button>
-        )}
         </div>
 
         {/* Suggested models from provider API — show only models not yet added */}
@@ -1676,28 +1751,46 @@ export default function ProviderDetailPage() {
               </select>
             )}
           </div>
-          {!isCompatible && (() => {
-            const allIds = [
-              ...models,
-              ...kiloFreeModels.filter((fm) => !models.some((m) => m.id === fm.id)),
-            ].filter((m) => { const k = getModelKind(m); return !k || k === "llm"; }).map((m) => m.id);
-            const activeIds = allIds.filter((id) => !disabledModelIds.includes(id));
-            return (
-              <div className="flex gap-2">
-                {disabledModelIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="restart_alt" onClick={handleEnableAll}>
-                    Active All
-                  </Button>
-                )}
-                {activeIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="block" onClick={() => handleDisableAll(activeIds)}>
-                    Disable All
-                  </Button>
-                )}
-              </div>
-            );
-          })()}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="download"
+              onClick={handleFetchProviderModels}
+              loading={fetchingProviderModels}
+              disabled={!hasActiveConnection || fetchingProviderModels}
+              title={hasActiveConnection ? "Fetch the live model catalog from this provider" : "Add an active connection to fetch models"}
+            >
+              {fetchingProviderModels ? "Fetching..." : "Fetch Models"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="science"
+              onClick={handleTestAllModels}
+              loading={testingAllModels}
+              disabled={!canTestProviderModels || testingAllModels || testingModelIds.size > 0}
+              title={canTestProviderModels ? "Test every active model for this provider" : "Add an active connection and at least one model to test"}
+            >
+              {testingAllModels ? "Testing..." : `Test All${availableModelIds.length > 0 ? ` (${availableModelIds.length})` : ""}`}
+            </Button>
+            {!isCompatible && disabledModelIds.length > 0 && (
+              <Button size="sm" variant="secondary" icon="restart_alt" onClick={handleEnableAll}>
+                Enable All
+              </Button>
+            )}
+            {!isCompatible && activeBuiltInModelIds.length > 0 && (
+              <Button size="sm" variant="secondary" icon="block" onClick={() => handleDisableAll(activeBuiltInModelIds)}>
+                Disable All
+              </Button>
+            )}
+          </div>
         </div>
+        {modelsFetchStatus && (
+          <p className={`mb-3 break-words text-xs ${modelsFetchStatus.type === "error" ? "text-danger" : "text-success"}`}>
+            {modelsFetchStatus.text}
+          </p>
+        )}
         {!!modelsTestError && (
           <p className="text-xs text-red-500 mb-3 break-words">{modelsTestError}</p>
         )}

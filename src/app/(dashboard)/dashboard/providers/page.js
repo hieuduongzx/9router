@@ -22,7 +22,6 @@ import {
 import Link from "next/link";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
-import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
 import AddCompatibleModal from "./components/AddCompatibleModal";
 
@@ -105,15 +104,8 @@ export default function ProvidersPage() {
     useState(false);
   const [testingMode, setTestingMode] = useState(null);
   const [testResults, setTestResults] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const notify = useNotificationStore();
-  const searchQuery = useHeaderSearchStore((s) => s.query);
-  const registerSearch = useHeaderSearchStore((s) => s.register);
-  const unregisterSearch = useHeaderSearchStore((s) => s.unregister);
-
-  useEffect(() => {
-    registerSearch("Search providers...");
-    return () => unregisterSearch();
-  }, [registerSearch, unregisterSearch]);
 
   const matchSearch = (name) =>
     !searchQuery.trim() ||
@@ -330,9 +322,58 @@ export default function ProvidersPage() {
     apikeyEntries.length > 0 ||
     compatibleProviders.length > 0 ||
     anthropicCompatibleProviders.length > 0;
+  const matchingProviderCount =
+    oauthEntries.length +
+    freeEntries.length +
+    freeTierEntries.length +
+    apikeyEntries.length +
+    compatibleProviders.length +
+    anthropicCompatibleProviders.length;
+  const hasSearchQuery = Boolean(searchQuery.trim());
 
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
+      <section
+        className="border border-border bg-surface/35 p-2.5 sm:p-3"
+        aria-label="Provider search"
+      >
+        <div className="flex items-center gap-2.5">
+          <label className="group relative min-w-0 flex-1">
+            <span className="sr-only">Search providers</span>
+            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted transition-colors group-focus-within:text-primary">
+              search
+            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search providers by name..."
+              className="h-10 w-full appearance-none rounded-sm border border-border bg-bg pl-10 pr-10 font-mono text-sm text-text-main outline-none transition-[border-color,box-shadow,background-color] placeholder:text-text-muted/70 hover:border-text-muted/60 focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/15"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label="Clear provider search"
+              >
+                <span className="material-symbols-outlined text-[17px]">
+                  close
+                </span>
+              </button>
+            )}
+          </label>
+          <div
+            className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
+            aria-live="polite"
+          >
+            <span className="font-mono text-xs tabular-nums text-text-muted">
+              {matchingProviderCount} {hasSearchQuery ? "matches" : "providers"}
+            </span>
+          </div>
+        </div>
+      </section>
+
       {!hasAnyResult && (
         <div className="text-center py-8 border border-dashed border-border">
           <span className="material-symbols-outlined text-[32px] text-text-muted mb-2">
@@ -574,8 +615,9 @@ export default function ProvidersPage() {
         variant="openai"
         isOpen={showAddCompatibleModal}
         onClose={() => setShowAddCompatibleModal(false)}
-        onCreated={(node) => {
+        onCreated={(node, connection) => {
           setProviderNodes((prev) => [...prev, node]);
+          if (connection) setConnections((prev) => [...prev, connection]);
           setShowAddCompatibleModal(false);
         }}
       />
@@ -583,8 +625,9 @@ export default function ProvidersPage() {
         variant="anthropic"
         isOpen={showAddAnthropicCompatibleModal}
         onClose={() => setShowAddAnthropicCompatibleModal(false)}
-        onCreated={(node) => {
+        onCreated={(node, connection) => {
           setProviderNodes((prev) => [...prev, node]);
+          if (connection) setConnections((prev) => [...prev, connection]);
           setShowAddAnthropicCompatibleModal(false);
         }}
       />

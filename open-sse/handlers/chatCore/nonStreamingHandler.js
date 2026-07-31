@@ -2,13 +2,44 @@ import { FORMATS } from "../../translator/formats.js";
 import { needsTranslation } from "../../translator/index.js";
 import { fromOpenAIFinish } from "../../translator/concerns/finishReason.js";
 import { ollamaBodyToOpenAI } from "../../translator/response/ollama-to-openai.js";
-import { addBufferToUsage, filterUsageForFormat } from "../../utils/usageTracking.js";
+import { addBufferToUsage, estimateUsage, filterUsageForFormat, hasValidUsage } from "../../utils/usageTracking.js";
 import { createErrorResult } from "../../utils/error.js";
 import { HTTP_STATUS } from "../../config/runtimeConfig.js";
 import { parseSSEToOpenAIResponse } from "./sseToJsonHandler.js";
 import { buildRequestDetail, extractRequestConfig, extractUsageFromResponse, saveUsageStats, formatDoneLine } from "./requestDetail.js";
 import { appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
 import { decloakToolNames } from "../../utils/claudeCloaking.js";
+
+/**
+ * Assistant text from any upstream body shape (OpenAI choices, Claude content
+ * blocks, Gemini candidates). Only its length matters — it feeds token estimation
+ * when the provider reports no usage.
+ */
+function extractResponseText(responseBody) {
+  if (!responseBody || typeof responseBody !== "object") return "";
+  const parts = [];
+
+  const openAiMessage = responseBody.choices?.[0]?.message;
+  if (typeof openAiMessage?.content === "string") parts.push(openAiMessage.content);
+  if (typeof openAiMessage?.reasoning_content === "string") parts.push(openAiMessage.reasoning_content);
+  for (const call of openAiMessage?.tool_calls || []) {
+    if (typeof call?.function?.arguments === "string") parts.push(call.function.arguments);
+  }
+
+  if (Array.isArray(responseBody.content)) {
+    for (const block of responseBody.content) {
+      if (typeof block?.text === "string") parts.push(block.text);
+      if (typeof block?.thinking === "string") parts.push(block.thinking);
+      if (block?.input) parts.push(JSON.stringify(block.input));
+    }
+  }
+
+  for (const part of responseBody.candidates?.[0]?.content?.parts || []) {
+    if (typeof part?.text === "string") parts.push(part.text);
+  }
+
+  return parts.join("");
+}
 
 function parseToolArguments(value) {
   if (!value) return {};
@@ -233,9 +264,16 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
   // Decloak tool_use names once on raw Claude body, before any translation (INPUT side)
   responseBody = decloakToolNames(responseBody, toolNameMap);
 
-  const usage = extractUsageFromResponse(responseBody);
+  let usage = extractUsageFromResponse(responseBody);
+  if (!hasValidUsage(usage)) {
+    // Some upstreams answer a non-streaming call with no usage block at all. The
+    // streaming path already estimates in that case; without the same fallback here
+    // the request records 0 tokens and its cost silently becomes $0.
+    const answerText = extractResponseText(responseBody);
+    if (answerText.length > 0) usage = estimateUsage(body, answerText.length, FORMATS.OPENAI);
+  }
   appendLog({ tokens: usage, status: "200 OK" });
-  saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, silent: true });
+  saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, publicModel: clientRawRequest?.body?.model, silent: true });
   if (log?.line) log.line(reqTag, "📊", formatDoneLine({ usage, latency: { total: Date.now() - requestStartTime } }));
 
   const translatedResponse = needsTranslation(targetFormat, sourceFormat)
@@ -286,7 +324,7 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
 
   const totalLatency = Date.now() - requestStartTime;
   saveRequestDetail(buildRequestDetail({
-    provider, model, connectionId, apiKey,
+    provider, model, connectionId, apiKey, publicModel: clientRawRequest?.body?.model,
     latency: { ttft: totalLatency, total: totalLatency },
     tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),

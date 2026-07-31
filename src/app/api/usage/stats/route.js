@@ -37,7 +37,10 @@ export async function GET(request) {
     }
 
     const apiKeyFilter = await resolveApiKeyFilter(apiKeyId, owner, systemScope);
-    const stats = await getUsageStats(period, { apiKeyFilter });
+    const stats = await getUsageStats(period, {
+      apiKeyFilter,
+      forceHistory: systemScope,
+    });
     return NextResponse.json(stats);
   } catch (error) {
     console.error("[API] Failed to get usage stats:", error);

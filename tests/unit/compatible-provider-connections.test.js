@@ -5,20 +5,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const originalDataDir = process.env.DATA_DIR;
 
+vi.mock("next/server", () => ({
+  NextResponse: {
+    json(body, init = {}) {
+      return new Response(JSON.stringify(body), {
+        status: init.status || 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+}));
+
 async function setupTestContext(nodeData) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-compatible-provider-"));
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
-  vi.doMock("next/server", () => ({
-    NextResponse: {
-      json(body, init = {}) {
-        return new Response(JSON.stringify(body), {
-          status: init.status || 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
-    },
-  }));
 
   const { POST } = await import("@/app/api/providers/route.js");
   const {
@@ -33,7 +34,32 @@ async function setupTestContext(nodeData) {
     POST,
     getProviderConnections,
     cleanup() {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (error) {
+        if (error?.code !== "EPERM") throw error;
+      }
+    },
+  };
+}
+
+async function setupNodeCreationContext() {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-compatible-node-"));
+  process.env.DATA_DIR = tempDir;
+  vi.resetModules();
+
+  const { POST } = await import("@/app/api/provider-nodes/route.js");
+  const { getProviderConnections } = await import("@/models/index.js");
+
+  return {
+    POST,
+    getProviderConnections,
+    cleanup() {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (error) {
+        if (error?.code !== "EPERM") throw error;
+      }
     },
   };
 }
@@ -74,7 +100,6 @@ describe("compatible provider connections API", () => {
   });
 
   afterEach(() => {
-    vi.doUnmock("next/server");
     vi.resetModules();
     vi.clearAllMocks();
     cleanup();
@@ -165,5 +190,73 @@ describe("compatible provider connections API", () => {
     expect(storedConnections).toHaveLength(2);
     expectCompatibleConnection(storedConnections[0], ctx.node, { apiType: "chat" });
     expectCompatibleConnection(storedConnections[1], ctx.node, { apiType: "chat" });
+  });
+  it("stores the compatible check key in the new node's key pool", async () => {
+    const ctx = await setupNodeCreationContext();
+    cleanup = ctx.cleanup;
+
+    const response = await ctx.POST(new Request("https://9router.local/api/provider-nodes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Checked Compatible",
+        prefix: "checked",
+        apiType: "chat",
+        baseUrl: "https://checked-compatible.test/v1",
+        type: "openai-compatible",
+        apiKey: "checked-secret-key",
+        testStatus: "active",
+      }),
+    }));
+    const body = await response.json();
+    const storedConnections = await ctx.getProviderConnections({ provider: body.node.id });
+
+    expect(response.status).toBe(201);
+    expect(body.connection).toMatchObject({
+      provider: body.node.id,
+      authType: "apikey",
+      name: "Checked Compatible API Key",
+      testStatus: "active",
+    });
+    expect(body.connection).not.toHaveProperty("apiKey");
+    expect(storedConnections).toHaveLength(1);
+    expect(storedConnections[0]).toMatchObject({
+      provider: body.node.id,
+      apiKey: "checked-secret-key",
+      providerSpecificData: {
+        prefix: "checked",
+        apiType: "chat",
+        baseUrl: "https://checked-compatible.test/v1",
+        nodeName: "Checked Compatible",
+      },
+    });
+    expect(storedConnections[0].defaultModel).toBeUndefined();
+  });
+
+  it("creates a compatible key-pool connection without a default model", async () => {
+    const ctx = await setupTestContext({
+      id: "openai-compatible-no-default",
+      type: "openai-compatible",
+      name: "No Default Model Node",
+      prefix: "nodefault",
+      apiType: "chat",
+      baseUrl: "https://no-default.test/v1",
+    });
+    cleanup = ctx.cleanup;
+
+    const response = await ctx.POST(new Request("https://9router.local/api/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: ctx.node.id,
+        apiKey: "test-key",
+        name: "No Default",
+      }),
+    }));
+    const storedConnections = await ctx.getProviderConnections({ provider: ctx.node.id });
+
+    expect(response.status).toBe(201);
+    expect(storedConnections).toHaveLength(1);
+    expect(storedConnections[0].defaultModel).toBeUndefined();
   });
 });

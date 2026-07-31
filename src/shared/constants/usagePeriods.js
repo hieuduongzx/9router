@@ -12,6 +12,7 @@ export const USAGE_PERIODS = [
   { value: "7d", label: "Last 7 days", ms: 7 * 24 * 60 * 60 * 1000 },
   { value: "14d", label: "Last 14 days", ms: 14 * 24 * 60 * 60 * 1000 },
   { value: "30d", label: "Last 30 days", ms: 30 * 24 * 60 * 60 * 1000 },
+  { value: "all", label: "All time", ms: null },
 ];
 
 export function getUsagePeriodLabel(value) {
@@ -21,6 +22,6 @@ export function getUsagePeriodLabel(value) {
 /** Client-side period → start Date ISO string (for endpoints that take startDate directly). */
 export function getUsagePeriodStartIso(period) {
   const entry = USAGE_PERIODS.find((p) => p.value === period);
-  if (!entry) return "";
+  if (!Number.isFinite(entry?.ms)) return "";
   return new Date(Date.now() - entry.ms).toISOString();
 }

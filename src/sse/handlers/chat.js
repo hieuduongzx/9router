@@ -17,6 +17,8 @@ import { appendPxpipeEvent } from "@/lib/pxpipe/events.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { handleComboChat, handleFusionChat } from "open-sse/services/combo.js";
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
+import { isModelPublished } from "../services/publishedModels.js";
+import { hasValidCliToken } from "@/dashboardGuard";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { detectFormatByEndpoint } from "open-sse/translator/formats.js";
 import * as log from "../utils/logger.js";
@@ -83,6 +85,20 @@ export async function handleChat(request, clientRawRequest = null) {
   const userAgent = request?.headers?.get("user-agent") || "";
   const bypassResponse = handleBypassRequest(body, modelStr, userAgent, !!settings.ccFilterNaming);
   if (bypassResponse) return bypassResponse.response || bypassResponse;
+
+  // Only models published to Dashboard / Models are routable. This applies to the
+  // client-requested model only — a route's own members are resolved internally and
+  // are never published themselves. Local probes carrying the CLI token (model tests,
+  // route tests) target member models directly and stay exempt.
+  if (settings.restrictToPublishedModels !== false
+    && !(await hasValidCliToken(request))
+    && !(await isModelPublished(modelStr))) {
+    log.warn("CHAT", `Model not published: ${modelStr}`);
+    return errorResponse(
+      HTTP_STATUS.NOT_FOUND,
+      `Model "${modelStr}" is not available. Enable it in Dashboard / Model Routes so it is published to Dashboard / Models.`,
+    );
+  }
 
   // Check if model is a combo (has multiple models with fallback)
   const comboModels = await getComboModels(modelStr);

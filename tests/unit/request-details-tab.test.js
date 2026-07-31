@@ -253,6 +253,28 @@ describe("request details — tab crash-risk cases", () => {
 
     db.trackPendingRequest("gpt-system", "openai", null, false, false, key.key);
   });
+
+  it("activity outcome totals use the same usage rows as the System summary", async () => {
+    await saveDetail({
+      id: "detail-without-usage",
+      timestamp: new Date().toISOString(),
+      provider: "openai",
+      model: "detail-only-model",
+      status: "error",
+      tokens: {},
+      request: {},
+      response: {},
+    });
+
+    const [stats, overview] = await Promise.all([
+      db.getUsageStats("all", { forceHistory: true }),
+      db.getSystemUsageOverview("all"),
+    ]);
+    const classified = Object.values(stats.byStatus || {}).reduce((sum, value) => sum + value, 0);
+
+    expect(classified).toBe(stats.totalRequests);
+    expect(stats.totalRequests).toBe(overview.summary.requests);
+  });
 });
 
 // Mirror of RequestDetailsTab token helpers (component is "use client",

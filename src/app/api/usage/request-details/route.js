@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestDetails } from "@/lib/usageDb";
-import { getApiKeys } from "@/lib/localDb";
+import { getApiKeys, getUserById } from "@/lib/localDb";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
 /**
@@ -23,6 +23,7 @@ export async function GET(request) {
     const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const userId = searchParams.get("userId");
     
     if (page < 1) {
       return NextResponse.json(
@@ -50,7 +51,13 @@ export async function GET(request) {
     if (startDate) filter.startDate = startDate;
     if (endDate) filter.endDate = endDate;
 
-    const keys = await getApiKeys(owner.id);
+    if (userId && owner.role !== "admin") {
+      return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+    }
+    if (userId && !(await getUserById(userId))) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    const keys = await getApiKeys(userId || owner.id);
     filter.apiKeys = keys.map((key) => key.key);
     
     const result = await getRequestDetails(filter);

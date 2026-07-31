@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
+import SectionLabel from "@/shared/components/SectionLabel";
+import UsageOverTime from "@/app/(dashboard)/dashboard/usage/components/UsageOverTime";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -55,29 +57,53 @@ export default function SystemUsageTab({ period }) {
 
   const summary = data?.summary || {};
   const users = data?.users || [];
+  const totalTokens = (Number(summary.promptTokens) || 0) + (Number(summary.completionTokens) || 0);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <div className="tile-grid grid-cols-1 sm:grid-cols-3">
-        <StatTile
-          chip="info"
-          label="Active now"
-          value={formatNumber(summary.activeRequests)}
-          sub="Requests currently in flight"
-        />
-        <StatTile
-          chip="info"
-          label="Active users"
-          value={formatNumber(summary.activeUsers)}
-          sub="Identities with in-flight requests"
-        />
-        <StatTile
-          chip="requests"
-          label="Requests"
-          value={formatNumber(summary.requests)}
-          sub="System-wide in the selected period"
-        />
-      </div>
+      <section aria-label="System usage summary">
+        <SectionLabel className="mb-3">Usage summary</SectionLabel>
+        <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+          <StatTile
+            chip="requests"
+            label="Requests"
+            value={formatNumber(summary.requests)}
+            sub="Completed and failed requests in this period"
+          />
+          <StatTile
+            chip="tokens"
+            label="Total tokens"
+            value={formatNumber(totalTokens)}
+            sub="Input and output tokens combined"
+          />
+          <StatTile
+            chip="cost"
+            label="Estimated cost"
+            value={MONEY_FORMAT.format(Number(summary.cost) || 0)}
+            sub="Calculated from recorded model pricing"
+          />
+          <StatTile
+            chip="tokens"
+            label="Input tokens"
+            value={formatNumber(summary.promptTokens)}
+            sub="Prompt and context tokens sent upstream"
+          />
+          <StatTile
+            chip="info"
+            label="Output tokens"
+            value={formatNumber(summary.completionTokens)}
+            sub="Completion and reasoning tokens returned"
+          />
+          <StatTile
+            chip="info"
+            label="Active now"
+            value={formatNumber(summary.activeRequests)}
+            sub={`${formatNumber(summary.activeUsers)} active ${Number(summary.activeUsers) === 1 ? "identity" : "identities"}`}
+          />
+        </div>
+      </section>
+
+      <UsageOverTime period={period} scope="system" title="System usage over time" />
 
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
@@ -88,7 +114,7 @@ export default function SystemUsageTab({ period }) {
           <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{users.length} identities</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-xs">
+          <table className="w-full min-w-[1040px] text-left text-xs">
             <caption className="sr-only">System activity grouped by account for the selected period</caption>
             <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
               <tr>
@@ -96,8 +122,9 @@ export default function SystemUsageTab({ period }) {
                 <th scope="col" className="px-4 py-3 font-mono font-medium">API keys</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Active</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Input</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Output</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Input tokens</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Output tokens</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Total tokens</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Cost</th>
                 <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Last request</th>
               </tr>
@@ -121,12 +148,15 @@ export default function SystemUsageTab({ period }) {
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-main">{formatNumber(user.requests)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.promptTokens)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.completionTokens)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono font-medium tabular-nums text-text-main">
+                    {formatNumber((Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0))}
+                  </td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(user.cost) || 0)}</td>
                   <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-text-muted">{formatTime(user.lastRequest)}</td>
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-text-muted">No usage recorded for this period.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-sm text-text-muted">No usage recorded for this period.</td></tr>
               )}
             </tbody>
           </table>

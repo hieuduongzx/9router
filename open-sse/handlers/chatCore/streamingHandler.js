@@ -88,7 +88,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
   const transformedBody = pipeWithDisconnect(providerResponse, transformStream, streamController, onAbortTerminal, stallTimeoutMs);
 
   saveRequestDetail(buildRequestDetail({
-    provider, model, connectionId, apiKey,
+    provider, model, connectionId, apiKey, publicModel: clientRawRequest?.body?.model,
     latency: { ttft: 0, total: Date.now() - requestStartTime },
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
     request: extractRequestConfig(body, stream),
@@ -97,7 +97,10 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
     response: { content: "[Streaming in progress...]", thinking: null, type: "streaming" },
     pxpipe,
     status: "success"
-  }, { id: streamDetailId })).catch(err => {
+    // streamPlaceholder: this row only reserves the id while the stream runs. It is
+    // written after the pipe starts, so on a fast stream onStreamComplete can persist
+    // the real tokens first — the repo must never let this placeholder overwrite them.
+  }, { id: streamDetailId, streamPlaceholder: true })).catch(err => {
     console.error("[RequestDetail] Failed to save streaming request:", err.message);
   });
 
@@ -113,16 +116,19 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
 export function buildOnStreamComplete({ provider, model, connectionId, apiKey, requestStartTime, body, stream, finalBody, translatedBody, clientRawRequest, pxpipe, reqTag, log }) {
   const streamDetailId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-  const onStreamComplete = (contentObj, usage, ttftAt) => {
+  const onStreamComplete = (contentObj, usage, ttftAt, meta = {}) => {
     const latency = {
       ttft: ttftAt ? ttftAt - requestStartTime : Date.now() - requestStartTime,
       total: Date.now() - requestStartTime
     };
-    const safeContent = contentObj?.content || "[Empty streaming response]";
+    // An aborted stream still consumed upstream tokens, so it is recorded like any
+    // other completion — only the content marker says the client hung up.
+    const abortedNote = meta.aborted ? "[Stream aborted by client]" : "[Empty streaming response]";
+    const safeContent = contentObj?.content || abortedNote;
     const safeThinking = contentObj?.thinking || null;
 
     saveRequestDetail(buildRequestDetail({
-      provider, model, connectionId, apiKey,
+      provider, model, connectionId, apiKey, publicModel: clientRawRequest?.body?.model,
       latency,
       tokens: usage || { prompt_tokens: 0, completion_tokens: 0 },
       request: extractRequestConfig(body, stream),
@@ -136,8 +142,8 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
     });
 
     // Persist stream usage to DB (no console line; the "📊 done" line below is authoritative)
-    saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, label: "STREAM USAGE", silent: true });
-    if (log?.line) log.line(reqTag, "📊", formatDoneLine({ usage, latency }));
+    saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, publicModel: clientRawRequest?.body?.model, label: "STREAM USAGE", silent: true });
+    if (log?.line) log.line(reqTag, meta.aborted ? "⚡" : "📊", `${formatDoneLine({ usage, latency })}${meta.aborted ? " · ABORTED" : ""}`);
   };
 
   return { onStreamComplete, streamDetailId };

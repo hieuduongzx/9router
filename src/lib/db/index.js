@@ -53,6 +53,17 @@ export {
   createCombo, updateCombo, deleteCombo,
 } from "./repos/combosRepo.js";
 
+// Models explicitly published from dashboard/models
+export {
+  getPublishedModels, addPublishedModel, deletePublishedModel,
+} from "./repos/publishedModelsRepo.js";
+
+// Virtual model providers used for public catalog ownership
+export {
+  getModelProviders, getModelProviderByName,
+  createModelProvider, updateModelProvider, deleteModelProvider,
+} from "./repos/modelProvidersRepo.js";
+
 // Aliases (model + custom + mitm)
 export {
   getModelAliases, setModelAlias, deleteModelAlias,
@@ -75,6 +86,7 @@ export {
 export {
   statsEmitter, trackPendingRequest, getActiveRequests,
   saveRequestUsage, getUsageHistory, getUsageStats, getSystemUsageOverview, getChartData,
+  getUsageByOwner,
   appendRequestLog, getRecentLogs, getRequestLogsPage,
 } from "./repos/usageRepo.js";
 
@@ -94,15 +106,19 @@ export async function exportDb() {
     providerNodes: db.all(`SELECT * FROM providerNodes`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, type: r.type, name: r.name, createdAt: r.createdAt, updatedAt: r.updatedAt })),
     proxyPools: db.all(`SELECT * FROM proxyPools`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, isActive: r.isActive === 1, testStatus: r.testStatus, createdAt: r.createdAt, updatedAt: r.updatedAt })),
     apiKeys: db.all(`SELECT * FROM apiKeys`).map((r) => ({ id: r.id, key: r.key, name: r.name, machineId: r.machineId, isActive: r.isActive === 1, createdAt: r.createdAt })),
-    combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
+    combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, modelProvider: r.modelProvider, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
     modelAliases: {},
     customModels: [],
+    publishedModels: [],
+    modelProviders: [],
     mitmAlias: {},
     pricing: {},
   };
 
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelAliases'`)) out.modelAliases[r.key] = parseJson(r.value);
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'customModels'`)) out.customModels.push(parseJson(r.value));
+  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'publishedModels'`)) out.publishedModels.push({ comboId: r.key, ...parseJson(r.value, {}) });
+  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelProviders' AND key != '__initialized__'`)) out.modelProviders.push({ id: r.key, ...parseJson(r.value, {}) });
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'mitmAlias'`)) out.mitmAlias[r.key] = parseJson(r.value);
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'pricing'`)) out.pricing[r.key] = parseJson(r.value);
 
@@ -123,7 +139,7 @@ export async function importDb(payload) {
     db.run(`DELETE FROM proxyPools`);
     db.run(`DELETE FROM apiKeys`);
     db.run(`DELETE FROM combos`);
-    db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'mitmAlias', 'pricing')`);
+    db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'publishedModels', 'modelProviders', 'mitmAlias', 'pricing')`);
 
     // Settings
     if (payload.settings) {
@@ -159,8 +175,8 @@ export async function importDb(payload) {
     }
     for (const c of payload.combos || []) {
       db.run(
-        `INSERT OR REPLACE INTO combos(id, name, kind, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [c.id, c.name, c.kind || null, stringifyJson(c.models || []), c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
+        `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        [c.id, c.name, c.kind || null, c.modelProvider || null, stringifyJson(c.models || []), c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
       );
     }
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
@@ -169,6 +185,19 @@ export async function importDb(payload) {
     for (const m of payload.customModels || []) {
       const k = `${m.providerAlias}|${m.id}|${m.type || "llm"}`;
       db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('customModels', ?, ?)`, [k, stringifyJson(m)]);
+    }
+    for (const model of payload.publishedModels || []) {
+      if (!model?.comboId) continue;
+      const { comboId, ...value } = model;
+      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('publishedModels', ?, ?)`, [comboId, stringifyJson(value)]);
+    }
+    if (Array.isArray(payload.modelProviders)) {
+      for (const provider of payload.modelProviders) {
+        if (!provider?.id || !provider?.name) continue;
+        const { id, ...value } = provider;
+        db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('modelProviders', ?, ?)`, [id, stringifyJson(value)]);
+      }
+      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('modelProviders', '__initialized__', ?)`, [stringifyJson(true)]);
     }
     for (const [tool, mappings] of Object.entries(payload.mitmAlias || {})) {
       db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('mitmAlias', ?, ?)`, [tool, stringifyJson(mappings || {})]);

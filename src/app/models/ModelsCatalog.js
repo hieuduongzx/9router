@@ -54,7 +54,7 @@ export default function ModelsCatalog() {
               Models and pricing, in one place.
             </h1>
             <p className="mt-4 max-w-2xl text-pretty text-base leading-7 text-zinc-600 md:text-lg">
-              Search every model currently available through Router2k and compare per-million-token input and output pricing without signing in.
+              Browse the routed models published by the administrator and compare per-million-token input and output pricing without signing in.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-zinc-600">
@@ -103,7 +103,7 @@ export default function ModelsCatalog() {
             <div className="px-5 py-14 text-center">
               <p className="font-mono text-base font-semibold text-zinc-950">{query ? "No matching models" : "No models published yet"}</p>
               <p className="mt-2 text-sm text-zinc-500">
-                {query ? "Try another model name." : "Connect providers in the dashboard to populate this catalog."}
+                {query ? "Try another model name." : "An administrator can publish routed models from Dashboard / Models."}
               </p>
             </div>
           )}

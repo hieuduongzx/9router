@@ -49,6 +49,7 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
   const [checkModelId, setCheckModelId] = useState("");
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
+  const [submitError, setSubmitError] = useState("");
 
   // openai: reset baseUrl when apiType changes; anthropic: reset checks when opened
   useEffect(() => {
@@ -58,11 +59,13 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
       setValidationResult(null);
       setCheckKey("");
       setCheckModelId("");
+      setSubmitError("");
     }
   }, [config.hasApiType ? formData.apiType : isOpen]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim()) return;
+    setSubmitError("");
     setSubmitting(true);
     try {
       const res = await fetch("/api/provider-nodes", {
@@ -74,17 +77,23 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
           ...(config.hasApiType ? { apiType: formData.apiType } : {}),
           baseUrl: formData.baseUrl,
           type: config.type,
+          apiKey: checkKey.trim() || undefined,
+          testStatus: validationResult?.valid ? "active" : "unknown",
         }),
       });
       const data = await res.json();
-      if (res.ok) {
-        onCreated(data.node);
-        setFormData(initialFormData());
-        setCheckKey("");
-        setValidationResult(null);
+      if (!res.ok) {
+        setSubmitError(data.error || `Failed to create ${config.errorLabel} provider`);
+        return;
       }
+      onCreated(data.node, data.connection || null);
+      setFormData(initialFormData());
+      setCheckKey("");
+      setCheckModelId("");
+      setValidationResult(null);
     } catch (error) {
       console.log(`Error creating ${config.errorLabel} node:`, error);
+      setSubmitError(error?.message || `Failed to create ${config.errorLabel} provider`);
     } finally {
       setSubmitting(false);
     }
@@ -166,10 +175,11 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
           hint={config.baseUrlHint}
         />
         <Input
-          label="API Key (for Check)"
+          label="API Key"
           type="password"
           value={checkKey}
           onChange={(e) => setCheckKey(e.target.value)}
+          hint="Optional. Used for validation and saved to this provider's key pool when created."
         />
         <Input
           label="Model ID (optional)"
@@ -188,6 +198,7 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
             {validating ? "Checking..." : "Check"}
           </Button>
           {renderValidationResult()}
+          {submitError && <p role="alert" className="text-sm text-danger">{submitError}</p>}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button

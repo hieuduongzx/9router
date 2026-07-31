@@ -8,6 +8,7 @@ function rowToCombo(row) {
     id: row.id,
     name: row.name,
     kind: row.kind,
+    modelProvider: row.modelProvider || null,
     models: parseJson(row.models, []),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -39,13 +40,14 @@ export async function createCombo(data) {
     id: uuidv4(),
     name: data.name,
     kind: data.kind || null,
+    modelProvider: data.modelProvider || null,
     models: data.models || [],
     createdAt: now,
     updatedAt: now,
   };
   db.run(
-    `INSERT INTO combos(id, name, kind, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?)`,
-    [combo.id, combo.name, combo.kind, stringifyJson(combo.models), combo.createdAt, combo.updatedAt]
+    `INSERT INTO combos(id, name, kind, modelProvider, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+    [combo.id, combo.name, combo.kind, combo.modelProvider, stringifyJson(combo.models), combo.createdAt, combo.updatedAt]
   );
   return combo;
 }
@@ -58,8 +60,8 @@ export async function updateCombo(id, data) {
     if (!row) return;
     const merged = { ...rowToCombo(row), ...data, updatedAt: new Date().toISOString() };
     db.run(
-      `UPDATE combos SET name = ?, kind = ?, models = ?, updatedAt = ? WHERE id = ?`,
-      [merged.name, merged.kind, stringifyJson(merged.models || []), merged.updatedAt, id]
+      `UPDATE combos SET name = ?, kind = ?, modelProvider = ?, models = ?, updatedAt = ? WHERE id = ?`,
+      [merged.name, merged.kind, merged.modelProvider || null, stringifyJson(merged.models || []), merged.updatedAt, id]
     );
     result = merged;
   });
@@ -68,6 +70,7 @@ export async function updateCombo(id, data) {
 
 export async function deleteCombo(id) {
   const db = await getAdapter();
+  db.run(`DELETE FROM kv WHERE scope = 'publishedModels' AND key = ?`, [id]);
   const res = db.run(`DELETE FROM combos WHERE id = ?`, [id]);
   return (res?.changes ?? 0) > 0;
 }

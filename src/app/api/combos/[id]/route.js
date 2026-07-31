@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
+import { getComboById, updateCombo, deleteCombo, getComboByName, getModelProviderByName } from "@/lib/localDb";
 import { resetComboRotation } from "open-sse/services/combo.js";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
+const normalizeModelProvider = (value) => (
+  typeof value === "string" ? value.trim() : ""
+);
 
 // GET /api/combos/[id] - Get combo by ID
 export async function GET(request, { params }) {
@@ -38,6 +41,16 @@ export async function PUT(request, { params }) {
       const existing = await getComboByName(body.name);
       if (existing && existing.id !== id) {
         return NextResponse.json({ error: "Combo name already exists" }, { status: 400 });
+      }
+    }
+
+    if (Object.hasOwn(body, "modelProvider")) {
+      body.modelProvider = normalizeModelProvider(body.modelProvider);
+      if (body.modelProvider.length > 80) {
+        return NextResponse.json({ error: "Model provider must be 80 characters or fewer" }, { status: 400 });
+      }
+      if (body.modelProvider && !(await getModelProviderByName(body.modelProvider))) {
+        return NextResponse.json({ error: "Model provider does not exist" }, { status: 400 });
       }
     }
     

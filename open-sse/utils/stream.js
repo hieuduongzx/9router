@@ -72,6 +72,23 @@ export function createSSEStream(options = {}) {
   let openAIResponsesTerminalSeen = false;
   let openAIResponsesDoneSent = false;
   let streamDoneSent = false;  // track duplicate [DONE] across transform + flush
+  let completionEmitted = false;
+
+  /**
+   * Report the stream's usage exactly once. `flush()` covers a normal end; `cancel()`
+   * covers a client disconnect, where flush never runs — without it an aborted stream
+   * records no tokens at all, so its cost silently becomes $0.
+   */
+  const emitComplete = (usageValue, meta = {}) => {
+    if (completionEmitted) return;
+    completionEmitted = true;
+    if (onStreamComplete) {
+      onStreamComplete({
+        content: accumulatedContent,
+        thinking: accumulatedThinking
+      }, usageValue, ttftAt, meta);
+    }
+  };
 
   return new TransformStream({
     transform(chunk, controller) {
@@ -374,12 +391,7 @@ export function createSSEStream(options = {}) {
             controller.enqueue(sharedEncoder.encode(doneOutput));
           }
 
-          if (onStreamComplete) {
-            onStreamComplete({
-              content: accumulatedContent,
-              thinking: accumulatedThinking
-            }, usage, ttftAt);
-          }
+          emitComplete(usage);
           return;
         }
 
@@ -451,14 +463,34 @@ export function createSSEStream(options = {}) {
           appendRequestLog({ model, provider, connectionId, tokens: null, status: "200 OK" }).catch(() => { });
         }
         
-        if (onStreamComplete) {
-          onStreamComplete({
-            content: accumulatedContent,
-            thinking: accumulatedThinking
-          }, state?.usage, ttftAt);
-        }
+        emitComplete(state?.usage);
       } catch (error) {
         console.log("Error in flush:", error);
+      }
+    },
+
+    /**
+     * Client disconnected (or downstream cancelled) before the stream ended.
+     * `flush()` never runs on this path, so finalize here: release the pending
+     * counter, fall back to estimated usage, and report what was consumed.
+     */
+    cancel(reason) {
+      if (completionEmitted) return;
+      dbg("SSE", `cancel | provider=${provider} | model=${model} | reason=${reason?.message || reason} | recvLines=${sseLineCount}`);
+      trackPendingRequest(model, provider, connectionId, false, false, apiKey);
+      try {
+        let finalUsage = mode === STREAM_MODE.PASSTHROUGH ? usage : state?.usage;
+        if (!hasValidUsage(finalUsage) && totalContentLength > 0) {
+          finalUsage = estimateUsage(body, totalContentLength, mode === STREAM_MODE.PASSTHROUGH ? FORMATS.OPENAI : sourceFormat);
+        }
+        if (hasValidUsage(finalUsage)) {
+          logUsage(provider || targetFormat, finalUsage, model, connectionId, apiKey);
+        } else {
+          appendRequestLog({ model, provider, connectionId, tokens: null, status: "499 CLIENT CLOSED" }).catch(() => { });
+        }
+        emitComplete(finalUsage, { aborted: true, abortedAfterMs: ttftAt ? Date.now() - ttftAt : null });
+      } catch (error) {
+        console.log("Error in cancel:", error);
       }
     }
   });

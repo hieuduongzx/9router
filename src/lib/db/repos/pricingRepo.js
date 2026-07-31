@@ -48,8 +48,38 @@ export async function getPricing() {
   return merged;
 }
 
-export async function getPricingForModel(provider, model) {
+/**
+ * Custom price an administrator set for a published route in Dashboard / Models.
+ * That UI keys prices by `{virtualProvider, routeName}` while billing only knows
+ * the upstream `{connectionId, upstreamModel}`, so the route price has to be
+ * looked up from the public model name the client actually requested.
+ * @param {string} publicModel model id the client asked for (a route name)
+ */
+export async function getRoutePricing(publicModel) {
+  const routeName = String(publicModel || "").trim();
+  if (!routeName || routeName.includes("/")) return null;
+  const { getComboByName } = await import("./combosRepo.js");
+  const combo = await getComboByName(routeName);
+  const owner = String(combo?.modelProvider || "").trim();
+  if (!owner) return null;
+  const userPricing = await getUserPricing();
+  return userPricing[owner.toLowerCase()]?.[routeName] || userPricing[owner]?.[routeName] || null;
+}
+
+/**
+ * @param {string} provider upstream provider id
+ * @param {string} model upstream model id
+ * @param {string} [publicModel] route name the client requested, when it came through one
+ */
+export async function getPricingForModel(provider, model, publicModel = null) {
   if (!model) return null;
+  // A route's own price wins over the upstream's — it is what the operator publishes.
+  // Note the route name often equals the upstream model name (route `claude-opus-5`
+  // → `a6api/claude-opus-5`), so equality must not short-circuit the lookup.
+  if (publicModel) {
+    const routePricing = await getRoutePricing(publicModel);
+    if (routePricing) return routePricing;
+  }
   const [entry] = await getModelPricingCatalog([{ provider, model }]);
   return entry?.pricing || null;
 }

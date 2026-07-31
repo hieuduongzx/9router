@@ -35,7 +35,7 @@ const PERSONAL_NAV = [
 const ADMIN_NAV = [
   { href: "/dashboard/activity", label: "Activity", icon: "monitoring" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
-  { href: "/dashboard/combos", label: "Combos", icon: "layers" },
+  { href: "/dashboard/combos", label: "Model Routes", icon: "alt_route" },
   { href: "/dashboard/quota", label: "Quota", icon: "data_usage" },
   { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
   { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },

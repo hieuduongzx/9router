@@ -24,6 +24,9 @@ export default function ProfilePage() {
   const [locale, setLocale] = useState("en");
   const [langOpen, setLangOpen] = useState(false);
   const [shutdownOpen, setShutdownOpen] = useState(false);
+  const [debugPeriod, setDebugPeriod] = useState("24h");
+  const [debugBusy, setDebugBusy] = useState(false);
+  const [debugError, setDebugError] = useState("");
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [settings, setSettings] = useState({ fallbackStrategy: "fill-first" });
   const [loading, setLoading] = useState(true);
@@ -260,6 +263,21 @@ export default function ProfilePage() {
     }
   };
 
+  const updateRestrictToPublishedModels = async (enabled) => {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restrictToPublishedModels: enabled }),
+      });
+      if (res.ok) {
+        setSettings(prev => ({ ...prev, restrictToPublishedModels: enabled }));
+      }
+    } catch (err) {
+      console.error("Failed to update published-model restriction:", err);
+    }
+  };
+
   const updateStickyLimit = async (limit) => {
     const numLimit = parseInt(limit);
     if (isNaN(numLimit) || numLimit < 1) return;
@@ -479,6 +497,35 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error("Failed to update enableObservability:", err);
+    }
+  };
+
+  // Pull the diagnostic snapshot as a file the user can attach to a bug report.
+  const downloadDebugBundle = async () => {
+    setDebugBusy(true);
+    setDebugError("");
+    let objectUrl = "";
+    try {
+      const res = await fetch(`/api/debug/bundle?period=${debugPeriod}`, { cache: "no-store" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Unable to build debug bundle");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const nameMatch = disposition.match(/filename="([^"]+)"/);
+      objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = nameMatch?.[1] || "9router-debug.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setDebugError(err.message || "Unable to build debug bundle");
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setDebugBusy(false);
     }
   };
 
@@ -967,6 +1014,20 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
+                <p className="font-mono font-medium text-sm sm:text-base">Published Models Only</p>
+                <p className="text-xs sm:text-sm text-text-muted">
+                  Reject /v1 requests for any model that is not enabled in Model Routes
+                </p>
+              </div>
+              <Toggle
+                checked={settings.restrictToPublishedModels !== false}
+                onChange={(next) => updateRestrictToPublishedModels(next)}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
+              <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Round Robin</p>
                 <p className="text-xs sm:text-sm text-text-muted">
                   Cycle through accounts to distribute load
@@ -1139,6 +1200,55 @@ export default function ProfilePage() {
               onChange={updateObservabilityEnabled}
               disabled={loading}
             />
+          </div>
+        </Card>
+
+        {/* Diagnostics */}
+        <Card>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
+              <span className="material-symbols-outlined text-[20px]">bug_report</span>
+            </div>
+            <h3 className="font-mono text-base sm:text-lg font-semibold">Diagnostics</h3>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="font-mono font-medium text-sm sm:text-base">Debug bundle</p>
+                <p className="text-xs sm:text-sm text-text-muted">
+                  One JSON file with environment, routes, recent request logs and details, and a usage rollup — for attaching to a bug report.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <select
+                  value={debugPeriod}
+                  onChange={(event) => setDebugPeriod(event.target.value)}
+                  aria-label="Debug bundle time range"
+                  className="h-9 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main focus-visible:border-primary focus-visible:outline-none"
+                >
+                  <option value="24h">Last 24h</option>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="all">All time</option>
+                </select>
+                <Button
+                  variant="outline"
+                  icon="download"
+                  loading={debugBusy}
+                  onClick={downloadDebugBundle}
+                >
+                  Download
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-text-muted italic pt-2 border-t border-border/50">
+              API keys, OAuth tokens, password hashes, and client secrets are replaced with
+              <span className="font-mono"> [redacted] </span>
+              before the file is written. Prompt and response payloads are included — review the file if your prompts are sensitive.
+            </p>
+            {debugError && (
+              <p role="alert" className="text-xs text-red-500">{debugError}</p>
+            )}
           </div>
         </Card>
 

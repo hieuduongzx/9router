@@ -195,16 +195,67 @@ describe("DB SQLite layer — public API parity", () => {
     await sqliteDb.deleteProxyPool(p2.id);
   });
 
-  it("combos: CRUD", async () => {
-    const c = await sqliteDb.createCombo({ name: "combo1", models: ["m1", "m2"], kind: "fallback" });
+  it("combos: CRUD and published-model lifecycle", async () => {
+    const c = await sqliteDb.createCombo({
+      name: "combo1",
+      models: ["m1", "m2"],
+      kind: "llm",
+      modelProvider: "Anthropic",
+    });
     expect(c.id).toBeDefined();
     expect(c.models).toEqual(["m1", "m2"]);
+    expect(c.modelProvider).toBe("Anthropic");
     const byName = await sqliteDb.getComboByName("combo1");
     expect(byName.id).toBe(c.id);
-    await sqliteDb.updateCombo(c.id, { models: ["m3"] });
+    await sqliteDb.updateCombo(c.id, { models: ["m3"], modelProvider: "OpenAI" });
     const updated = await sqliteDb.getComboById(c.id);
     expect(updated.models).toEqual(["m3"]);
+    expect(updated.modelProvider).toBe("OpenAI");
+    expect(await sqliteDb.addPublishedModel(c.id)).toBe(true);
+    expect(await sqliteDb.addPublishedModel(c.id)).toBe(false);
+    expect(await sqliteDb.getPublishedModels()).toEqual([
+      expect.objectContaining({ comboId: c.id }),
+    ]);
     expect(await sqliteDb.deleteCombo(c.id)).toBe(true);
+    expect(await sqliteDb.getPublishedModels()).toEqual([]);
+  });
+
+  it("virtual model providers: create, rename, protect in-use, and delete", async () => {
+    const provider = await sqliteDb.createModelProvider({
+      name: "Test Provider",
+      iconKey: "openai",
+    });
+    expect(provider).toEqual(expect.objectContaining({
+      name: "Test Provider",
+      iconKey: "openai",
+    }));
+    expect(await sqliteDb.createModelProvider({
+      name: "test provider",
+      iconKey: "anthropic",
+    })).toBeNull();
+
+    const combo = await sqliteDb.createCombo({
+      name: "provider-route",
+      models: ["cx/test-model"],
+      kind: "llm",
+      modelProvider: provider.name,
+    });
+    const renamed = await sqliteDb.updateModelProvider(provider.id, {
+      name: "Renamed Provider",
+      iconKey: "google",
+    });
+    expect(renamed.name).toBe("Renamed Provider");
+    expect((await sqliteDb.getComboById(combo.id)).modelProvider).toBe("Renamed Provider");
+    expect(await sqliteDb.deleteModelProvider(provider.id)).toEqual({
+      deleted: false,
+      usageCount: 1,
+    });
+
+    await sqliteDb.deleteCombo(combo.id);
+    expect(await sqliteDb.deleteModelProvider(provider.id)).toEqual({
+      deleted: true,
+      usageCount: 0,
+    });
   });
 
   it("modelAliases: KV ops", async () => {

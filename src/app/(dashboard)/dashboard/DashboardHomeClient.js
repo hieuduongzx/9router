@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -17,24 +15,17 @@ import {
   YAxis,
 } from "recharts";
 import Card from "@/shared/components/Card";
+import PeriodDropdown from "@/shared/components/PeriodDropdown";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 import EndpointPageClient from "./endpoint/EndpointPageClient";
 
-const PERIODS = [
-  { value: "today", label: "Today" },
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" },
-  { value: "60d", label: "60 days" },
-  { value: "all", label: "All" },
-];
-
 const STATUS_META = {
-  success: { label: "Successful", color: "#2F9E8F" },
-  error: { label: "Failed", color: "#D15B4D" },
-  rate_limited: { label: "Rate limited", color: "#D99A32" },
-  other: { label: "Other", color: "#8B6BB1" },
+  success: { label: "Successful", color: "#16A34A" },
+  error: { label: "Failed", color: "#DC2626" },
+  rate_limited: { label: "Rate limited", color: "#F59E0B" },
+  other: { label: "Other", color: "#2563EB" },
 };
-const MODEL_COLORS = ["#E56A4A", "#4F7CAC", "#2F9E8F", "#D99A32", "#8B6BB1"];
+const MODEL_COLORS = ["#7C3AED", "#16A34A", "#F59E0B", "#2563EB", "#DC2626"];
 
 const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
@@ -230,23 +221,7 @@ export default function DashboardHomeClient() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex max-w-full overflow-x-auto border border-border bg-surface p-1" aria-label="Dashboard period">
-            {PERIODS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setPeriod(item.value)}
-                aria-pressed={period === item.value}
-                className={`shrink-0 rounded-sm px-2.5 py-1.5 font-mono text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 ${
-                  period === item.value
-                    ? "bg-primary text-[hsl(var(--primary-foreground))]"
-                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <PeriodDropdown value={period} onChange={setPeriod} />
           <button
             type="button"
             onClick={handleRefresh}
@@ -308,42 +283,41 @@ export default function DashboardHomeClient() {
               Full usage
             </Link>
           </div>
-          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Token traffic area chart">
+          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Input and output token traffic stacked bar chart">
             {chartHasData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="homeTokenFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#E56A4A" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#E56A4A" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }} barCategoryGap="24%">
                   <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickMargin={10} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickFormatter={formatNumber} width={54} />
                   <Tooltip
-                    cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+                    cursor={{ fill: "var(--color-surface-2)", opacity: 0.7 }}
                     contentStyle={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
                       borderRadius: 0,
-                      boxShadow: "var(--shadow-elevated)",
                       color: "var(--color-text-main)",
                       fontSize: 12,
                     }}
-                    formatter={(value) => [formatNumber(value), "Tokens"]}
+                    formatter={(value, name) => [formatNumber(value), name]}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="tokens"
-                    stroke="#E56A4A"
-                    strokeWidth={2.5}
-                    fill="url(#homeTokenFill)"
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, fill: "#E56A4A", stroke: "var(--color-surface)" }}
+                  <Bar
+                    dataKey="promptTokens"
+                    name="Input tokens"
+                    stackId="tokens"
+                    fill="#7C3AED"
+                    maxBarSize={32}
                     isAnimationActive={false}
                   />
-                </AreaChart>
+                  <Bar
+                    dataKey="completionTokens"
+                    name="Output tokens"
+                    stackId="tokens"
+                    fill="#2563EB"
+                    maxBarSize={32}
+                    isAnimationActive={false}
+                  />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full flex-col items-center justify-center text-center">
@@ -365,42 +339,31 @@ export default function DashboardHomeClient() {
               {formatCurrency(stats?.totalCost)}
             </span>
           </div>
-          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Estimated spend area chart">
+          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Estimated spend bar chart">
             {costHasData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="homeCostFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#D99A32" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#D99A32" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }} barCategoryGap="24%">
                   <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickMargin={10} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickFormatter={formatCurrency} width={60} />
                   <Tooltip
-                    cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+                    cursor={{ fill: "var(--color-surface-2)", opacity: 0.7 }}
                     contentStyle={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
                       borderRadius: 0,
-                      boxShadow: "var(--shadow-elevated)",
                       color: "var(--color-text-main)",
                       fontSize: 12,
                     }}
                     formatter={(value) => [formatCurrency(value), "Estimated cost"]}
                   />
-                  <Area
-                    type="monotone"
+                  <Bar
                     dataKey="cost"
-                    stroke="#D99A32"
-                    strokeWidth={2.5}
-                    fill="url(#homeCostFill)"
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, fill: "#D99A32", stroke: "var(--color-surface)" }}
+                    fill="#16A34A"
+                    maxBarSize={32}
                     isAnimationActive={false}
                   />
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
@@ -717,4 +680,3 @@ export default function DashboardHomeClient() {
     </div>
   );
 }
-

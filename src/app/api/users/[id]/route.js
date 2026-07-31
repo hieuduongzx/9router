@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import {
   adjustUserCredit,
   deleteUserAccount,
+  getUserById,
   setUserCreditBalance,
   updateUserAccess,
-} from "@/lib/localDb";
+  updateUserProfile,
+} from "@/lib/db/index.js";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
 async function requireAdmin(request) {
@@ -35,21 +37,33 @@ export async function PATCH(request, { params }) {
     if (hasCreditBalance && !Number.isSafeInteger(body.creditBalanceCents)) {
       return NextResponse.json({ error: "creditBalanceCents must be a whole number" }, { status: 400 });
     }
+    const hasProfile = body.username !== undefined || body.email !== undefined;
     if (hasCreditAdjustment && hasCreditBalance) {
       return NextResponse.json({ error: "Choose either a credit adjustment or an exact balance" }, { status: 400 });
     }
     if ((hasCreditAdjustment || hasCreditBalance) && Object.keys(update).length > 0) {
       return NextResponse.json({ error: "Credit and access changes must be submitted separately" }, { status: 400 });
     }
+    if (hasProfile && (hasCreditAdjustment || hasCreditBalance || Object.keys(update).length > 0)) {
+      return NextResponse.json({ error: "Identity changes must be submitted separately" }, { status: 400 });
+    }
     if (id === admin.id && (update.role === "user" || update.isActive === false)) {
       return NextResponse.json({ error: "You cannot change your own administrator access." }, { status: 400 });
     }
-    if (Object.keys(update).length === 0 && !hasCreditAdjustment && !hasCreditBalance) {
+    if (!hasProfile && Object.keys(update).length === 0 && !hasCreditAdjustment && !hasCreditBalance) {
       return NextResponse.json({ error: "No supported changes provided" }, { status: 400 });
     }
 
     let user;
-    if (hasCreditBalance) {
+    if (hasProfile) {
+      // Either field may be omitted — keep the stored value for the untouched one.
+      const current = await getUserById(id);
+      if (!current) return NextResponse.json({ error: "User not found" }, { status: 404 });
+      user = await updateUserProfile(id, {
+        username: body.username === undefined ? current.username : body.username,
+        email: body.email === undefined ? current.email : body.email,
+      });
+    } else if (hasCreditBalance) {
       user = await setUserCreditBalance(id, body.creditBalanceCents, {
         actorUserId: admin.id,
         source: "admin_dashboard",

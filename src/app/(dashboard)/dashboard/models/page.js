@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Input, Select, SegmentedControl, Toggle, Tooltip, Badge } from "@/shared/components";
+import { Button, Card, Input, Select, SegmentedControl, Toggle, Tooltip, Modal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import LobeProviderIcon from "@/shared/components/LobeProviderIcon";
 
 const CAPABILITIES = [
   ["reasoning", "Reasoning", "psychology"],
@@ -68,7 +69,6 @@ function getModelPricingTarget(model) {
 }
 
 function isFreePricing(pricing) {
-  // No price table / empty object ⇒ gateway bills $0 today. Show Free instead of dashes.
   if (pricing == null || typeof pricing !== "object") return pricing == null;
   const hasAnyRate = PRICING_FIELDS.some(([field]) => {
     const value = pricing[field];
@@ -106,32 +106,214 @@ function parseDraft(draft, { basePricing = {}, free = false } = {}) {
   for (const [field, label] of PRICING_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(draft || {}, field)) continue;
     const raw = String(draft[field] ?? "").trim();
-    if (raw === "") {
-      // Keep base value when the field is left blank.
-      continue;
-    }
+    if (raw === "") continue;
     const value = Number(raw);
     if (!Number.isFinite(value) || value < 0) {
       throw new Error(`${label} must be a non-negative number.`);
     }
     pricing[field] = value;
   }
-  // Ensure required visible rates exist after edit.
   for (const field of INLINE_FIELDS) {
     if (!Number.isFinite(Number(pricing[field]))) pricing[field] = 0;
   }
-  // Optional fields default to 0 when absent so API validation always gets numbers.
   for (const [field] of PRICING_FIELDS) {
     if (!Number.isFinite(Number(pricing[field]))) pricing[field] = 0;
   }
   return pricing;
 }
 
+// ── AddModelModal ─────────────────────────────────────────────────
+
+function AddModelModal({ isOpen, onClose, addedIds, onAddModel }) {
+  const [availableCombos, setAvailableCombos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [addingId, setAddingId] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery("");
+      setError("");
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    fetch("/api/combos", { cache: "no-store", signal: controller.signal })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Failed to load combos");
+        setAvailableCombos(
+          (Array.isArray(data.combos) ? data.combos : [])
+            .filter((combo) => !combo.kind || combo.kind === "llm"),
+        );
+      })
+      .catch((reason) => {
+        if (reason?.name !== "AbortError") {
+          setError(reason.message || "Failed to load combos");
+        }
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, [isOpen]);
+
+  const groupedCombos = useMemo(() => {
+    const groups = new Map();
+    const needle = searchQuery.trim().toLowerCase();
+
+    for (const combo of availableCombos) {
+      if (addedIds.has(combo.id)) continue;
+      const provider = String(combo.modelProvider || "").trim();
+      const matchesSearch = !needle
+        || combo.name.toLowerCase().includes(needle)
+        || provider.toLowerCase().includes(needle);
+      if (!matchesSearch) continue;
+
+      const groupName = provider || "Needs provider";
+      if (!groups.has(groupName)) groups.set(groupName, []);
+      groups.get(groupName).push(combo);
+    }
+
+    return [...groups.entries()]
+      .map(([provider, combos]) => ({
+        provider,
+        combos: combos.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => {
+        if (a.provider === "Needs provider") return 1;
+        if (b.provider === "Needs provider") return -1;
+        return a.provider.localeCompare(b.provider);
+      });
+  }, [availableCombos, addedIds, searchQuery]);
+
+  const totalAvailable = useMemo(
+    () => groupedCombos.reduce((sum, group) => sum + group.combos.length, 0),
+    [groupedCombos],
+  );
+
+  const handleAdd = async (combo) => {
+    if (addingId) return;
+    if (!combo.modelProvider || !Array.isArray(combo.models) || combo.models.length === 0) {
+      setError("Edit this combo and set its provider and routed models before publishing.");
+      return;
+    }
+
+    setAddingId(combo.id);
+    setError("");
+    try {
+      const response = await fetch("/api/models/published", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comboId: combo.id }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Failed to publish model");
+      onAddModel(combo);
+    } catch (reason) {
+      setError(reason.message || "Failed to publish model");
+    } finally {
+      setAddingId("");
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Model"
+      size="md"
+      className="p-4!"
+      footer={null}
+    >
+      <p className="mb-3 text-xs leading-5 text-text-muted">
+        Publish a routed model from Model Routes. Its route name becomes the API model ID.
+      </p>
+      <div className="relative mb-3">
+        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">
+          search
+        </span>
+        <input
+          type="text"
+          placeholder="Search combo or provider..."
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          className="w-full rounded-sm border border-border bg-surface py-1.5 pl-8 pr-3 font-mono text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          autoFocus
+        />
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-3 border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="h-48 animate-pulse border border-border bg-surface-2" />
+      )}
+
+      {!loading && (
+        <div className="max-h-[400px] space-y-4 overflow-y-auto">
+          {groupedCombos.map((group) => (
+            <section key={group.provider}>
+              <div className="sticky top-0 mb-1.5 flex items-center gap-1.5 bg-surface py-0.5">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-main">
+                  {group.provider}
+                </span>
+                <span className="font-mono text-[10px] text-text-muted">[{group.combos.length}]</span>
+              </div>
+              <div className="divide-y divide-border border border-border">
+                {group.combos.map((combo) => {
+                  const memberCount = Array.isArray(combo.models) ? combo.models.length : 0;
+                  const ready = Boolean(combo.modelProvider) && memberCount > 0;
+                  return (
+                    <button
+                      key={combo.id}
+                      type="button"
+                      disabled={Boolean(addingId) || !ready}
+                      onClick={() => handleAdd(combo)}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="min-w-0">
+                        <code className="block truncate font-mono text-xs font-semibold text-text-main">
+                          {combo.name}
+                        </code>
+                        <span className="mt-0.5 block text-[11px] text-text-muted">
+                          {ready ? `${memberCount} routed model${memberCount === 1 ? "" : "s"}` : "Provider or routed models missing"}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-text-muted">
+                        {addingId === combo.id ? "Publishing..." : ready ? "Add" : "Edit combo"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+
+          {totalAvailable === 0 && (
+            <div className="py-8 text-center text-text-muted">
+              <span className="material-symbols-outlined mb-2 block text-3xl">layers_clear</span>
+              <p className="text-xs">
+                {searchQuery ? "No matching combos found" : "All available combos are already published"}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── ModelsPage ────────────────────────────────────────────────────
+
 export default function ModelsPage() {
   const [models, setModels] = useState([]);
   const [canEditPricing, setCanEditPricing] = useState(false);
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState("all");
+  const [providerTab, setProviderTab] = useState("all");
   const [capabilityFilter, setCapabilityFilter] = useState("all");
   const [sort, setSort] = useState({ key: "id", direction: "asc" });
   const [loading, setLoading] = useState(true);
@@ -142,11 +324,14 @@ export default function ModelsPage() {
   const [rowErrors, setRowErrors] = useState({});
   const [savingId, setSavingId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [removingId, setRemovingId] = useState("");
   const { copied, copy } = useCopyToClipboard();
 
-  useEffect(() => {
+  const fetchModels = () => {
     const controller = new AbortController();
-    fetch("/api/catalog/models", { cache: "no-store", signal: controller.signal })
+    setLoading(true);
+    fetch("/api/catalog/models?mode=manual", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Unable to load models");
@@ -158,24 +343,49 @@ export default function ModelsPage() {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
+  };
+
+  useEffect(() => {
+    const cleanup = fetchModels();
+    return () => cleanup();
   }, []);
 
-  const freeCount = useMemo(() => models.filter((m) => isFreePricing(m.pricing)).length, [models]);
+  const providerOptions = useMemo(() => {
+    const providersByKey = new Map();
+    for (const model of models) {
+      const name = String(model.provider || "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const current = providersByKey.get(key);
+      const iconKey = String(model.providerIcon || "").trim();
+      providersByKey.set(key, {
+        name: current?.name || name,
+        iconKey: current?.iconKey || iconKey,
+        count: (current?.count || 0) + 1,
+      });
+    }
+    return [...providersByKey.values()]
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [models]);
 
-  const tabFilteredModels = useMemo(() => {
-    if (tab === "free") return models.filter((m) => isFreePricing(m.pricing));
-    return models;
-  }, [models, tab]);
+  const selectedProvider = (
+    providerTab === "all"
+    || providerOptions.some((provider) => provider.name === providerTab)
+  )
+    ? providerTab
+    : "all";
 
   const visibleModels = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return tabFilteredModels.filter((model) => {
+    return models.filter((model) => {
       const matchesQuery = !needle || model.id.toLowerCase().includes(needle);
       const matchesCapability =
         capabilityFilter === "all" || Boolean(model.capabilities?.[capabilityFilter]);
-      return matchesQuery && matchesCapability;
+      const matchesProvider = selectedProvider === "all"
+        || String(model.provider || "").toLowerCase() === selectedProvider.toLowerCase();
+      return matchesQuery && matchesCapability && matchesProvider;
     });
-  }, [tabFilteredModels, query, capabilityFilter]);
+  }, [models, query, capabilityFilter, selectedProvider]);
 
   const sortedModels = useMemo(() => {
     const direction = sort.direction === "asc" ? 1 : -1;
@@ -221,6 +431,9 @@ export default function ModelsPage() {
     }).length;
   }, [tableEditMode, sortedModels, drafts, freeFlags]);
 
+  // Published entries reference combos, so combo IDs remain stable across renames.
+  const addedIds = useMemo(() => new Set(models.map((model) => model.comboId).filter(Boolean)), [models]);
+
   const toggleSort = (key) => {
     setSort((current) => ({
       key,
@@ -264,7 +477,6 @@ export default function ModelsPage() {
   const updateDraft = (modelId, patch) => {
     setDrafts((current) => {
       const merged = { ...(current[modelId] || {}), ...patch };
-      // Typing non-zero rates turns free off automatically.
       if (Object.values(patch).some((value) => Number(value) > 0)) {
         setFreeFlags((flags) => ({ ...flags, [modelId]: false }));
       } else if (draftLooksFree(merged)) {
@@ -347,7 +559,6 @@ export default function ModelsPage() {
     setDrafts((current) => ({ ...current, [model.id]: draft }));
     setFreeFlags((current) => ({ ...current, [model.id]: free }));
     clearRowError(model.id);
-    // Persist immediately so toggle "sticks" without a second Save click.
     await handleSaveRow(model, { draft, free });
   };
 
@@ -377,11 +588,39 @@ export default function ModelsPage() {
     }
   };
 
+  const handleRemoveModel = async (model) => {
+    if (removingId) return;
+    setRemovingId(model.id);
+    try {
+      const res = await fetch(
+        `/api/models/published?comboId=${encodeURIComponent(model.comboId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to remove model");
+      }
+      // Remove from local state
+      setModels((current) => current.filter((m) => m.id !== model.id));
+    } catch (err) {
+      setRowErrors((current) => ({ ...current, [model.id]: err.message || "Failed to remove" }));
+    } finally {
+      setRemovingId("");
+    }
+  };
+
+  const handleAddModel = () => {
+    // Refresh the models list after adding
+    fetchModels();
+    setShowAddModal(false);
+  };
+
   const sortValue = `${sort.key}:${sort.direction}`;
   const handleSortSelect = (value) => {
     const [key, direction] = value.split(":");
     setSort({ key, direction });
   };
+  const filtersActive = Boolean(query.trim()) || capabilityFilter !== "all";
 
   return (
     <div className="flex min-w-0 flex-col gap-4 pb-8">
@@ -389,42 +628,78 @@ export default function ModelsPage() {
         <div>
           <h1 className="font-mono text-lg font-semibold tracking-tight text-text-main">{"// "}Models</h1>
           <p className="mt-0.5 max-w-2xl text-sm text-text-muted">
-            Compact catalog with rates and capability icons. Admins can edit prices inline.
+            Public API model list. Add model routes, then set pricing per model.
           </p>
         </div>
-        {canEditPricing && (
-          tableEditMode ? (
-            <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {canEditPricing && (
+            <>
               <Button
                 type="button"
                 variant="primary"
                 size="sm"
-                loading={bulkSaving}
-                disabled={bulkSaving || dirtyCount === 0}
-                onClick={handleSaveAll}
-                icon="save"
+                icon="add"
+                onClick={() => setShowAddModal(true)}
               >
-                Save all{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
+                Add Model
               </Button>
-              <Button type="button" variant="ghost" size="sm" disabled={bulkSaving || !!savingId} onClick={exitTableEditMode}>
-                Done
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" variant="outline" size="sm" icon="edit" onClick={enterTableEditMode}>
-              Edit prices
-            </Button>
-          )
-        )}
+              {tableEditMode ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    loading={bulkSaving}
+                    disabled={bulkSaving || dirtyCount === 0}
+                    onClick={handleSaveAll}
+                    icon="save"
+                  >
+                    Save all{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" disabled={bulkSaving || !!savingId} onClick={exitTableEditMode}>
+                    Done
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="outline" size="sm" icon="edit" onClick={enterTableEditMode}>
+                  Edit
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </section>
 
       <SegmentedControl
         size="sm"
-        value={tab}
-        onChange={setTab}
+        value={selectedProvider}
+        onChange={setProviderTab}
+        className="w-full justify-start"
         options={[
-          { value: "all", label: `ALL ${models.length}` },
-          { value: "free", label: `FREE ${freeCount}` },
+          {
+            value: "all",
+            icon: "apps",
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <span>All</span>
+                <span className="text-text-subtle">[{models.length}]</span>
+              </span>
+            ),
+          },
+          ...providerOptions.map((provider) => ({
+            value: provider.name,
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <LobeProviderIcon
+                  iconKey={provider.iconKey}
+                  name={provider.name}
+                  className="size-5 border-0 bg-transparent"
+                />
+                <span>{provider.name}</span>
+                <span className="text-text-subtle">[{provider.count}]</span>
+              </span>
+            ),
+          })),
         ]}
       />
 
@@ -458,7 +733,7 @@ export default function ModelsPage() {
         />
       </div>
 
-      {(query || capabilityFilter !== "all" || tab !== "all") && (
+      {filtersActive && (
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-text-muted">
           <span>{visibleModels.length} matches</span>
           <button
@@ -466,7 +741,6 @@ export default function ModelsPage() {
             onClick={() => {
               setQuery("");
               setCapabilityFilter("all");
-              setTab("all");
             }}
             className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
@@ -536,7 +810,7 @@ export default function ModelsPage() {
                   const free = tableEditMode
                     ? (freeFlags[model.id] === true || draftLooksFree(draft))
                     : isFreePricing(model.pricing);
-                  const busy = savingId === model.id || bulkSaving;
+                  const busy = savingId === model.id || bulkSaving || removingId === model.id;
 
                   return (
                     <tr
@@ -545,16 +819,23 @@ export default function ModelsPage() {
                     >
                       <td className="px-3 py-2.5 align-middle">
                         <div className="flex min-w-0 items-center gap-2">
-                          <code className="block min-w-0 truncate font-mono text-[12px] font-medium text-text-main" title={model.id}>
-                            {model.id}
-                          </code>
+                          <LobeProviderIcon
+                            iconKey={model.providerIcon}
+                            name={model.provider}
+                            className="size-7"
+                          />
+                          <span className="min-w-0">
+                            <code className="block truncate font-mono text-[12px] font-medium text-text-main" title={model.id}>
+                              {model.id}
+                            </code>
+                            <span className="block truncate font-mono text-[10px] uppercase tracking-wide text-text-muted">
+                              {model.provider}
+                            </span>
+                          </span>
                           {free && (
                             <span className="shrink-0 rounded-sm bg-text-main px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-bg">
                               Free
                             </span>
-                          )}
-                          {!free && model.pricingSource === "custom" && (
-                            <Badge variant="info" size="sm" className="shrink-0">Custom</Badge>
                           )}
                         </div>
                         {rowErrors[model.id] && (
@@ -689,6 +970,21 @@ export default function ModelsPage() {
                               )}
                             </>
                           )}
+                          {/* Remove button — only visible in edit mode */}
+                          {canEditPricing && tableEditMode && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleRemoveModel(model)}
+                              className="inline-flex size-7 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                              title="Remove model from list"
+                              aria-label={`Remove ${model.id} from list`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                {removingId === model.id ? "progress_activity" : "delete"}
+                              </span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => copy(model.id, model.id)}
@@ -715,15 +1011,37 @@ export default function ModelsPage() {
         <Card className="py-12 text-center">
           <span className="material-symbols-outlined text-4xl text-text-subtle">deployed_code_off</span>
           <h2 className="mt-3 font-mono text-sm font-semibold text-text-main">
-            {query || capabilityFilter !== "all" || tab !== "all" ? "No matching models" : "No models available"}
+            {filtersActive ? "No matching models" : "No models added yet"}
           </h2>
           <p className="mx-auto mt-1 max-w-md text-xs text-text-muted">
-            {query || capabilityFilter !== "all" || tab !== "all"
+            {filtersActive
               ? "Try a shorter model ID or clear the filters."
-              : "No models are currently available for routing."}
+              : canEditPricing
+                ? 'Click "Add Model" to publish a model from Model Routes.'
+                : "No models are currently available for routing."}
           </p>
+          {canEditPricing && !filtersActive && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              icon="add"
+              className="mt-4"
+              onClick={() => setShowAddModal(true)}
+            >
+              Add Model
+            </Button>
+          )}
         </Card>
       )}
+
+      {/* Add Model Modal */}
+      <AddModelModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        addedIds={addedIds}
+        onAddModel={handleAddModel}
+      />
     </div>
   );
 }

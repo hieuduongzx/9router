@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const NAV_ITEMS = [
-  { href: "/models", label: "Models" },
-  { href: "/dashboard/endpoint", label: "API endpoint" },
+  { href: "/#overview", label: "Overview" },
+  { href: "/#models", label: "Models" },
+  { href: "/#endpoint", label: "Endpoint" },
 ];
 
 export default function Navigation() {
@@ -31,7 +32,7 @@ export default function Navigation() {
   const closeMobile = () => setMobileMenuOpen(false);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200 bg-white/95 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200 bg-white">
       <nav aria-label="Primary navigation">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
           <Link
@@ -45,11 +46,11 @@ export default function Navigation() {
             <span className="font-mono text-sm font-semibold tracking-tight text-zinc-950">Router2k</span>
           </Link>
 
-          <div className="hidden items-center gap-7 lg:flex">
+          <div className="hidden h-full items-center lg:flex">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
-                className="font-mono text-[13px] font-medium text-zinc-600 transition-colors hover:text-zinc-950"
+                className="inline-flex h-full items-center border-x border-transparent px-4 font-mono text-[12px] font-semibold text-zinc-500 transition-colors hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-zinc-950"
                 href={item.href}
               >
                 {item.label}
@@ -67,24 +68,26 @@ export default function Navigation() {
                 </span>
                 <Link
                   href="/dashboard"
-                  className="inline-flex h-9 items-center justify-center rounded-sm bg-zinc-950 px-4 font-mono text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-sm bg-zinc-950 px-4 font-mono text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/30 focus-visible:ring-offset-2"
                 >
-                  Dashboard
+                  Open dashboard
+                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_outward</span>
                 </Link>
               </>
             ) : (
               <>
                 <Link
                   href="/login"
-                  className="hidden h-9 items-center justify-center rounded-sm px-3 font-mono text-[13px] font-semibold text-zinc-700 transition-colors hover:text-zinc-950 sm:inline-flex"
+                  className="hidden h-9 items-center justify-center rounded-sm px-3 font-mono text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 sm:inline-flex"
                 >
                   Sign in
                 </Link>
                 <Link
                   href="/login?mode=register"
-                  className="inline-flex h-9 items-center justify-center rounded-sm bg-zinc-950 px-4 font-mono text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-sm bg-zinc-950 px-4 font-mono text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/30 focus-visible:ring-offset-2"
                 >
                   Get API key
+                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
                 </Link>
               </>
             )}
@@ -102,11 +105,11 @@ export default function Navigation() {
 
         {mobileMenuOpen && (
           <div className="border-t border-zinc-200 bg-white lg:hidden">
-            <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4 sm:px-6">
+            <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-zinc-200 px-5 py-px sm:px-6">
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
-                  className="flex min-h-10 items-center rounded-sm px-3 font-mono text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+                  className="flex min-h-12 items-center bg-white px-3 font-mono text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
                   href={item.href}
                   onClick={closeMobile}
                 >
@@ -117,7 +120,7 @@ export default function Navigation() {
                 <Link
                   href="/login"
                   onClick={closeMobile}
-                  className="mt-2 flex min-h-10 items-center justify-center rounded-sm border border-zinc-200 font-mono text-sm font-semibold text-zinc-950 sm:hidden"
+                  className="col-span-2 flex min-h-12 items-center justify-center bg-white font-mono text-sm font-semibold text-zinc-950 sm:hidden"
                 >
                   Sign in
                 </Link>
