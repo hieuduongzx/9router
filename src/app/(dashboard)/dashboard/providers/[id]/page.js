@@ -58,6 +58,9 @@ export default function ProviderDetailPage() {
   const [modelTestResults, setModelTestResults] = useState({});
   const [modelsTestError, setModelsTestError] = useState("");
   const [testingModelIds, setTestingModelIds] = useState(() => new Set());
+  const [webSearchTestResults, setWebSearchTestResults] = useState({});
+  const [webSearchTestNotice, setWebSearchTestNotice] = useState(null);
+  const [testingWebSearchModelIds, setTestingWebSearchModelIds] = useState(() => new Set());
   const [testingAllModels, setTestingAllModels] = useState(false);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
@@ -79,6 +82,7 @@ export default function ProviderDetailPage() {
   const [oneByOneResults, setOneByOneResults] = useState({});
   const [oneByOneSummary, setOneByOneSummary] = useState(null);
   const stopOneByOneRef = useRef(false);
+  const testingWebSearchModelIdsRef = useRef(new Set());
   const [fetchingProviderModels, setFetchingProviderModels] = useState(false);
   const [modelsFetchStatus, setModelsFetchStatus] = useState(null);
   const { copied, copy } = useCopyToClipboard();
@@ -1117,7 +1121,7 @@ export default function ProviderDetailPage() {
   };
 
   const handleTestModel = async (modelId) => {
-    if (testingAllModels || testingModelIds.has(modelId)) return;
+    if (testingAllModels || testingModelIds.has(modelId) || testingWebSearchModelIdsRef.current.has(modelId)) return;
     setTestingModelIds((previous) => new Set(previous).add(modelId));
     const result = await probeModel(modelId);
     setModelTestResults((previous) => ({ ...previous, [modelId]: result.ok ? "ok" : "error" }));
@@ -1129,8 +1133,72 @@ export default function ProviderDetailPage() {
     });
   };
 
+  const probeWebSearch = async (modelId) => {
+    try {
+      const response = await fetch("/api/models/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: `${providerStorageAlias}/${modelId}`,
+          mode: "web-search",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      return {
+        modelId,
+        ok: response.ok && data.ok === true && data.verdict === "verified",
+        verdict: data.verdict || (response.ok ? "unknown" : "error"),
+        latencyMs: data.latencyMs,
+        evidenceType: data.evidenceType,
+        resultCount: data.resultCount,
+        error: data.error || (response.ok ? "" : `HTTP ${response.status}`),
+      };
+    } catch (error) {
+      return {
+        modelId,
+        ok: false,
+        verdict: "error",
+        error: error?.message || "Network error",
+      };
+    }
+  };
+
+  const handleTestWebSearch = async (modelId) => {
+    if (
+      testingAllModels
+      || testingModelIds.has(modelId)
+      || testingWebSearchModelIdsRef.current.has(modelId)
+    ) return;
+
+    testingWebSearchModelIdsRef.current.add(modelId);
+    setTestingWebSearchModelIds(new Set(testingWebSearchModelIdsRef.current));
+    setWebSearchTestNotice(null);
+
+    try {
+      const result = await probeWebSearch(modelId);
+      setWebSearchTestResults((previous) => ({
+        ...previous,
+        [modelId]: result.verdict,
+      }));
+      setWebSearchTestNotice({
+        type: result.ok ? "success" : result.verdict === "unknown" ? "warning" : "error",
+        text: result.ok
+          ? `${providerDisplayAlias}/${modelId}: verified via ${result.evidenceType}${Number.isFinite(result.resultCount) ? `, ${result.resultCount} source${result.resultCount === 1 ? "" : "s"}` : ""}${Number.isFinite(result.latencyMs) ? ` (${result.latencyMs} ms)` : ""}.`
+          : `${providerDisplayAlias}/${modelId}: ${result.error || "Native web search could not be verified."}`,
+      });
+    } finally {
+      testingWebSearchModelIdsRef.current.delete(modelId);
+      setTestingWebSearchModelIds(new Set(testingWebSearchModelIdsRef.current));
+    }
+  };
+
   const handleTestAllModels = async () => {
-    if (!canTestProviderModels || testingAllModels || testingModelIds.size > 0) return;
+    if (
+      !canTestProviderModels
+      || testingAllModels
+      || testingModelIds.size > 0
+      || testingWebSearchModelIdsRef.current.size > 0
+    ) return;
     setTestingAllModels(true);
     setModelsTestError("");
     setTestingModelIds(new Set(availableModelIds));
@@ -1169,8 +1237,11 @@ export default function ProviderDetailPage() {
           onAddCustomModel={(modelId) => handleAddCustomModel(modelId, "llm", providerStorageAlias)}
           onDeleteCustomModel={(modelId) => handleDeleteCustomModel(modelId, "llm", providerStorageAlias)}
           onTestModel={handleTestModel}
+          onTestWebSearch={handleTestWebSearch}
           modelTestResults={modelTestResults}
+          webSearchTestResults={webSearchTestResults}
           testingModelIds={testingModelIds}
+          testingWebSearchModelIds={testingWebSearchModelIds}
           connections={connections}
           isAnthropic={isAnthropicCompatible}
         />
@@ -1216,7 +1287,10 @@ export default function ProviderDetailPage() {
             }}
             testStatus={modelTestResults[model.id]}
             onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
+            webSearchTestStatus={webSearchTestResults[model.id]}
+            onTestWebSearch={hasActiveConnection || isFreeNoAuth ? () => handleTestWebSearch(model.id) : undefined}
             isTesting={testingModelIds.has(model.id)}
+            isTestingWebSearch={testingWebSearchModelIds.has(model.id)}
             isCustom
             isFree={false}
             caps={getCaps(`${providerId}/${model.id}`)}
@@ -1242,7 +1316,10 @@ export default function ProviderDetailPage() {
               onDeleteAlias={() => handleDeleteAlias(existingAlias)}
               testStatus={modelTestResults[model.id]}
               onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
+              webSearchTestStatus={webSearchTestResults[model.id]}
+              onTestWebSearch={hasActiveConnection || isFreeNoAuth ? () => handleTestWebSearch(model.id) : undefined}
               isTesting={testingModelIds.has(model.id)}
+              isTestingWebSearch={testingWebSearchModelIds.has(model.id)}
               isFree={model.isFree}
               onDisable={() => handleDisableModel(model.id)}
               caps={getCaps(`${providerId}/${model.id}`)}
@@ -1769,7 +1846,7 @@ export default function ProviderDetailPage() {
               icon="science"
               onClick={handleTestAllModels}
               loading={testingAllModels}
-              disabled={!canTestProviderModels || testingAllModels || testingModelIds.size > 0}
+              disabled={!canTestProviderModels || testingAllModels || testingModelIds.size > 0 || testingWebSearchModelIds.size > 0}
               title={canTestProviderModels ? "Test every active model for this provider" : "Add an active connection and at least one model to test"}
             >
               {testingAllModels ? "Testing..." : `Test All${availableModelIds.length > 0 ? ` (${availableModelIds.length})` : ""}`}
@@ -1793,6 +1870,15 @@ export default function ProviderDetailPage() {
         )}
         {!!modelsTestError && (
           <p className="text-xs text-red-500 mb-3 break-words">{modelsTestError}</p>
+        )}
+        {webSearchTestNotice && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`mb-3 break-words text-xs ${webSearchTestNotice.type === "success" ? "text-emerald-600 dark:text-emerald-400" : webSearchTestNotice.type === "warning" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}
+          >
+            Native web search — {webSearchTestNotice.text}
+          </p>
         )}
         {renderModelsSection()}
       </Card>

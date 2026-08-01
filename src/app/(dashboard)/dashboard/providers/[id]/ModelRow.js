@@ -1,7 +1,54 @@
 import PropTypes from "prop-types";
 import { CapacityBadges } from "@/shared/components";
 
-export default function ModelRow({ model, fullModel, alias, copied, onCopy, testStatus, isCustom, isFree, onDeleteAlias, onTest, isTesting, onDisable, caps, thinkingSuffix }) {
+const WEB_SEARCH_TEST_META = {
+  verified: {
+    title: "Native web search verified — test again",
+    icon: "task_alt",
+    color: "text-emerald-600 dark:text-emerald-400",
+  },
+  unsupported: {
+    title: "Native web search rejected — test again",
+    icon: "search_off",
+    color: "text-red-600 dark:text-red-400",
+  },
+  unknown: {
+    title: "No structured search evidence — test again",
+    icon: "help",
+    color: "text-amber-600 dark:text-amber-400",
+  },
+  error: {
+    title: "Web search verification failed — test again",
+    icon: "warning",
+    color: "text-red-600 dark:text-red-400",
+  },
+};
+
+const DEFAULT_WEB_SEARCH_TEST_META = {
+  title: "Verify native web search (may incur search charges)",
+  icon: "travel_explore",
+  color: "text-text-muted",
+};
+
+export default function ModelRow({
+  model,
+  fullModel,
+  alias,
+  copied,
+  onCopy,
+  testStatus,
+  webSearchTestStatus,
+  isCustom,
+  isFree,
+  onDeleteAlias,
+  onTest,
+  onTestWebSearch,
+  isTesting,
+  isTestingWebSearch,
+  onDisable,
+  caps,
+  thinkingSuffix,
+}) {
   const displayModel = thinkingSuffix ? `${fullModel}(${thinkingSuffix})` : fullModel;
   const iconColor = testStatus === "ok"
     ? "#22c55e"
@@ -10,6 +57,14 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
     : undefined;
   const copyKey = `model-${model.id}`;
   const hasSecondaryName = model.name && model.name !== model.id;
+  // The catalog's `search` flag is documentation-based, not runtime proof.
+  // This page renders search state only from the dedicated evidence probe below.
+  const runtimeSafeCaps = caps ? { ...caps, search: false } : caps;
+  const isAnyTestRunning = isTesting || isTestingWebSearch;
+  const webSearchMeta = WEB_SEARCH_TEST_META[webSearchTestStatus] || DEFAULT_WEB_SEARCH_TEST_META;
+  const webSearchTestTitle = isTestingWebSearch ? "Verifying native web search" : webSearchMeta.title;
+  const webSearchTestIcon = isTestingWebSearch ? "progress_activity" : webSearchMeta.icon;
+  const webSearchTestColor = webSearchMeta.color;
 
   return (
     <div
@@ -33,7 +88,7 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
             {hasSecondaryName && (
               <span className="truncate text-xs text-text-muted">{model.name}</span>
             )}
-            <CapacityBadges caps={caps} colorOverride="text-text-muted/70" size={12} />
+            <CapacityBadges caps={runtimeSafeCaps} colorOverride="text-text-muted/70" size={12} />
           </div>
         )}
       </div>
@@ -43,13 +98,28 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           <button
             type="button"
             onClick={onTest}
-            disabled={isTesting}
+            disabled={isAnyTestRunning}
             className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60"
-            title={isTesting ? "Testing model" : "Test model"}
-            aria-label={isTesting ? "Testing model" : `Test ${displayModel}`}
+            title={isTesting ? "Testing model" : isTestingWebSearch ? "Web search verification in progress" : "Test model"}
+            aria-label={isTesting ? `Testing ${displayModel}` : `Test ${displayModel}`}
           >
             <span className={`material-symbols-outlined text-base ${isTesting ? "animate-spin motion-reduce:animate-none" : ""}`}>
               {isTesting ? "progress_activity" : "science"}
+            </span>
+          </button>
+        )}
+
+        {onTestWebSearch && (
+          <button
+            type="button"
+            onClick={onTestWebSearch}
+            disabled={isAnyTestRunning}
+            className={`inline-flex size-11 items-center justify-center rounded-sm transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60 ${webSearchTestColor}`}
+            title={webSearchTestTitle}
+            aria-label={`${webSearchTestTitle} with ${displayModel}`}
+          >
+            <span className={`material-symbols-outlined text-base ${isTestingWebSearch ? "animate-spin motion-reduce:animate-none" : ""}`}>
+              {webSearchTestIcon}
             </span>
           </button>
         )}
@@ -101,11 +171,14 @@ ModelRow.propTypes = {
   copied: PropTypes.string,
   onCopy: PropTypes.func.isRequired,
   testStatus: PropTypes.oneOf(["ok", "error"]),
+  webSearchTestStatus: PropTypes.oneOf(["verified", "unsupported", "unknown", "error"]),
   isCustom: PropTypes.bool,
   isFree: PropTypes.bool,
   onDeleteAlias: PropTypes.func,
   onTest: PropTypes.func,
+  onTestWebSearch: PropTypes.func,
   isTesting: PropTypes.bool,
+  isTestingWebSearch: PropTypes.bool,
   onDisable: PropTypes.func,
   caps: PropTypes.object,
   thinkingSuffix: PropTypes.string,

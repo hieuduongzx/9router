@@ -313,7 +313,7 @@ input, textarea {
    See DESIGN.md. Flat, hairline, monospace-structural.
    ============================================================ */
 
-/* "// SECTION LABEL" eyebrow */
+/* Uppercase tracked mono eyebrow (no comment-slash prefix) */
 .section-label {
   display: inline-flex;
   align-items: center;
@@ -324,10 +324,6 @@ input, textarea {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-}
-.section-label::before {
-  content: "//";
-  color: var(--color-text-subtle);
 }
 
 /* "[01]" bracket step index */

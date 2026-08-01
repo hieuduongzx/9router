@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import RequestDetailDrawer from "@/shared/components/RequestDetailDrawer";
 import CursorPagination from "@/shared/components/CursorPagination";
+import StatusPill from "@/shared/components/StatusPill";
 import { getUsagePeriodStartIso } from "@/shared/constants/usagePeriods";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -13,16 +14,6 @@ const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 6,
 });
-
-function getPeriodStart(period) {
-  if (period === "today") {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return start.toISOString();
-  }
-  if (period === "all") return "";
-  return getUsagePeriodStartIso(period);
-}
 
 function formatCost(value) {
   return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
@@ -44,19 +35,6 @@ function formatTiming(ms) {
   return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
 }
 
-function StatusPill({ status }) {
-  const completed = status === "success" || status === "ok";
-  return (
-    <span
-      className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
-        completed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
-      }`}
-    >
-      {completed ? "Completed" : "Failed"}
-    </span>
-  );
-}
-
 export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
   const [details, setDetails] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
@@ -65,6 +43,15 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  // A narrower filter can have fewer pages, so send the reader back to page 1.
+  // Adjusted during render (not in an effect) to avoid a cascading re-render.
+  const filterKey = `${period}|${apiKeyId}|${userId}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    if (pagination.page !== 1) setPagination((previous) => ({ ...previous, page: 1 }));
+  }
+
   const fetchDetails = useCallback(async () => {
     setLoading(true);
     try {
@@ -72,9 +59,10 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
         page: pagination.page.toString(),
         pageSize: pagination.pageSize.toString(),
       });
-      const periodStart = getPeriodStart(period);
+      const periodStart = getUsagePeriodStartIso(period);
       if (periodStart) params.append("startDate", periodStart);
       if (userId) params.append("userId", userId);
+      if (apiKeyId && apiKeyId !== "all") params.append("apiKeyId", apiKeyId);
 
       const response = await fetch(`/api/usage/request-details?${params}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
@@ -87,7 +75,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, period, userId]);
+  }, [pagination.page, pagination.pageSize, period, userId, apiKeyId]);
 
   useEffect(() => {
     const id = setTimeout(fetchDetails, 0);
@@ -167,6 +155,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
             totalPages={pagination.totalPages}
             onPageChange={(page) => setPagination((previous) => ({ ...previous, page }))}
             onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={[10, 30, 50, 100]}
             className="border-t border-border"
           />
         )}

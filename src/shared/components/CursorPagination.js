@@ -3,7 +3,7 @@
 import PropTypes from "prop-types";
 import { cn } from "@/shared/utils/cn";
 
-/** "// Showing N items" + per-page dropdown + Newer/Older cursor buttons. */
+/** "Showing N items" + per-page dropdown + Newer/Older cursor buttons. */
 export default function CursorPagination({
   count,
   page,

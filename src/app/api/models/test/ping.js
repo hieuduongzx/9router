@@ -50,6 +50,127 @@ async function getInternalHeaders() {
   return headers;
 }
 
+const VERIFIED_SEARCH_EVIDENCE = new Set([
+  "web_search_call",
+  "server_tool_use",
+  "grounding_metadata",
+  "builtin_web_search_results",
+  "web_search_results",
+  "citations",
+]);
+
+function getResponseError(parsed, rawText, status) {
+  const detail = parsed?.error?.message
+    || parsed?.msg
+    || parsed?.message
+    || parsed?.error
+    || rawText;
+  return `HTTP ${status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`;
+}
+
+function splitRoutedModel(model) {
+  const separator = typeof model === "string" ? model.indexOf("/") : -1;
+  if (separator <= 0 || separator === model.length - 1) return null;
+  return {
+    provider: model.slice(0, separator),
+    model: model.slice(separator + 1),
+  };
+}
+
+/**
+ * Execute the provider's hosted search tool and require provider-native,
+ * structured evidence. Assistant text, markdown links and bare URLs never count.
+ */
+export async function pingModelWebSearch(
+  model,
+  baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`,
+) {
+  const routed = splitRoutedModel(model);
+  if (!routed) {
+    return {
+      ok: false,
+      supported: null,
+      verdict: "unknown",
+      error: "A provider/model route is required to verify native web search",
+    };
+  }
+
+  const headers = await getInternalHeaders();
+  const start = Date.now();
+
+  const res = await fetch(`${baseUrl}/api/v1/search`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      provider: routed.provider,
+      search_model: routed.model,
+      query: "Search the live public web now for today's official AI product release news and cite the sources you actually retrieved.",
+      max_results: 3,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const latencyMs = Date.now() - start;
+  const rawText = await res.text().catch(() => "");
+  let parsed = null;
+  try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+
+  if (!res.ok) {
+    const detail = parsed?.error?.message || parsed?.error || parsed?.message || rawText;
+    const detailText = String(detail || "").slice(0, 240);
+    const noVerifier = /unsupported chat-search provider|does not support web search|unknown provider/i.test(detailText);
+    const explicitUnsupported = !noVerifier
+      && res.status >= 400
+      && res.status < 500
+      && /(?:unsupported|not supported|unknown|invalid).*(?:web.?search|tool)|(?:web.?search|tool).*(?:unsupported|not supported|unknown|invalid)/i.test(detailText);
+    return {
+      ok: false,
+      supported: explicitUnsupported ? false : null,
+      verdict: explicitUnsupported ? "unsupported" : noVerifier ? "unknown" : "error",
+      latencyMs,
+      status: res.status,
+      error: getResponseError(parsed, rawText, res.status),
+    };
+  }
+
+  if (parsed?.error) {
+    const providerError = parsed.error?.message || parsed.error || "Provider returned an error";
+    return {
+      ok: false,
+      supported: null,
+      verdict: "error",
+      latencyMs,
+      status: res.status,
+      error: String(providerError).slice(0, 240),
+    };
+  }
+
+  const evidence = parsed?.metrics?.search_evidence;
+  const evidenceType = typeof evidence?.type === "string" ? evidence.type : null;
+  const verified = evidence?.verified === true && VERIFIED_SEARCH_EVIDENCE.has(evidenceType);
+  if (!verified) {
+    return {
+      ok: false,
+      supported: null,
+      verdict: "unknown",
+      latencyMs,
+      status: res.status,
+      error: "No provider-native search evidence was returned; assistant text was ignored",
+    };
+  }
+
+  return {
+    ok: true,
+    supported: true,
+    verdict: "verified",
+    latencyMs,
+    status: res.status,
+    evidenceType,
+    searchCallCount: Number(evidence.search_call_count) || 0,
+    resultCount: Number(evidence.result_count) || 0,
+    error: null,
+  };
+}
+
 export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`) {
   const headers = await getInternalHeaders();
   const start = Date.now();

@@ -39,6 +39,7 @@ export { default as SectionLabel } from "./SectionLabel";
 export { default as CropFrame } from "./CropFrame";
 export { default as TerminalBlock } from "./TerminalBlock";
 export { default as StatTile } from "./StatTile";
+export { default as StatusPill } from "./StatusPill";
 export { default as PeriodDropdown } from "./PeriodDropdown";
 export { default as CursorPagination } from "./CursorPagination";
 

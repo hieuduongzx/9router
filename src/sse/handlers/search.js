@@ -33,6 +33,7 @@ export async function handleSearch(request) {
   // Accept either `provider` or `model` (UI sends `model` since provider IS the model for webSearch)
   const providerInput = body.provider || body.model;
   const query = body.query;
+  const searchModel = typeof body.search_model === "string" ? body.search_model.trim() : "";
 
   log.request("POST", `${url.pathname} | ${providerInput}`);
 
@@ -66,6 +67,11 @@ export async function handleSearch(request) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: query");
   }
 
+  if (body.search_model !== undefined && (!searchModel || searchModel.length > 300)) {
+    log.warn("SEARCH", "Invalid search model override");
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid search_model");
+  }
+
   // Combo expansion: providerInput may be a combo name → run fallback/round-robin across providers
   const combos = await getCombos();
   const comboModels = getComboModelsFromData(providerInput, combos);
@@ -90,6 +96,7 @@ export async function handleSearch(request) {
 
 async function handleSingleProviderSearch(body, providerInput, request, apiKey, settings) {
   const query = body.query;
+  const searchModel = typeof body.search_model === "string" ? body.search_model.trim() : "";
   const providerId = resolveProviderId(providerInput);
   const resolvedProvider = AI_PROVIDERS[providerId];
 
@@ -124,7 +131,8 @@ async function handleSingleProviderSearch(body, providerInput, request, apiKey, 
     offset: body.offset,
     domain_filter: body.domain_filter,
     content_options: body.content_options,
-    provider_options: body.provider_options
+    provider_options: body.provider_options,
+    search_model: searchModel || undefined
   };
 
   // No-auth providers (e.g. searxng) bypass credential lookup

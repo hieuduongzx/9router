@@ -77,5 +77,9 @@ export default {
   },
   embeddingConfig: { baseUrl: "https://api.openai.com/v1/embeddings", authType: "apikey", authHeader: "bearer" },
   imageConfig: { baseUrl: "https://api.openai.com/v1/images/generations" },
-  searchViaChat: { defaultModel: "gpt-4o-mini", pricingUrl: "https://openai.com/api/pricing" },
+  searchViaChat: {
+    defaultModel: "gpt-4o-mini",
+    endpoint: "https://api.openai.com/v1/responses",
+    pricingUrl: "https://openai.com/api/pricing",
+  },
 };

@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Card from "./Card";
 import CursorPagination from "./CursorPagination";
 import RequestDetailDrawer, { useRequestDetailDrawer } from "./RequestDetailDrawer";
+import StatusPill from "./StatusPill";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -22,23 +23,6 @@ function formatTiming(ms) {
   const value = Number(ms);
   if (!Number.isFinite(value)) return "—";
   return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
-}
-
-function StatusPill({ status }) {
-  const value = String(status || "").toLowerCase();
-  const completed = value.includes("success") || value.includes("ok") || value === "200";
-  const label = completed ? "Completed" : value === "-" || value === "" ? "Unknown" : "Failed";
-  return (
-    <span
-      className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
-        completed
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-          : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
-      }`}
-    >
-      {label}
-    </span>
-  );
 }
 
 export default function RequestLogger({ period = "all" }) {

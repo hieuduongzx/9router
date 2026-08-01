@@ -626,7 +626,7 @@ export default function ModelsPage() {
     <div className="flex min-w-0 flex-col gap-4 pb-8">
       <section className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-mono text-lg font-semibold tracking-tight text-text-main">{"// "}Models</h1>
+          <h1 className="font-mono text-lg font-semibold tracking-tight text-text-main">Models</h1>
           <p className="mt-0.5 max-w-2xl text-sm text-text-muted">
             Public API model list. Add model routes, then set pricing per model.
           </p>

@@ -50,7 +50,7 @@ export default function HeroSection() {
             </Link>
           </div>
 
-          <p className="mt-4 font-mono text-xs text-zinc-500">{"// "}published pricing · wallet balance · usage tracking</p>
+          <p className="mt-4 font-mono text-xs text-zinc-500">published pricing · wallet balance · usage tracking</p>
         </div>
 
         <CropFrame className="relative mx-auto w-full max-w-lg border border-zinc-200 bg-white lg:mx-0">

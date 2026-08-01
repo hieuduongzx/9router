@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import Card from "@/shared/components/Card";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
+import StatTile from "@/shared/components/StatTile";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 import EndpointPageClient from "./endpoint/EndpointPageClient";
 
@@ -65,28 +66,6 @@ async function fetchJson(path, signal) {
   return response.json();
 }
 
-const METRIC_CHIPS = {
-  coral: "bg-[var(--color-chip-requests)]",
-  blue: "bg-[var(--color-chip-tokens)]",
-  green: "bg-[var(--color-chip-cost)]",
-  amber: "bg-[var(--color-chip-info)]",
-};
-
-function Metric({ label, value, detail, tone }) {
-  return (
-    <div className="min-w-0 px-5 py-5 sm:px-6">
-      <div className="mb-2.5 flex items-center gap-2">
-        <span className={`size-2 shrink-0 ${METRIC_CHIPS[tone]}`} aria-hidden="true" />
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{label}</span>
-      </div>
-      <p className="truncate font-mono text-2xl font-semibold tabular-nums tracking-tight text-text-main sm:text-[28px]">
-        {value}
-      </p>
-      <p className="mt-1 truncate text-xs text-text-subtle">{detail}</p>
-    </div>
-  );
-}
-
 function DashboardSkeleton() {
   return (
     <div className="space-y-5" aria-label="Loading dashboard">
@@ -104,7 +83,6 @@ export default function DashboardHomeClient() {
   const [period, setPeriod] = useState("7d");
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
-  const [hourlyData, setHourlyData] = useState([]);
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -117,32 +95,23 @@ export default function DashboardHomeClient() {
     const admin = auth?.isAdminView === true;
     setIsAdmin(admin);
     const scope = admin ? "&scope=system" : "";
-    const chartRequest = fetchJson(`/api/usage/chart?period=${period}${scope}`, signal);
-    const hourlyRequest = period === "today"
-      ? chartRequest
-      : Promise.resolve({ points: [] });
     const results = await Promise.allSettled([
       fetchJson(`/api/usage/stats?period=${period}${scope}`, signal),
-      chartRequest,
-      hourlyRequest,
+      fetchJson(`/api/usage/chart?period=${period}${scope}`, signal),
       fetchJson("/api/keys", signal),
     ]);
 
     if (signal?.aborted) return;
 
-    const [statsResult, chartResult, hourlyResult, keysResult] = results;
+    const [statsResult, chartResult, keysResult] = results;
     if (statsResult.status === "fulfilled") setStats(statsResult.value);
     if (chartResult.status === "fulfilled") {
       setChartData(normalizeUsageChartPoints(chartResult.value));
     }
-    if (hourlyResult.status === "fulfilled") {
-      setHourlyData(normalizeUsageChartPoints(hourlyResult.value));
-    }
     if (keysResult.status === "fulfilled") {
       setKeys(Array.isArray(keysResult.value?.keys) ? keysResult.value.keys : []);
     }
-
-    const usageFailed = statsResult.status === "rejected" || chartResult.status === "rejected" || hourlyResult.status === "rejected";
+    const usageFailed = statsResult.status === "rejected" || chartResult.status === "rejected";
     setError(usageFailed ? "Your usage data could not be loaded. Try refreshing this page." : "");
     setLastUpdated(new Date());
     setLoading(false);
@@ -206,20 +175,18 @@ export default function DashboardHomeClient() {
   const recentRequests = Array.isArray(stats?.recentRequests) ? stats.recentRequests.slice(0, 6) : [];
   const chartHasData = chartData.some((point) => Number(point.tokens) > 0);
   const costHasData = chartData.some((point) => Number(point.cost) > 0);
-  const hourlyHasData = hourlyData.some((point) => Number(point.tokens) > 0);
   const activeKeys = keys.filter((key) => key.isActive).length;
 
   if (loading && !stats) return <DashboardSkeleton />;
 
   return (
     <div className="flex min-w-0 flex-col gap-5 pb-8">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-mono text-xl font-semibold tracking-tight text-text-main">{"// "}Dashboard overview</h1>
-          <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            {isAdmin ? "Gateway-wide model traffic, token volume, and estimated cost." : "Your model traffic, token volume, and estimated cost."}
-          </p>
-        </div>
+      {/* Title and description come from the shared Header for every dashboard
+          route — repeating them here produced two competing page titles. */}
+      <section className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-xs text-text-muted">
+          {isAdmin ? "Gateway-wide traffic" : "Traffic for your API keys"}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodDropdown value={period} onChange={setPeriod} />
           <button
@@ -242,33 +209,32 @@ export default function DashboardHomeClient() {
         </div>
       )}
 
-
       {isAdmin && <EndpointPageClient />}
 
       <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
+        <StatTile
+          chip="requests"
           label="Requests"
           value={formatNumber(stats?.totalRequests)}
-          detail={`${stats?.activeRequests?.length || 0} active now`}
-          tone="coral"
+          sub={`${stats?.activeRequests?.length || 0} active now`}
         />
-        <Metric
+        <StatTile
+          chip="tokens"
           label="Total tokens"
           value={formatNumber(Number(stats?.totalPromptTokens || 0) + Number(stats?.totalCompletionTokens || 0))}
-          detail={`${formatNumber(stats?.totalCompletionTokens)} generated`}
-          tone="blue"
+          sub={`${formatNumber(stats?.totalCompletionTokens)} generated`}
         />
-        <Metric
+        <StatTile
+          chip="tokens"
           label="Cache utilization"
           value={formatPercent(cacheRate)}
-          detail={`${formatNumber(stats?.totalCachedTokens)} cached tokens`}
-          tone="green"
+          sub={`${formatNumber(stats?.totalCachedTokens)} cached tokens`}
         />
-        <Metric
+        <StatTile
+          chip="cost"
           label="Estimated cost"
           value={formatCurrency(stats?.totalCost)}
-          detail={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Awaiting data"}
-          tone="amber"
+          sub={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Awaiting data"}
         />
       </div>
 
@@ -482,60 +448,6 @@ export default function DashboardHomeClient() {
         </Card>
       </div>
 
-      {period === "today" && (
-      <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-          <div>
-            <h2 className="font-mono text-sm font-semibold text-text-main">Today by hour</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Token traffic across the current day</p>
-          </div>
-          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${hourlyHasData ? "bg-success/10 text-success" : "bg-surface-2 text-text-muted"}`}>
-            {hourlyHasData ? "Live activity" : "No traffic today"}
-          </span>
-        </div>
-        <div className="h-[240px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Hourly token traffic bar chart">
-          {hourlyData.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyData} margin={{ top: 6, right: 12, left: -8, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  interval={2}
-                  tick={{ fill: "var(--color-text-muted)", fontSize: 10 }}
-                  tickMargin={9}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
-                  tickFormatter={formatNumber}
-                  width={54}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--color-surface-2)", opacity: 0.65 }}
-                  contentStyle={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    boxShadow: "none",
-                    color: "var(--color-text-main)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-mono)",
-                  }}
-                  formatter={(value) => [formatNumber(value), "Tokens"]}
-                />
-                <Bar dataKey="tokens" fill="#4F7CAC" radius={[0, 0, 0, 0]} maxBarSize={22} isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-text-muted">Hourly data is unavailable.</div>
-          )}
-        </div>
-      </Card>
-      )}
-
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
@@ -543,7 +455,7 @@ export default function DashboardHomeClient() {
               <h2 className="font-mono text-sm font-semibold text-text-main">Recent requests</h2>
               <p className="mt-0.5 text-xs text-text-muted">{isAdmin ? "Latest model traffic across the gateway" : "Latest model traffic for your API keys"}</p>
             </div>
-            <Link href={isAdmin ? "/dashboard/activity?tab=requests" : "/dashboard/usage?tab=details"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
+            <Link href={isAdmin ? "/dashboard/activity?tab=requests" : "/dashboard/usage"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
               {isAdmin ? "View operations" : "View history"}
             </Link>
           </div>

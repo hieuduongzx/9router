@@ -18,7 +18,7 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import ActionMenu from "./components/ActionMenu";
 import CreditAdjustModal from "./components/CreditAdjustModal";
 import PasswordResetModal from "./components/PasswordResetModal";
-import { ACCOUNT_PERIODS, DEFAULT_ACCOUNT_PERIOD, accountPeriodLabel } from "./components/accountPeriods";
+import { getUsagePeriodLabel } from "@/shared/constants/usagePeriods";
 import {
   COST_FORMAT,
   NUMBER_FORMAT,
@@ -37,6 +37,8 @@ const SORT_OPTIONS = [
   { value: "active", label: "Recently active" },
 ];
 
+/** Accounts are long-lived, so a month of history is the useful default here. */
+const DEFAULT_PERIOD = "30d";
 const EMPTY_DRAFT = { username: "", email: "", password: "", role: "user", credit: "" };
 const FILTER_SELECT_CLASS = "h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main focus-visible:border-primary focus-visible:outline-none";
 
@@ -45,7 +47,7 @@ export default function UsersPageClient() {
   const [users, setUsers] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("");
   const [unassignedKeyCount, setUnassignedKeyCount] = useState(0);
-  const [period, setPeriod] = useState(DEFAULT_ACCOUNT_PERIOD);
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState("");
@@ -195,7 +197,7 @@ export default function UsersPageClient() {
   }, [users, search, roleFilter, statusFilter, sort]);
 
   const filtersActive = Boolean(search.trim()) || roleFilter !== "all" || statusFilter !== "all";
-  const periodLabel = accountPeriodLabel(period);
+  const periodLabel = getUsagePeriodLabel(period);
 
   const buildMenu = (user) => {
     const isCurrent = user.id === currentUserId;
@@ -298,7 +300,7 @@ export default function UsersPageClient() {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-            <PeriodDropdown value={period} onChange={setPeriod} options={ACCOUNT_PERIODS} />
+            <PeriodDropdown value={period} onChange={setPeriod} />
             <Button variant="ghost" size="sm" icon="refresh" loading={refreshing} onClick={loadUsers}>Refresh</Button>
             <Button size="sm" icon="person_add" onClick={() => { setDraft(EMPTY_DRAFT); setCreateError(""); setCreateOpen(true); }}>
               New account

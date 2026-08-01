@@ -447,7 +447,7 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
       ref={containerRef}
       role="img"
       aria-label={`Provider routing topology with ${providers.length} active routing target${providers.length === 1 ? "" : "s"}`}
-      className="h-[320px] w-full min-w-0 border border-border bg-bg-subtle/30 sm:h-[480px]"
+      className="h-[320px] w-full min-w-0 border border-border bg-bg-alt/30 sm:h-[480px]"
     >
       {providers.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">

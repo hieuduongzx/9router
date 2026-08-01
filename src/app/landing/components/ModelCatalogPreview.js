@@ -234,7 +234,7 @@ export default function ModelCatalogPreview() {
         </div>
 
         <p className="mt-3 font-mono text-[11px] text-zinc-500">
-          {"// "}Pricing is shown per million tokens when configured by the instance administrator.
+          Pricing is shown per million tokens when configured by the instance administrator.
         </p>
       </div>
     </section>

@@ -136,7 +136,7 @@ export default function ApiKeysPageClient() {
         </div>
 
         {keys.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-bg-subtle px-4 py-2.5 text-xs text-text-muted sm:px-5">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-bg-alt px-4 py-2.5 text-xs text-text-muted sm:px-5">
             <span><strong className="font-mono font-semibold text-text-main">{keys.length}</strong> total</span>
             <span><strong className="font-mono font-semibold text-success">{activeKeyCount}</strong> active</span>
             <span><strong className="font-mono font-semibold text-text-main">{keys.length - activeKeyCount}</strong> paused</span>
@@ -159,7 +159,7 @@ export default function ApiKeysPageClient() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] table-fixed text-left text-sm">
-              <thead className="border-b border-border bg-bg-subtle/70 font-mono text-xs text-text-muted">
+              <thead className="border-b border-border bg-bg-alt/70 font-mono text-xs text-text-muted">
                 <tr>
                   <th className="w-[22%] px-4 py-2.5 font-medium sm:px-5">Name</th>
                   <th className="w-[36%] px-4 py-2.5 font-medium">Key</th>
@@ -175,7 +175,7 @@ export default function ApiKeysPageClient() {
                   return (
                     <tr
                       key={key.id}
-                      className={`transition-colors hover:bg-primary/[0.03] ${isActive ? "" : "bg-bg-subtle/40"}`}
+                      className={`transition-colors hover:bg-primary/[0.03] ${isActive ? "" : "bg-bg-alt/40"}`}
                     >
                       <td className="px-4 py-3 sm:px-5">
                         <span className={`block truncate font-medium ${isActive ? "text-text-main" : "text-text-muted"}`} title={key.name}>

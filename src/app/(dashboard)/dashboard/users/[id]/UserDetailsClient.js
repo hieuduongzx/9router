@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, ConfirmModal, PeriodDropdown, StatTile } from "@/shared/components";
@@ -11,7 +10,7 @@ import ActionMenu from "../components/ActionMenu";
 import CreditAdjustModal from "../components/CreditAdjustModal";
 import EditIdentityModal from "../components/EditIdentityModal";
 import PasswordResetModal from "../components/PasswordResetModal";
-import { ACCOUNT_PERIODS, DEFAULT_ACCOUNT_PERIOD, accountPeriodLabel } from "../components/accountPeriods";
+import { getUsagePeriodLabel } from "@/shared/constants/usagePeriods";
 import {
   COMPACT_FORMAT,
   COST_FORMAT,
@@ -23,6 +22,9 @@ import {
   ledgerLabel,
   maskKey,
 } from "../components/userFormat";
+
+/** Accounts are long-lived, so a month of history is the useful default here. */
+const DEFAULT_PERIOD = "30d";
 
 function CopyButton({ value, copiedId, onCopy, label }) {
   return (
@@ -51,7 +53,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
   const router = useRouter();
   const [user, setUser] = useState(initialUser);
   const [data, setData] = useState(null);
-  const [period, setPeriod] = useState(DEFAULT_ACCOUNT_PERIOD);
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -141,7 +143,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
   const successRate = statusTotal ? Math.round(((statusCounts.success || 0) / statusTotal) * 100) : null;
   const lastRequestAt = stats?.recentRequests?.[0]?.timestamp || null;
   const activeKeys = apiKeys.filter((key) => key.isActive).length;
-  const periodLabel = accountPeriodLabel(period);
+  const periodLabel = getUsagePeriodLabel(period);
 
   const menuItems = [
     { label: "Edit identity", icon: "badge", onSelect: () => setEditOpen(true) },
@@ -168,13 +170,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <div>
-        <Link href="/dashboard/users" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary">
-          <span className="material-symbols-outlined text-base">arrow_back</span>
-          All accounts
-        </Link>
-      </div>
-
+      {/* Back navigation is provided by the Header breadcrumb for this route. */}
       <div className="border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
@@ -197,7 +193,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <PeriodDropdown value={period} onChange={setPeriod} options={ACCOUNT_PERIODS} />
+            <PeriodDropdown value={period} onChange={setPeriod} />
             <Button variant="ghost" size="sm" icon="refresh" loading={loading} onClick={load}>Refresh</Button>
             <Button size="sm" icon="account_balance_wallet" onClick={() => setCreditOpen(true)}>Adjust credit</Button>
             <ActionMenu items={menuItems} label={`Actions for ${user.username}`} />
@@ -229,7 +225,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
           sub={`${COMPACT_FORMAT.format(stats?.totalPromptTokens || 0)} in · ${COMPACT_FORMAT.format(stats?.totalCompletionTokens || 0)} out`}
         />
         <StatTile
-          chip="danger"
+          chip="cost"
           label={`Estimated cost · ${periodLabel}`}
           value={loading ? "…" : COST_FORMAT.format(stats?.totalCost || 0)}
           sub="Routing cost across all owned keys"

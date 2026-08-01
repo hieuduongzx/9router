@@ -44,7 +44,7 @@ export default function Footer() {
 
           {FOOTER_GROUPS.map((group) => (
             <div key={group.label} className="flex flex-col gap-3">
-              <h4 className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">{"// "}{group.label}</h4>
+              <h4 className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">{group.label}</h4>
               {group.links.map(([href, label]) => (
                 <Link key={href} className="text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-950" href={href}>
                   {label}

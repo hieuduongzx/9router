@@ -441,7 +441,7 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
     <section className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-mono text-base font-semibold text-text-main">{"// "}Virtual Providers</h2>
+          <h2 className="font-mono text-base font-semibold text-text-main">Virtual Providers</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
             Manage the public model owners shown in Dashboard / Models and returned as owned_by from /v1/models.
           </p>

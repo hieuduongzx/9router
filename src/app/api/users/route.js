@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 import { createUser, getApiKeys, getUsageByOwner, listUsers } from "@/lib/db/index.js";
+import { USAGE_PERIOD_VALUES } from "@/shared/constants/usagePeriods";
 
 export const dynamic = "force-dynamic";
 
-const VALID_PERIODS = new Set(["24h", "7d", "30d", "all"]);
+// Derived from the shared dropdown list so the accounts pages cannot offer a
+// range this endpoint would silently downgrade to the default.
+const VALID_PERIODS = new Set(USAGE_PERIOD_VALUES);
 const MAX_CREDIT_CENTS = 100_000_000;
 
 export async function GET(request) {

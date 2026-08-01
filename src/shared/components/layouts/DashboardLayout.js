@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
 
@@ -36,6 +37,8 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
+  // Read only so the Suspense placeholder matches the rail's real width.
+  const [sidebarCollapsed] = useSidebarCollapsed();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -78,14 +81,22 @@ export default function DashboardLayout({ children }) {
 
       {/* Sidebar - Desktop */}
       <div className="hidden h-full lg:flex">
-        <Suspense fallback={<div className="h-full w-[248px] border-r border-border bg-surface" />}>
+        <Suspense
+          fallback={
+            <div
+              className={`h-full shrink-0 border-r border-border bg-sidebar ${
+                sidebarCollapsed ? "w-16" : "w-64"
+              }`}
+            />
+          }
+        >
           <Sidebar />
         </Suspense>
       </div>
 
       {/* Sidebar - Mobile drawer */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 h-full shadow-xl transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out lg:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

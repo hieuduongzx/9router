@@ -29,25 +29,19 @@ export default function ActivityPageClient() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 pb-8 sm:px-0">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-mono text-xl font-semibold tracking-[-0.02em] text-text-main">Operations activity</h1>
-            <Badge variant="outline" size="sm">Admin only</Badge>
-          </div>
-          <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            Monitor system traffic, provider routing, account ownership, and request-level diagnostics.
-          </p>
+      {/* Title/description are rendered once by the shared Header. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <SegmentedControl
+            options={TABS}
+            value={activeTab}
+            onChange={handleTabChange}
+            className="w-full sm:w-auto"
+          />
+          <Badge variant="outline" size="sm">Admin only</Badge>
         </div>
-        <PeriodDropdown value={period} onChange={setPeriod} className="w-full lg:w-auto" />
-      </header>
-
-      <SegmentedControl
-        options={TABS}
-        value={activeTab}
-        onChange={handleTabChange}
-        className="w-full sm:w-auto sm:self-start"
-      />
+        <PeriodDropdown value={period} onChange={setPeriod} className="w-full sm:w-auto" />
+      </div>
 
       {activeTab === "overview" && <SystemUsageTab period={period} />}
       {activeTab === "providers" && <ProviderActivityTab period={period} />}

@@ -26,5 +26,10 @@ export default {
     { id: "claude-opus-4-20250514", name: "Claude Opus 4" },
     { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet" },
   ],
-  serviceKinds: ["llm","imageToText"],
+  serviceKinds: ["llm","imageToText","webSearch"],
+  searchViaChat: {
+    defaultModel: "claude-sonnet-4-20250514",
+    endpoint: "https://api.anthropic.com/v1/messages",
+    pricingUrl: "https://docs.anthropic.com/en/docs/about-claude/pricing",
+  },
 };

@@ -25,13 +25,7 @@ function UsageContent() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
-      <header>
-        <h1 className="font-mono text-xl font-semibold tracking-tight text-text-main">{"// "}Usage</h1>
-        <p className="mt-1 max-w-2xl text-sm text-text-muted">
-          Review request volume, tokens, cache utilization, and estimated cost by routed model.
-        </p>
-      </header>
-
+      {/* Title/description are rendered once by the shared Header. */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
           <label className="flex min-w-0 items-center gap-2 font-mono text-sm text-text-muted">

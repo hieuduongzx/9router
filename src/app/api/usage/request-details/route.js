@@ -5,7 +5,8 @@ import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 
 /**
  * GET /api/usage/request-details
- * Query parameters: page, pageSize (1-100), provider, model, connectionId, status, startDate, endDate
+ * Query parameters: page, pageSize (1-100), provider, model, connectionId, status,
+ * startDate, endDate, userId (admin only), apiKeyId
  */
 export async function GET(request) {
   try {
@@ -24,7 +25,8 @@ export async function GET(request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const userId = searchParams.get("userId");
-    
+    const apiKeyId = searchParams.get("apiKeyId");
+
     if (page < 1) {
       return NextResponse.json(
         { error: "Page must be >= 1" },
@@ -57,8 +59,15 @@ export async function GET(request) {
     if (userId && !(await getUserById(userId))) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    // Scope is always derived from the keys this account owns, so narrowing by
+    // apiKeyId can only ever select a subset — an id from another account
+    // matches nothing rather than widening access.
     const keys = await getApiKeys(userId || owner.id);
-    filter.apiKeys = keys.map((key) => key.key);
+    const scopedKeys = apiKeyId ? keys.filter((key) => key.id === apiKeyId) : keys;
+    if (apiKeyId && scopedKeys.length === 0) {
+      return NextResponse.json({ error: "API key not found" }, { status: 404 });
+    }
+    filter.apiKeys = scopedKeys.map((key) => key.key);
     
     const result = await getRequestDetails(filter);
     

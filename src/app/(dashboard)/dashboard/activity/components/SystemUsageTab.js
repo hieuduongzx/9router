@@ -89,7 +89,7 @@ export default function SystemUsageTab({ period }) {
             sub="Prompt and context tokens sent upstream"
           />
           <StatTile
-            chip="info"
+            chip="tokens"
             label="Output tokens"
             value={formatNumber(summary.completionTokens)}
             sub="Completion and reasoning tokens returned"

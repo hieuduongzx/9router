@@ -196,7 +196,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="relative font-mono text-[11px] text-white/35">{"// "}credentials stay on this Router2k instance</p>
+          <p className="relative font-mono text-[11px] text-white/35">credentials stay on this Router2k instance</p>
         </section>
 
         <section className="flex items-center px-5 py-8 sm:px-12 lg:px-16">

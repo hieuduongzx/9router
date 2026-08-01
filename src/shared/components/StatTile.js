@@ -2,12 +2,18 @@
 
 import { cn } from "@/shared/utils/cn";
 
+/**
+ * Data-role chips (see DESIGN.md). Pick by what the number *means*, never by
+ * the colour you want: tokens=violet, requests=amber, cost/credit=green,
+ * failures=red, healthy=green, neutral counts=blue.
+ */
 const CHIP_COLORS = {
   tokens: "bg-[var(--color-chip-tokens)]",
   requests: "bg-[var(--color-chip-requests)]",
   cost: "bg-[var(--color-chip-cost)]",
   danger: "bg-[var(--color-chip-danger)]",
   info: "bg-[var(--color-chip-info)]",
+  success: "bg-success",
   muted: "bg-text-muted",
 };
 

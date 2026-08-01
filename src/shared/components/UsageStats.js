@@ -70,7 +70,9 @@ export default function UsageStats({
 
       {loading ? spinner : <OverviewCards stats={stats} />}
 
-      <UsageOverTime period={period} onPeriodChange={setPeriod} apiKeyId={apiKeyId} />
+      {/* No onPeriodChange: the page toolbar owns the period control, so passing
+          it here would render a second dropdown for the same state. */}
+      <UsageOverTime period={period} apiKeyId={apiKeyId} />
 
       {loading ? spinner : <RequestDetailsTab period={period} apiKeyId={apiKeyId} />}
     </div>

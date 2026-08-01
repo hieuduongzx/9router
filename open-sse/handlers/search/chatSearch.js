@@ -53,6 +53,14 @@ function collectCitationShaped(value, out, depth = 0) {
   }
 }
 
+function searchEvidence(type, verified, details = {}) {
+  return {
+    verified: verified === true,
+    type: verified ? type : null,
+    ...details,
+  };
+}
+
 /**
  * Parse structured search hits from LLM text:
  * 1) JSON array of {title,url,snippet}
@@ -105,6 +113,7 @@ function extractResponsesApiAnswer(data) {
   const output = Array.isArray(data?.output) ? data.output : [];
   let text = "";
   const citations = [];
+  const searchCalls = [];
 
   // Top-level citations (xAI SDK / Responses variants)
   if (Array.isArray(data?.citations)) {
@@ -121,10 +130,9 @@ function extractResponsesApiAnswer(data) {
     if (
       type === "web_search_call" ||
       type === "web_search" ||
-      type === "server_tool_use" ||
-      type.includes("web_search") ||
-      type.includes("search")
+      type.includes("web_search")
     ) {
+      if (item?.status === "completed" || item?.action) searchCalls.push(item);
       collectCitationShaped(item, citations);
     }
 
@@ -160,7 +168,54 @@ function extractResponsesApiAnswer(data) {
     unique.push(c);
   }
   const tokens = data?.usage?.total_tokens || data?.usage?.output_tokens || 0;
-  return { text, citations: unique, tokens };
+  return {
+    text,
+    citations: unique,
+    tokens,
+    evidence: searchEvidence("web_search_call", searchCalls.length > 0, {
+      search_call_count: searchCalls.length,
+    }),
+  };
+}
+
+/** Extract Anthropic server-side web-search blocks and citations. */
+function extractAnthropicAnswer(data) {
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  const citations = [];
+  let text = "";
+  let serverToolCalls = 0;
+  let serverToolResults = 0;
+
+  for (const block of blocks) {
+    if (block?.type === "text") {
+      text += block.text || "";
+      for (const citation of block.citations || []) pushCitation(citations, citation);
+      continue;
+    }
+    if (block?.type === "server_tool_use" && block?.name === "web_search") {
+      serverToolCalls += 1;
+      continue;
+    }
+    if (block?.type === "web_search_tool_result") {
+      const results = Array.isArray(block.content) ? block.content : [];
+      if (results.some((item) => item?.type === "web_search_result" && (item.url || item.uri))) {
+        serverToolResults += 1;
+      }
+      collectCitationShaped(block.content, citations);
+    }
+  }
+
+  const billedSearches = Number(data?.usage?.server_tool_use?.web_search_requests) || 0;
+  const verified = serverToolResults > 0 || billedSearches > 0;
+  const tokens = (data?.usage?.input_tokens || 0) + (data?.usage?.output_tokens || 0);
+  return {
+    text,
+    citations,
+    tokens,
+    evidence: searchEvidence("server_tool_use", verified, {
+      search_call_count: Math.max(serverToolCalls, serverToolResults, billedSearches),
+    }),
+  };
 }
 
 /**
@@ -213,49 +268,46 @@ const CHAT_SEARCH_CONFIG = {
       const candidate = data?.candidates?.[0];
       const parts = candidate?.content?.parts || [];
       const text = parts.map((p) => p?.text || "").filter(Boolean).join("");
-      const chunks = candidate?.groundingMetadata?.groundingChunks || [];
+      const grounding = candidate?.groundingMetadata;
+      const chunks = grounding?.groundingChunks || [];
       const citations = chunks
         .map((ch) => ch?.web)
         .filter(Boolean)
         .map((w) => ({ url: w.uri || w.url, title: w.title || "" }))
         .filter((c) => c.url);
       const tokens = data?.usageMetadata?.totalTokenCount || 0;
-      return { text, citations, tokens };
+      const queries = Array.isArray(grounding?.webSearchQueries)
+        ? grounding.webSearchQueries.filter((query) => typeof query === "string" && query.trim())
+        : [];
+      const hasSearchEntryPoint = !!grounding?.searchEntryPoint;
+      return {
+        text,
+        citations,
+        tokens,
+        evidence: searchEvidence(
+          "grounding_metadata",
+          queries.length > 0 || chunks.length > 0 || hasSearchEntryPoint,
+          { search_call_count: queries.length || (hasSearchEntryPoint ? 1 : 0) },
+        ),
+      };
     }
   },
 
   openai: {
     endpoint: () => searchEndpoint("openai"),
-    buildBody: (query, model) => {
-      const body = {
-        model,
-        messages: [{ role: "user", content: query }]
-      };
-      // Non-search-preview models need explicit web_search tool
-      if (!/search/i.test(model)) {
-        body.tools = [{ type: "web_search" }];
-      }
-      return body;
-    },
+    buildBody: (query, model) => ({
+      model,
+      input: query,
+      tools: [{ type: "web_search" }],
+      tool_choice: "required",
+      stream: false,
+      store: false,
+    }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`
     }),
-    extractAnswer: (data) => {
-      const msg = data?.choices?.[0]?.message || {};
-      const text = msg.content || "";
-      const annotations = Array.isArray(msg.annotations) ? msg.annotations : [];
-      const fromAnn = annotations
-        .map((a) => a?.url_citation)
-        .filter(Boolean)
-        .map((u) => ({ url: u.url, title: u.title || "" }));
-      const fromTop = Array.isArray(data?.citations)
-        ? data.citations.map(normalizeCitation).filter(Boolean)
-        : [];
-      const citations = fromAnn.length ? fromAnn : fromTop;
-      const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
-    }
+    extractAnswer: extractResponsesApiAnswer,
   },
 
   xai: {
@@ -271,6 +323,24 @@ const CHAT_SEARCH_CONFIG = {
       Authorization: `Bearer ${token}`
     }),
     extractAnswer: extractResponsesApiAnswer,
+  },
+
+  anthropic: {
+    endpoint: () => searchEndpoint("anthropic"),
+    buildBody: (query, model) => ({
+      model,
+      max_tokens: 512,
+      messages: [{ role: "user", content: query }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
+    }),
+    buildHeaders: (token, credentials) => ({
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      ...(credentials?.apiKey
+        ? { "x-api-key": token }
+        : { Authorization: `Bearer ${token}` }),
+    }),
+    extractAnswer: extractAnthropicAnswer,
   },
 
   kimi: {
@@ -318,7 +388,14 @@ const CHAT_SEARCH_CONFIG = {
         }
       }
       const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
+      return {
+        text,
+        citations,
+        tokens,
+        evidence: searchEvidence("builtin_web_search_results", citations.length > 0, {
+          search_call_count: citations.length > 0 ? 1 : 0,
+        }),
+      };
     }
   },
 
@@ -376,7 +453,14 @@ const CHAT_SEARCH_CONFIG = {
         }
       }
       const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
+      return {
+        text,
+        citations,
+        tokens,
+        evidence: searchEvidence("web_search_results", citations.length > 0, {
+          search_call_count: citations.length > 0 ? 1 : 0,
+        }),
+      };
     }
   },
 
@@ -398,7 +482,14 @@ const CHAT_SEARCH_CONFIG = {
         ? raw.map(normalizeCitation).filter(Boolean)
         : [];
       const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
+      return {
+        text,
+        citations,
+        tokens,
+        evidence: searchEvidence("citations", citations.length > 0, {
+          search_call_count: citations.length > 0 ? 1 : 0,
+        }),
+      };
     }
   },
 
@@ -445,7 +536,14 @@ const CHAT_SEARCH_CONFIG = {
         }
       }
       const tokens = data?.usage?.total_tokens || 0;
-      return { text, citations, tokens };
+      return {
+        text,
+        citations,
+        tokens,
+        evidence: searchEvidence("web_search_results", citations.length > 0, {
+          search_call_count: citations.length > 0 ? 1 : 0,
+        }),
+      };
     }
   }
 };
@@ -500,7 +598,7 @@ export async function handleChatSearch({
   const useModel = model || searchModel(provider);
   const url = cfg.endpoint(useModel);
   const body = cfg.buildBody(query, useModel);
-  const headers = cfg.buildHeaders(token);
+  const headers = cfg.buildHeaders(token, credentials);
 
   const controller = new AbortController();
   const timeoutMs = cfg.timeoutMs || REQUEST_TIMEOUT_MS;
@@ -556,7 +654,7 @@ export async function handleChatSearch({
     };
   }
 
-  const { text, citations, tokens } = cfg.extractAnswer(data);
+  const { text, citations, tokens, evidence } = cfg.extractAnswer(data);
   const retrievedAt = new Date().toISOString();
   const limited = (citations || []).slice(0, limit);
   const results = limited.map((c, i) => toResult(c, i, provider, retrievedAt));
@@ -573,7 +671,13 @@ export async function handleChatSearch({
       metrics: {
         response_time_ms: Date.now() - startTime,
         upstream_latency_ms: upstreamLatency,
-        total_results_available: null
+        total_results_available: null,
+        search_evidence: {
+          verified: evidence?.verified === true,
+          type: evidence?.type || null,
+          search_call_count: evidence?.search_call_count || 0,
+          result_count: results.length,
+        },
       },
       errors: []
     }

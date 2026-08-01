@@ -52,14 +52,14 @@ components:
 
 **Creative North Star: "The Bench Instrument"**
 
-Router2k stops looking like a SaaS product and starts looking like a piece of lab/bench equipment for routing traffic: a schematic readout, not a marketing surface. Every screen reads like inspecting a log or a spec sheet — numbers and status are the content; chrome recedes to hairlines and brackets. The system borrows from Swiss grid typography, terminal output, and print crop-marks: flat fields, monospace numerals, `//` comment-style section labels, `[NN]` bracket indices instead of bullets or icons-as-decoration.
+Router2k stops looking like a SaaS product and starts looking like a piece of lab/bench equipment for routing traffic: a schematic readout, not a marketing surface. Every screen reads like inspecting a log or a spec sheet — numbers and status are the content; chrome recedes to hairlines and brackets. The system borrows from Swiss grid typography, terminal output, and print crop-marks: flat fields, monospace numerals, uppercase tracked section labels, `[NN]` bracket indices instead of bullets or icons-as-decoration.
 
-Confirmed rejections: no drop shadows, no gradients, no glassmorphism/blur chrome, no rounded-pill buttons, no colorful icon-tile decoration for its own sake, no card elevation on hover. Color is reserved for small 1–2ch data-role chips (tokens/cost/requests/status) and the single ink/primary accent — never for backgrounds or brand decoration.
+Confirmed rejections: no drop shadows, no gradients, no glassmorphism/blur chrome, no rounded-pill buttons, no colorful icon-tile decoration for its own sake, no card elevation on hover, and **no `//` comment-slash prefix on labels or headings** (user decision — the eyebrow carries its structure through mono + uppercase + tracking + trailing rule alone). Color is reserved for small 1–2ch data-role chips (tokens/cost/requests/status) and the single ink/primary accent — never for backgrounds or brand decoration.
 
 **Key Characteristics:**
 - Flat surfaces, 1px hairline borders everywhere, radius ≤4px (buttons/inputs only; containers are square)
 - Monospace (IBM Plex Mono) for all headings, nav labels, stat numbers, table data, buttons; Inter for body paragraphs and descriptions only
-- `//` prefixed uppercase tracked section labels; `[01]` bracket step indices in flows
+- Uppercase tracked section labels with a trailing hairline rule; `[01]` bracket step indices in flows
 - Crop-mark corner brackets as the one signature ornament, used sparingly on hero/featured containers
 - Near-monochrome ink/paper palette; the only saturated color is the primary (ink-black in light, off-white in dark) and small semantic data chips
 
@@ -99,18 +99,20 @@ Near-monochrome ground with data-role color reserved for small chips and the pri
 ### Hierarchy
 - **Display** (600, 20–24px, tight leading, mono): page title (`Header` h1), landing hero headline.
 - **Headline** (600, 15–16px, mono): card/section titles.
-- **Label** (600, 11px, mono, `0.08em` tracking, uppercase): `// SECTION LABEL` eyebrows, table column headers, nav group titles, stat tile captions (`MONTHLY USAGE`, `TOTAL TOKENS`).
+- **Label** (600, 11px, mono, `0.08em` tracking, uppercase): `SECTION LABEL` eyebrows, table column headers, nav group titles, stat tile captions (`MONTHLY USAGE`, `TOTAL TOKENS`).
 - **Body** (400, 14px, 1.5 leading, sans/Inter): descriptions, helper text, empty states, modal copy.
 - **Data** (600, 20–36px, mono, tabular-nums): the big number in a stat tile (`$0.21`, `4.3M`, `106`) — this is the largest text on any screen, always mono, always tabular-nums.
 
 ### Named Rules
 **The Mono-Structure Rule.** If a piece of text is UI chrome, a label, a number, code, or an identifier, it is mono. If it is a sentence written for a human to read for meaning, it is Inter. Never mix — a card title in Inter or a paragraph in mono both break the system.
 
+**Exception — sidebar nav labels are Inter** (user decision). Mono at 13–14px inside a 256px rail is measurably harder to scan than Inter, and nav labels are read as words, not as data. Mono still carries the sidebar's eyebrows, the wordmark, the version string, and the status readout. Do not "fix" these back to mono.
+
 ## Layout
 
-Swiss/schematic grid: dashboard stat rows are 3 equal hairline-bordered columns sharing 1px seams (grid-gap: 1px of border color, not a spacing gap — tiles visually fuse into one ruled table). Section labels (`// USAGE SUMMARY`) sit above each grid with a thin rule trailing off to the right. Content max-width follows existing container widths (no new breakpoint system); density stays close to current spacing scale (`p-6` card padding, `gap-6` section rhythm) — this is a skin/token change, not a re-layout, except where a page's structure must change to match a reference (e.g. stat-tile rows, request tables).
+Swiss/schematic grid: dashboard stat rows are 3 equal hairline-bordered columns sharing 1px seams (grid-gap: 1px of border color, not a spacing gap — tiles visually fuse into one ruled table). Section labels (`USAGE SUMMARY`) sit above each grid with a thin rule trailing off to the right. Content max-width follows existing container widths (no new breakpoint system); density stays close to current spacing scale (`p-6` card padding, `gap-6` section rhythm) — this is a skin/token change, not a re-layout, except where a page's structure must change to match a reference (e.g. stat-tile rows, request tables).
 
-Sidebar stays fixed-width icon+label rail (existing 256px), now paper-dim background, hairline right border, no shadow.
+Sidebar is a 256px icon+label rail — paper-dim background, hairline right border, no shadow — collapsible on desktop to a 64px icon-only rail (state persisted per browser). Collapsed, group eyebrows reduce to their hairline rule, labels move to `sr-only` plus a native tooltip, and the media submenu is closed rather than shown, since a nested list has nowhere to go at that width.
 
 ## Elevation & Depth
 
@@ -152,7 +154,7 @@ Two-tier radius, applied narrowly:
 - **Error/Disabled:** red hairline border + red mono hint text; disabled = 50% opacity, no fill change.
 
 ### Navigation (Sidebar)
-- Flat paper-dim rail, hairline right border, no active-pill background — active item gets a 2px left ink bar + ink text, inactive = muted text. Group labels are mono `// LABEL` style at 10–11px tracked uppercase, replacing the current plain uppercase sans labels.
+- Flat paper-dim rail, hairline right border, no active-pill background — active item gets a 2px left ink bar + ink text, inactive = muted text. Group labels are mono `LABEL` style at 10–11px tracked uppercase with a trailing hairline rule, replacing the current plain uppercase sans labels.
 
 ### Code / terminal blocks
 - Signature component: black (`#000`/`#0a0a0a`) background regardless of theme, mono text, small "Copy" button top-right (hairline border, not filled) — matches the reference `$ npm i -g ...` blocks exactly; this is the one place true black-on-white-elsewhere is correct.
@@ -165,7 +167,7 @@ Two-tier radius, applied narrowly:
 ### Do:
 - **Do** set every number/stat/label/nav-item/button in IBM Plex Mono; keep Inter only for prose sentences.
 - **Do** keep every border 1px and the system's only border color (hairline token, themed).
-- **Do** use `// SECTION LABEL` eyebrows above every major section, and `[01] [02] [03]` bracket indices for ordered steps instead of bullets or numbered circles.
+- **Do** use `SECTION LABEL` eyebrows (uppercase mono + trailing hairline rule, no `//` prefix) above every major section, and `[01] [02] [03]` bracket indices for ordered steps instead of bullets or numbered circles.
 - **Do** keep stat-tile grids edge-fused (shared 1px borders, zero gap) rather than gapped card grids.
 - **Do** preserve all existing routes, copy meaning, and data — this is a visual system replacement, not a feature or IA change.
 

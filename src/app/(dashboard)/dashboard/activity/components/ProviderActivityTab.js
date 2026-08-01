@@ -132,8 +132,8 @@ export default function ProviderActivityTab({ period }) {
     <div className="flex min-w-0 flex-col gap-6">
       <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile chip="info" label="Configured accounts" value={formatNumber(connections.length)} sub={`${activeConnections.length} enabled`} />
-        <StatTile chip="requests" label="Active providers" value={formatNumber(topologyProviders.length)} sub="Unique routing targets" />
-        <StatTile chip="cost" label="Healthy accounts" value={formatNumber(healthyCount)} sub={`${activeConnections.length - healthyCount - issueCount} unchecked`} />
+        <StatTile chip="info" label="Active providers" value={formatNumber(topologyProviders.length)} sub="Unique routing targets" />
+        <StatTile chip="success" label="Healthy accounts" value={formatNumber(healthyCount)} sub={`${activeConnections.length - healthyCount - issueCount} unchecked`} />
         <StatTile chip="danger" label="Unavailable accounts" value={formatNumber(issueCount)} sub={issueCount ? "Needs operator attention" : "No reported failures"} />
       </div>
 

@@ -168,7 +168,7 @@ export async function handleSearchCore({ body, provider, providerConfig, credent
       provider: provider.id,
       query: clean,
       maxResults: normalizedBody.max_results,
-      model: provider.searchViaChat.defaultModel,
+      model: normalizedBody.search_model || provider.searchViaChat.defaultModel,
       credentials,
       log
     });
@@ -190,7 +190,7 @@ export async function handleSearchCore({ body, provider, providerConfig, credent
       provider: provider.id,
       query: clean,
       maxResults: normalizedBody.max_results,
-      model: provider.searchViaChat.defaultModel,
+      model: normalizedBody.search_model || provider.searchViaChat.defaultModel,
       credentials,
       log
     });

@@ -191,4 +191,90 @@ describe("model test route kind routing", () => {
     expect(body.status).toBe(502);
     expect(body.error).toBe("HTTP 502: bad upstream");
   });
+
+  it("verifies native web search only from provider-native structured evidence", async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      provider: "openai",
+      query: "test query",
+      results: [{ url: "https://example.com/release", title: "Release" }],
+      answer: { text: "A release happened." },
+      metrics: {
+        search_evidence: {
+          verified: true,
+          type: "web_search_call",
+          search_call_count: 1,
+          result_count: 1,
+        },
+      },
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    const { POST } = await import("../../src/app/api/models/test/route.js");
+    const req = new Request("http://localhost/api/models/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-5",
+        mode: "web-search",
+      }),
+    });
+
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(body).toEqual(expect.objectContaining({
+      ok: true,
+      supported: true,
+      verdict: "verified",
+      evidenceType: "web_search_call",
+      searchCallCount: 1,
+      resultCount: 1,
+    }));
+
+    const [url, options] = global.fetch.mock.calls[0];
+    const payload = JSON.parse(options.body);
+    expect(url).toContain("/api/v1/search");
+    expect(payload.provider).toBe("openai");
+    expect(payload.search_model).toBe("gpt-5");
+    expect(payload.query).toMatch(/live public web/i);
+  });
+
+  it("ignores plausible assistant text and links without structured search evidence", async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      provider: "openai",
+      results: [{ url: "https://example.com", title: "Example" }],
+      answer: { text: "I searched the web. [Source](https://example.com)" },
+      metrics: {
+        search_evidence: {
+          verified: false,
+          type: null,
+          search_call_count: 0,
+          result_count: 1,
+        },
+      },
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    const { POST } = await import("../../src/app/api/models/test/route.js");
+    const req = new Request("http://localhost/api/models/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/text-only-model",
+        mode: "web-search",
+      }),
+    });
+
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(body.ok).toBe(false);
+    expect(body.supported).toBeNull();
+    expect(body.verdict).toBe("unknown");
+    expect(body.error).toMatch(/assistant text was ignored/i);
+  });
 });

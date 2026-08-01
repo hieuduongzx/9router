@@ -4,52 +4,113 @@ import { useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import {
+  Activity,
+  AudioLines,
+  Boxes,
+  Braces,
+  Brush,
+  ChartColumn,
+  Check,
+  ChevronDown,
+  Coins,
+  Copy,
+  Download,
+  Film,
+  Gauge,
+  GitFork,
+  Globe,
+  House,
+  KeyRound,
+  Languages,
+  Lock,
+  Images,
+  Mic,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PowerOff,
+  Puzzle,
+  Route,
+  ScrollText,
+  Server,
+  Settings,
+  Terminal,
+  User,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
 import Button from "./Button";
 import { ConfirmModal } from "./Modal";
 
+const HEALTH_POLL_MS = 20000;
+
+/**
+ * Lucide strokes are authored on a 24px grid, so a 16px icon renders them at
+ * strokeWidth * (16/24): idle 2.25 lands on ~1.5px, active 2.75 on ~1.83px.
+ * Kept deliberately above Lucide's default of 2 because at this size the thinner
+ * weights read as washed out against muted text. The active row gains weight
+ * rather than a fill, since Lucide has no filled variant to switch to.
+ */
+const ICON_SIZE = 16;
+const STROKE_IDLE = 2.25;
+const STROKE_ACTIVE = 2.75;
+/** Same optical weight for the 13px icons in the update strip: 1.5px * 24/13. */
+const STROKE_SMALL = 2.75;
+
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
+
+/** Media submenu icons, keyed by kind id (the constants carry webfont names). */
+const MEDIA_ICONS = {
+  embedding: Braces,
+  image: Brush,
+  video: Film,
+  tts: AudioLines,
+  stt: Mic,
+};
+
 const COMBINED_WEB_ITEM = {
   id: "web",
   label: "Web Fetch & Search",
-  icon: "travel_explore",
+  icon: Globe,
   href: "/dashboard/media-providers/web",
 };
 
 const GLOBAL_NAV = [
-  { href: "/dashboard", label: "Home", icon: "home", exact: true },
-  { href: "/dashboard/api-keys", label: "API Keys", icon: "vpn_key" },
-  { href: "/dashboard/models", label: "Models", icon: "deployed_code" },
-  { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
+  { href: "/dashboard", label: "Home", icon: House, exact: true },
+  { href: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
+  { href: "/dashboard/models", label: "Models", icon: Boxes },
+  { href: "/dashboard/usage", label: "Usage", icon: ChartColumn },
 ];
 
 const PERSONAL_NAV = [
-  { href: "/dashboard/account", label: "Profile", icon: "person", exact: true },
-  { href: "/dashboard/account?tab=wallet", label: "Wallet", icon: "account_balance_wallet", match: "wallet" },
-  { href: "/dashboard/account?tab=security", label: "Security", icon: "lock", match: "security" },
+  { href: "/dashboard/account", label: "Profile", icon: User, exact: true },
+  { href: "/dashboard/account?tab=wallet", label: "Wallet", icon: Wallet, match: "wallet" },
+  { href: "/dashboard/account?tab=security", label: "Security", icon: Lock, match: "security" },
 ];
 
 const ADMIN_NAV = [
-  { href: "/dashboard/activity", label: "Activity", icon: "monitoring" },
-  { href: "/dashboard/providers", label: "Providers", icon: "dns" },
-  { href: "/dashboard/combos", label: "Model Routes", icon: "alt_route" },
-  { href: "/dashboard/quota", label: "Quota", icon: "data_usage" },
-  { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
-  { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },
-  { href: "/dashboard/users", label: "Accounts", icon: "manage_accounts" },
+  { href: "/dashboard/activity", label: "Activity", icon: Activity },
+  { href: "/dashboard/providers", label: "Providers", icon: Server },
+  { href: "/dashboard/combos", label: "Model Routes", icon: GitFork },
+  { href: "/dashboard/quota", label: "Quota", icon: Gauge },
+  { href: "/dashboard/token-saver", label: "Token Saver", icon: Coins },
+  { href: "/dashboard/cli-tools", label: "CLI Tools", icon: Terminal },
+  { href: "/dashboard/users", label: "Accounts", icon: Users },
 ];
 
 const SYSTEM_NAV = [
-  { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: "lan" },
-  { href: "/dashboard/skills", label: "Skills", icon: "extension" },
-];
-
-const DEBUG_NAV = [
-  { href: "/dashboard/console-log", label: "Console Log", icon: "terminal" },
-  { href: "/dashboard/translator", label: "Translator", icon: "translate", requiresTranslator: true },
+  { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: Network },
+  { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
+  { href: "/dashboard/console-log", label: "Console Log", icon: ScrollText },
+  { href: "/dashboard/translator", label: "Translator", icon: Languages, requiresTranslator: true },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 function isPathActive(pathname, href, exact = false) {
@@ -57,37 +118,48 @@ function isPathActive(pathname, href, exact = false) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavItem({ href, label, icon, active, onClick, nested = false }) {
+/**
+ * Shared row geometry: square corners, 2px ink tick when active.
+ *
+ * Labels are sans, not mono: DESIGN.md's Mono-Structure Rule puts nav labels in
+ * mono, but at 14px in a narrow rail mono is measurably harder to scan, so the
+ * rule is waived here by user decision. Mono stays on identifiers (version) and
+ * the structural eyebrows.
+ */
+function NavItem({ href, label, icon: Icon, active, onClick, nested = false, collapsed = false }) {
   return (
     <Link
       href={href}
       onClick={onClick}
+      title={label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-2.5 font-mono text-[13px] font-medium outline-none transition-colors",
+        "group relative flex h-9 items-center text-sm outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-primary/40",
-        nested ? "h-8 pl-3 pr-2.5" : "h-8 pl-3 pr-2.5",
+        collapsed ? "justify-center px-0" : cn("gap-3 pr-2.5", nested ? "pl-2.5" : "pl-3"),
         active
-          ? "text-text-main"
+          ? "font-medium text-text-main"
           : "text-text-muted hover:bg-surface-2 hover:text-text-main"
       )}
     >
       <span
         aria-hidden
         className={cn(
-          "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 bg-text-main transition-opacity",
+          "absolute inset-y-1 left-0 w-0.5 bg-text-main transition-opacity",
           active ? "opacity-100" : "opacity-0"
         )}
       />
-      <span
+      <Icon
+        aria-hidden
+        size={ICON_SIZE}
+        strokeWidth={active ? STROKE_ACTIVE : STROKE_IDLE}
         className={cn(
-          "material-symbols-outlined shrink-0 text-[17px] transition-colors",
-          active ? "fill-1 text-text-main" : "text-text-muted group-hover:text-text-main"
+          "shrink-0 transition-colors",
+          active ? "text-text-main" : "text-text-muted group-hover:text-text-main"
         )}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 truncate">{label}</span>
+      />
+      {/* Collapsed rows keep an accessible name even with the label hidden. */}
+      <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{label}</span>
     </Link>
   );
 }
@@ -95,45 +167,50 @@ function NavItem({ href, label, icon, active, onClick, nested = false }) {
 NavItem.propTypes = {
   href: PropTypes.string.isRequired,
   label: PropTypes.string.isRequired,
-  icon: PropTypes.string.isRequired,
+  icon: PropTypes.elementType.isRequired,
   active: PropTypes.bool,
   onClick: PropTypes.func,
   nested: PropTypes.bool,
+  collapsed: PropTypes.bool,
 };
 
-function NavSection({ title, children, className }) {
+/**
+ * `LABEL ────` eyebrow with the trailing hairline rule (see DESIGN.md).
+ * Collapsed, the text is dropped and only the rule remains as a group seam.
+ */
+function GroupLabel({ children, collapsed }) {
+  if (collapsed) {
+    return (
+      <div className="px-2.5 pb-1.5 pt-3.5">
+        <span className="block h-px bg-border" aria-hidden />
+      </div>
+    );
+  }
   return (
-    <div className={cn("space-y-0.5", className)}>
-      {title ? (
-        <p className="px-2.5 pb-1 pt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted/70">
-          {"// "}{title}
-        </p>
-      ) : null}
-      <div className="space-y-0.5">{children}</div>
+    <div className="flex items-center gap-2 px-1.5 pb-1.5 pt-4">
+      <span className="whitespace-nowrap font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-subtle">
+        {children}
+      </span>
+      <span className="h-px flex-1 bg-border" aria-hidden />
     </div>
   );
 }
 
-NavSection.propTypes = {
-  title: PropTypes.string,
-  children: PropTypes.node,
-  className: PropTypes.string,
-};
+GroupLabel.propTypes = { children: PropTypes.node, collapsed: PropTypes.bool };
 
-function NavSubsection({ title, children }) {
+function NavGroup({ label, children, collapsed }) {
   return (
-    <div className="pt-2">
-      <p className="px-2.5 pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted/60">
-        {"// "}{title}
-      </p>
-      <div className="ml-2 space-y-0.5 border-l border-border/70 pl-2">{children}</div>
+    <div>
+      <GroupLabel collapsed={collapsed}>{label}</GroupLabel>
+      {children}
     </div>
   );
 }
 
-NavSubsection.propTypes = {
-  title: PropTypes.string.isRequired,
+NavGroup.propTypes = {
+  label: PropTypes.string.isRequired,
   children: PropTypes.node,
+  collapsed: PropTypes.bool,
 };
 
 export default function Sidebar({ onClose }) {
@@ -141,25 +218,49 @@ export default function Sidebar({ onClose }) {
   const searchParams = useSearchParams();
   const accountTab = searchParams?.get("tab") || "profile";
   const onMediaRoute = pathname.startsWith("/dashboard/media-providers");
-  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(onMediaRoute);
+  const [lastMediaRoute, setLastMediaRoute] = useState(onMediaRoute);
   const [isDisconnected, setIsDisconnected] = useState(false);
+  const [gatewayOnline, setGatewayOnline] = useState(true);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
   const [enableTranslator, setEnableTranslator] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const mediaExpanded = mediaOpen || onMediaRoute;
   const { copied, copy } = useCopyToClipboard(2000);
+  const [storedCollapsed, setCollapsed] = useSidebarCollapsed();
 
   const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
+  const online = gatewayOnline && !isDisconnected;
+
+  // `onClose` is only passed by the mobile drawer, which is always full width —
+  // collapsing there would leave a rail floating over the overlay.
+  const isDrawer = Boolean(onClose);
+  const collapsed = storedCollapsed && !isDrawer;
+  const mediaExpanded = mediaOpen && !collapsed;
+
+  /** Collapsed rows have no room for a submenu, so open the rail first. */
+  const handleMediaToggle = () => {
+    if (collapsed) {
+      setCollapsed(false);
+      setMediaOpen(true);
+      return;
+    }
+    setMediaOpen((value) => !value);
+  };
 
   const mediaKinds = useMemo(
     () => MEDIA_PROVIDER_KINDS.filter((k) => VISIBLE_MEDIA_KINDS.includes(k.id)),
     []
   );
 
-
+  // Auto-reveal the media group when routing into it; a manual collapse still wins afterwards.
+  // Adjusted during render (not in an effect) so it never causes a cascading re-render.
+  if (onMediaRoute !== lastMediaRoute) {
+    setLastMediaRoute(onMediaRoute);
+    if (onMediaRoute) setMediaOpen(true);
+  }
 
   useEffect(() => {
     fetch("/api/auth/status", { cache: "no-store" })
@@ -184,6 +285,27 @@ export default function Sidebar({ onClose }) {
         if (data.hasUpdate) setUpdateInfo(data);
       })
       .catch(() => {});
+  }, []);
+
+  // Footer readout reflects the real gateway, not a hardcoded "Online".
+  useEffect(() => {
+    let cancelled = false;
+    const ping = () => {
+      if (document.hidden) return;
+      fetch("/api/health", { cache: "no-store" })
+        .then((res) => {
+          if (!cancelled) setGatewayOnline(res.ok);
+        })
+        .catch(() => {
+          if (!cancelled) setGatewayOnline(false);
+        });
+    };
+    ping();
+    const timer = setInterval(ping, HEALTH_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   const handleUpdate = () => {
@@ -216,149 +338,211 @@ export default function Sidebar({ onClose }) {
     setShutdownCountdown(0);
   };
 
-  const debugItems = DEBUG_NAV.filter(
+  const systemItems = SYSTEM_NAV.filter(
     (item) => !item.requiresTranslator || enableTranslator
   );
 
   return (
     <>
-      <aside className="flex h-full min-h-full w-64 shrink-0 flex-col border-r border-border bg-sidebar">
+      <aside
+        className={cn(
+          "flex h-full min-h-full shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 ease-out",
+          collapsed ? "w-16" : "w-64"
+        )}
+      >
         {/* Brand header */}
-        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center border-b border-border",
+            collapsed ? "justify-center px-0" : "gap-2 px-3"
+          )}
+        >
           <Link
             href="/dashboard"
             onClick={onClose}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-sm px-1.5 py-1.5 transition-colors hover:bg-surface-2"
+            title={collapsed ? APP_CONFIG.name : undefined}
+            className={cn(
+              "group flex items-center outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
+              collapsed ? "justify-center" : "min-w-0 flex-1 gap-2.5 px-1 py-1.5"
+            )}
           >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border bg-primary text-[hsl(var(--primary-foreground))]">
-              <span className="material-symbols-outlined text-[18px]">route</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-mono text-sm font-semibold tracking-tight text-text-main">
+            <span className="flex size-8 shrink-0 items-center justify-center border border-border text-text-main transition-colors group-hover:border-text-main">
+              <Route aria-hidden size={16} strokeWidth={STROKE_ACTIVE} />
+            </span>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1"}>
+              <span className="block truncate font-mono text-sm font-semibold tracking-tight text-text-main">
                 {APP_CONFIG.name}
-              </div>
-              <div className="truncate font-mono text-[11px] text-text-muted">
+              </span>
+              <span className="block truncate font-mono text-[10px] font-medium tracking-[0.06em] text-text-subtle">
                 v{APP_CONFIG.version}
-              </div>
-            </div>
+              </span>
+            </span>
           </Link>
           {onClose ? (
             <button
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className="flex size-8 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main lg:hidden"
+              className="flex size-8 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main lg:hidden"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <X aria-hidden size={16} strokeWidth={STROKE_IDLE} />
             </button>
           ) : null}
         </div>
 
-        {/* Update banner */}
-        {isAdmin && updateInfo ? (
-          <div className="shrink-0 border-b border-border px-3 py-2.5">
-            <div className="border border-border bg-surface-2/50 p-2.5">
-              <div className="mb-2 flex items-center gap-1.5 font-mono text-xs font-medium text-text-main">
-                <span className="material-symbols-outlined text-[14px]">system_update</span>
-                <span>v{updateInfo.latestVersion} available</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowUpdateModal(true)}
-                  className="inline-flex h-7 items-center rounded-sm bg-primary px-2.5 font-mono text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85"
-                >
-                  Update
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copy(INSTALL_CMD)}
-                  title={INSTALL_CMD}
-                  className="min-w-0 flex-1 truncate rounded-sm border border-border bg-surface px-2 py-1 text-left font-mono text-[10px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
-                >
-                  {copied ? "✓ copied" : INSTALL_CMD}
-                </button>
-              </div>
+        {/* Update strip — collapses to a single affordance so the notice survives */}
+        {isAdmin && updateInfo && collapsed ? (
+          <div className="flex shrink-0 justify-center border-b border-border bg-surface-2/40 py-2.5">
+            <button
+              type="button"
+              onClick={() => setShowUpdateModal(true)}
+              title={`v${updateInfo.latestVersion} available`}
+              aria-label={`Update available: v${updateInfo.latestVersion}`}
+              className="flex size-8 items-center justify-center rounded-sm border border-border text-text-main transition-colors hover:bg-surface-2"
+            >
+              <Download aria-hidden size={15} strokeWidth={STROKE_IDLE} />
+            </button>
+          </div>
+        ) : null}
+
+        {isAdmin && updateInfo && !collapsed ? (
+          <div className="shrink-0 border-b border-border bg-surface-2/40 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
+                Update
+              </span>
+              <span className="h-px flex-1 bg-border" aria-hidden />
+            </div>
+            <p className="mt-1.5 truncate font-mono text-xs font-medium text-text-main">
+              v{updateInfo.latestVersion} available
+            </p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowUpdateModal(true)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-sm bg-primary px-2.5 font-mono text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85"
+              >
+                <Download aria-hidden size={13} strokeWidth={STROKE_SMALL} />
+                Update
+              </button>
+              <button
+                type="button"
+                onClick={() => copy(INSTALL_CMD)}
+                title={INSTALL_CMD}
+                aria-label="Copy install command"
+                className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 font-mono text-[11px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+              >
+                {copied ? (
+                  <Check aria-hidden size={13} strokeWidth={STROKE_SMALL} />
+                ) : (
+                  <Copy aria-hidden size={13} strokeWidth={STROKE_SMALL} />
+                )}
+                {copied ? "Copied" : "Command"}
+              </button>
             </div>
           </div>
         ) : null}
 
         {/* Navigation */}
-        <nav className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
-          <NavSection>
+        <nav
+          aria-label="Dashboard"
+          className={cn(
+            "custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-4",
+            collapsed ? "px-0" : "px-2"
+          )}
+        >
+          <NavGroup label="Routing" collapsed={collapsed}>
             {GLOBAL_NAV.map((item) => (
               <NavItem
                 key={item.href}
                 href={item.href}
                 label={item.label}
                 icon={item.icon}
+                collapsed={collapsed}
                 active={isPathActive(pathname, item.href, item.exact)}
                 onClick={onClose}
               />
             ))}
-          </NavSection>
+          </NavGroup>
 
+          {isAdmin ? (
+            <>
+              <NavGroup label="Admin" collapsed={collapsed}>
+                {ADMIN_NAV.map((item) => (
+                  <NavItem
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    collapsed={collapsed}
+                    active={isPathActive(pathname, item.href)}
+                    onClick={onClose}
+                  />
+                ))}
 
-
-          {isAdmin && (
-            <NavSection title="Admin" className="mt-2 border-t border-border/70">
-              {ADMIN_NAV.map((item) => (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={isPathActive(pathname, item.href)}
-                  onClick={onClose}
-                />
-              ))}
-
-              <NavSubsection title="Media">
                 <button
                   type="button"
-                  onClick={() => setMediaOpen((value) => !value)}
-                  aria-expanded={mediaExpanded}
+                  onClick={handleMediaToggle}
+                  aria-expanded={collapsed ? false : mediaOpen}
+                  title="Media Providers"
                   className={cn(
-                    "group flex h-8 w-full items-center gap-2.5 rounded-sm px-2.5 font-mono text-[13px] font-medium transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
+                    "group relative flex h-9 w-full items-center text-sm outline-none transition-colors",
+                    "focus-visible:ring-1 focus-visible:ring-primary/40",
+                    collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-2.5",
                     onMediaRoute
-                      ? "text-text-main"
+                      ? "font-medium text-text-main"
                       : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                   )}
                 >
                   <span
+                    aria-hidden
                     className={cn(
-                      "material-symbols-outlined text-[18px]",
-                      onMediaRoute ? "fill-1 text-text-main" : "text-text-muted group-hover:text-text-main"
+                      "absolute inset-y-1 left-0 w-0.5 bg-text-main transition-opacity",
+                      onMediaRoute ? "opacity-100" : "opacity-0"
                     )}
-                  >
-                    perm_media
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-left">Media Providers</span>
-                  <span
+                  />
+                  <Images
+                    aria-hidden
+                    size={ICON_SIZE}
+                    strokeWidth={onMediaRoute ? STROKE_ACTIVE : STROKE_IDLE}
                     className={cn(
-                      "material-symbols-outlined text-[16px] text-text-muted transition-transform duration-200",
-                      mediaExpanded && "rotate-180"
+                      "shrink-0 transition-colors",
+                      onMediaRoute ? "text-text-main" : "text-text-muted group-hover:text-text-main"
                     )}
-                  >
-                    expand_more
+                  />
+                  <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate text-left"}>
+                    Media Providers
                   </span>
+                  {collapsed ? null : (
+                    <ChevronDown
+                      aria-hidden
+                      size={14}
+                      strokeWidth={STROKE_IDLE}
+                      className={cn(
+                        "shrink-0 text-text-subtle transition-transform duration-200",
+                        mediaOpen && "rotate-180"
+                      )}
+                    />
+                  )}
                 </button>
 
+                {/* `inert` keeps Tab out of the collapsed rows — clipping them with
+                    overflow-hidden alone leaves them focusable but invisible. */}
                 <div
+                  inert={mediaExpanded ? undefined : true}
                   className={cn(
                     "grid transition-[grid-template-rows] duration-200 ease-out",
                     mediaExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                   )}
                 >
                   <div className="overflow-hidden">
-                    <div className="relative ml-3.5 mt-0.5 space-y-0.5 border-l border-border py-0.5 pl-2.5">
+                    <div className="ml-[15px] border-l border-border pl-1.5">
                       {mediaKinds.map((kind) => (
                         <NavItem
                           key={kind.id}
                           href={`/dashboard/media-providers/${kind.id}`}
                           label={kind.label}
-                          icon={kind.icon}
+                          icon={MEDIA_ICONS[kind.id] || Images}
                           nested
                           active={pathname.startsWith(`/dashboard/media-providers/${kind.id}`)}
                           onClick={onClose}
@@ -375,74 +559,91 @@ export default function Sidebar({ onClose }) {
                     </div>
                   </div>
                 </div>
-              </NavSubsection>
+              </NavGroup>
 
-              <NavSubsection title="System">
-                {SYSTEM_NAV.map((item) => (
+              <NavGroup label="System" collapsed={collapsed}>
+                {systemItems.map((item) => (
                   <NavItem
                     key={item.href}
                     href={item.href}
                     label={item.label}
                     icon={item.icon}
-                    nested
+                    collapsed={collapsed}
                     active={isPathActive(pathname, item.href)}
                     onClick={onClose}
                   />
                 ))}
-                {debugItems.map((item) => (
-                  <NavItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                    nested
-                    active={isPathActive(pathname, item.href)}
-                    onClick={onClose}
-                  />
-                ))}
-              </NavSubsection>
-            </NavSection>
-          )}
+              </NavGroup>
+            </>
+          ) : null}
 
-          <NavSection title="Personal" className="mt-2 border-t border-border/70">
+          <NavGroup label="Account" collapsed={collapsed}>
             {PERSONAL_NAV.map((item) => {
-              const onAccount = pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
+              const onAccount =
+                pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
               let active = false;
               if (item.match === "wallet") active = onAccount && accountTab === "wallet";
               else if (item.match === "security") active = onAccount && accountTab === "security";
-              else active = onAccount && (accountTab === "profile" || !accountTab || accountTab === "");
+              else active = onAccount && (accountTab === "profile" || !accountTab);
               return (
                 <NavItem
                   key={item.href}
                   href={item.href}
                   label={item.label}
                   icon={item.icon}
+                  collapsed={collapsed}
                   active={active}
                   onClick={onClose}
                 />
               );
             })}
-          </NavSection>
+          </NavGroup>
         </nav>
 
-        {/* Footer */}
-        <div className="shrink-0 space-y-1 border-t border-border p-2">
-          {isAdmin ? (
-            <NavItem
-              href="/dashboard/settings"
-              label="Settings"
-              icon="settings"
-              active={isPathActive(pathname, "/dashboard/settings")}
-              onClick={onClose}
-            />
-          ) : null}
-          <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[11px]">
-            <span className="text-text-muted">Gateway</span>
-            <span className="inline-flex items-center gap-1.5 font-medium text-text-muted">
-              <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-              Online
+        {/* Status readout + rail toggle */}
+        <div
+          className={cn(
+            "shrink-0 border-t border-border",
+            collapsed ? "flex flex-col items-center gap-2 py-2.5" : "flex items-center gap-2 px-3 py-2.5"
+          )}
+        >
+          <div
+            role="status"
+            title={`Gateway ${online ? "online" : "offline"}`}
+            className={cn(
+              "flex items-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em]",
+              collapsed ? "justify-center" : "min-w-0 flex-1 justify-between"
+            )}
+          >
+            <span className={collapsed ? "sr-only" : "text-text-subtle"}>Gateway</span>
+            <span className="inline-flex items-center gap-1.5 text-text-muted">
+              <span
+                aria-hidden
+                className={cn("size-1.5 shrink-0", online ? "bg-success" : "bg-danger")}
+              />
+              <span className={collapsed ? "sr-only" : undefined}>
+                {online ? "Online" : "Offline"}
+              </span>
             </span>
           </div>
+
+          {/* Drawer mode is always full width, so the rail toggle is desktop-only. */}
+          {isDrawer ? null : (
+            <button
+              type="button"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-pressed={collapsed}
+              className="flex size-7 shrink-0 items-center justify-center rounded-sm text-text-subtle transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+            >
+              {collapsed ? (
+                <PanelLeftOpen aria-hidden size={15} strokeWidth={STROKE_IDLE} />
+              ) : (
+                <PanelLeftClose aria-hidden size={15} strokeWidth={STROKE_IDLE} />
+              )}
+            </button>
+          )}
         </div>
       </aside>
 
@@ -458,7 +659,7 @@ export default function Sidebar({ onClose }) {
       />
 
       {(isDisconnected || isUpdating) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
           {isUpdating ? (
             <ManualUpdatePanel
               latestVersion={updateInfo?.latestVersion}
@@ -471,8 +672,8 @@ export default function Sidebar({ onClose }) {
             />
           ) : (
             <div className="p-8 text-center">
-              <div className="mx-auto mb-4 flex size-16 items-center justify-center border border-red-500/30 bg-red-500/10 text-red-500">
-                <span className="material-symbols-outlined text-[32px]">power_off</span>
+              <div className="mx-auto mb-4 flex size-16 items-center justify-center border border-danger/30 bg-danger/10 text-danger">
+                <PowerOff aria-hidden size={28} strokeWidth={2} />
               </div>
               <h2 className="mb-2 font-mono text-xl font-semibold text-white">Server Disconnected</h2>
               <p className="mb-6 text-text-muted">The proxy server has been stopped.</p>
@@ -505,7 +706,7 @@ function ManualUpdatePanel({
     <div className="w-full max-w-lg border border-white/15 bg-[#0a0a0a] p-6 text-white">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex size-11 shrink-0 items-center justify-center border border-white/15 text-white">
-          <span className="material-symbols-outlined text-[22px]">content_copy</span>
+          <Copy aria-hidden size={20} strokeWidth={2} />
         </div>
         <div>
           <h2 className="font-mono text-lg font-semibold">
@@ -528,7 +729,7 @@ function ManualUpdatePanel({
 
       <ol className="mb-4 list-inside list-decimal space-y-1 text-xs text-white/70">
         <li>
-          Click <strong>Copy & Shutdown</strong> below.
+          Click <strong>Copy &amp; Shutdown</strong> below.
         </li>
         <li>Paste the command into your terminal and press Enter.</li>
         <li>

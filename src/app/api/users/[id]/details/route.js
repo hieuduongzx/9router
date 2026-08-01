@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { getDashboardAccount } from "@/lib/auth/dashboardSession";
 import { getApiKeys, getUserById, listCreditLedger, publicUser } from "@/lib/db/index.js";
 import { getUsageStats } from "@/lib/usageDb";
+import { USAGE_PERIOD_VALUES } from "@/shared/constants/usagePeriods";
 
-const VALID_PERIODS = new Set(["24h", "7d", "30d", "all"]);
+// Derived from the shared dropdown list so the accounts pages cannot offer a
+// range this endpoint would silently downgrade to the default.
+const VALID_PERIODS = new Set(USAGE_PERIOD_VALUES);
 const LEDGER_LIMIT = 25;
 /** Usage rows mask keys as `slice(0, 8) + "***"` — match on that shared prefix. */
 const KEY_PREFIX_LENGTH = 8;

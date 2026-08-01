@@ -25,13 +25,23 @@ function rate(part, total) {
 
 export default function RequestActivityTab({ period }) {
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/usage/stats?period=${encodeURIComponent(period)}&scope=system`, { cache: "no-store", signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then(setStats)
-      .catch(() => {});
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "Unable to load request activity");
+        setError("");
+        setStats(body);
+      })
+      .catch((reason) => {
+        // Without this, a failed fetch renders as a legitimate "0 requests".
+        if (reason?.name !== "AbortError") setError(reason.message || "Unable to load request activity");
+      })
+      .finally(() => setLoading(false));
     return () => controller.abort();
   }, [period]);
 
@@ -54,11 +64,23 @@ export default function RequestActivityTab({ period }) {
   ].filter((item) => Number.isFinite(Number(item.value)));
   const tooltipStyle = { background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 0, fontFamily: "var(--font-mono)", fontSize: 12 };
 
+  if (loading && !stats) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading request activity">
+        {[0, 1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse bg-surface-2" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>;
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile chip="requests" label="Total requests" value={formatNumber(totalRequests)} sub="Matches the System total for this period" />
-        <StatTile chip="cost" label="Successful" value={formatNumber(success)} sub={`${rate(success, totalRequests)} of all requests`} />
+        <StatTile chip="success" label="Successful" value={formatNumber(success)} sub={`${rate(success, totalRequests)} of all requests`} />
         <StatTile chip="danger" label="Errors / 429" value={formatNumber(errors + rateLimited)} sub={`${formatNumber(errors)} errors · ${formatNumber(rateLimited)} rate-limited`} />
         <StatTile chip="info" label="Latency p50 / p95" value={`${formatLatency(latency.p50)} / ${formatLatency(latency.p95)}`} sub={`Average ${formatLatency(latency.avg)} · n=${formatNumber(latency.count)}`} />
       </div>
