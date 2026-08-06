@@ -16,6 +16,13 @@ const DEFAULT_SETTINGS = {
   restrictToPublishedModels: true,
   requireLogin: true,
   signupCreditCents: 0,
+  requireApiKey: true,
+  capacityAdapter: {
+    vision: { enabled: true, roundRobin: false, models: [] },
+    pdf: { enabled: false, roundRobin: false, models: [] },
+    audioInput: { enabled: true, roundRobin: false, models: [] },
+    videoInput: { enabled: false, roundRobin: false, models: [] },
+  },
   authMode: "password",
   oidcIssuerUrl: "",
   oidcClientId: "",
@@ -98,13 +105,13 @@ export async function getSettings() {
 export async function updateSettings(updates) {
   const db = await getAdapter();
   let next;
-  db.transaction(() => {
+  db.transaction(function () {
     const row = db.get(`SELECT data FROM settings WHERE id = 1`);
     const current = sanitizeSettings(row ? parseJson(row.data, {}) : {});
     next = { ...current, ...sanitizeSettings(updates) };
     db.run(
       `INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
-      [stringifyJson(next)]
+      [stringifyJson(next)],
     );
   });
   return mergeWithDefaults(next);
