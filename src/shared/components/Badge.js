@@ -29,7 +29,8 @@ export default function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-sm border font-mono font-semibold uppercase tracking-wide transition-colors",
+        // Square, not pill: chips across the dashboard share one flat shape.
+        "inline-flex items-center gap-1 border font-mono font-semibold uppercase tracking-wide transition-colors",
         variants[variant],
         sizes[size],
         className

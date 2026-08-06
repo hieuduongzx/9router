@@ -8,7 +8,6 @@ import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/prov
 import { Card, Button, Badge, Input, Modal, CardSkeleton, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal, Toggle, Select, EditConnectionModal, NoAuthProxyCard, ConfirmModal } from "@/shared/components";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
-import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { translate } from "@/i18n/runtime";
@@ -61,6 +60,9 @@ export default function ProviderDetailPage() {
   const [webSearchTestResults, setWebSearchTestResults] = useState({});
   const [webSearchTestNotice, setWebSearchTestNotice] = useState(null);
   const [testingWebSearchModelIds, setTestingWebSearchModelIds] = useState(() => new Set());
+  const [reasoningTestResults, setReasoningTestResults] = useState({});
+  const [reasoningTestNotice, setReasoningTestNotice] = useState(null);
+  const [testingReasoningModelIds, setTestingReasoningModelIds] = useState(() => new Set());
   const [testingAllModels, setTestingAllModels] = useState(false);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
@@ -68,7 +70,6 @@ export default function ProviderDetailPage() {
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
   const [providerStrategy, setProviderStrategy] = useState(null);
   const [providerStickyLimit, setProviderStickyLimit] = useState("");
-  const [thinkingMode, setThinkingMode] = useState("auto");
   const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
   const [suggestedModels, setSuggestedModels] = useState([]);
   const [liveModels, setLiveModels] = useState([]);
@@ -83,6 +84,7 @@ export default function ProviderDetailPage() {
   const [oneByOneSummary, setOneByOneSummary] = useState(null);
   const stopOneByOneRef = useRef(false);
   const testingWebSearchModelIdsRef = useRef(new Set());
+  const testingReasoningModelIdsRef = useRef(new Set());
   const [fetchingProviderModels, setFetchingProviderModels] = useState(false);
   const [modelsFetchStatus, setModelsFetchStatus] = useState(null);
   const { copied, copy } = useCopyToClipboard();
@@ -168,33 +170,7 @@ export default function ProviderDetailPage() {
     providerId === "xai" ? "xAI API Key"
     : providerId === "kimi" ? "Kimi API Key"
     : "API Key";
-  // Resolve suffix "(level)" for a model when a thinking level is picked and the model supports it.
-  const resolveThinkingSuffix = (modelId) => {
-    if (!thinkingMode || thinkingMode === "auto") return null;
-    const levels = getThinkingLevels(providerId, modelId);
-    return levels && levels.includes(thinkingMode) ? thinkingMode : null;
-  };
   const providerStorageAlias = isCompatible ? providerId : providerAlias;
-  // Union of levels across this provider's reasoning models — drives the level picker options.
-  // Include custom models too (e.g. manually added gpt-5.6-sol → max).
-  const providerThinkingLevels = (() => {
-    const set = new Set();
-    const seen = new Set();
-    const addLevels = (modelId) => {
-      if (!modelId || seen.has(modelId)) return;
-      seen.add(modelId);
-      const lv = getThinkingLevels(providerId, modelId);
-      if (lv) lv.forEach((l) => { if (l !== "none") set.add(l); });
-    };
-    for (const m of models) addLevels(m.id);
-    for (const m of kiloFreeModels) addLevels(m.id);
-    for (const entry of customModels) {
-      if (entry.providerAlias !== providerStorageAlias) continue;
-      if ((entry.kind || entry.type || "llm") !== "llm") continue;
-      addLevels(entry.id);
-    }
-    return set.size ? ["auto", ...[...set]] : null;
-  })();
   const providerDisplayAlias = isCompatible
     ? (providerNode?.prefix || providerId)
     : providerAlias;
@@ -318,9 +294,6 @@ export default function ProviderDetailPage() {
       const override = (settingsData.providerStrategies || {})[providerId] || {};
       setProviderStrategy(override.fallbackStrategy || null);
       setProviderStickyLimit(override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "1");
-      // Load per-provider thinking config
-      const thinkingCfg = (settingsData.providerThinking || {})[providerId] || {};
-      setThinkingMode(thinkingCfg.mode || "auto");
       const autoPingSettingsKey = AUTO_PING_SETTINGS_KEYS[providerId];
       const apCfg = autoPingSettingsKey ? settingsData[autoPingSettingsKey] || {} : {};
       setAutoPing({ enabled: apCfg.enabled === true, connections: apCfg.connections || {} });
@@ -408,32 +381,6 @@ export default function ProviderDetailPage() {
   const handleStickyLimitChange = (value) => {
     setProviderStickyLimit(value);
     saveProviderStrategy("round-robin", value);
-  };
-
-  const saveThinkingConfig = async (mode) => {
-    try {
-      const settingsRes = await fetch("/api/settings", { cache: "no-store" });
-      const settingsData = settingsRes.ok ? await settingsRes.json() : {};
-      const current = settingsData.providerThinking || {};
-      const updated = { ...current };
-      if (!mode || mode === "auto") {
-        delete updated[providerId];
-      } else {
-        updated[providerId] = { mode };
-      }
-      await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerThinking: updated }),
-      });
-    } catch (error) {
-      console.log("Error saving thinking config:", error);
-    }
-  };
-
-  const handleThinkingModeChange = (mode) => {
-    setThinkingMode(mode);
-    saveThinkingConfig(mode);
   };
 
   const saveAutoPing = async (next) => {
@@ -1121,7 +1068,12 @@ export default function ProviderDetailPage() {
   };
 
   const handleTestModel = async (modelId) => {
-    if (testingAllModels || testingModelIds.has(modelId) || testingWebSearchModelIdsRef.current.has(modelId)) return;
+    if (
+      testingAllModels
+      || testingModelIds.has(modelId)
+      || testingWebSearchModelIdsRef.current.has(modelId)
+      || testingReasoningModelIdsRef.current.has(modelId)
+    ) return;
     setTestingModelIds((previous) => new Set(previous).add(modelId));
     const result = await probeModel(modelId);
     setModelTestResults((previous) => ({ ...previous, [modelId]: result.ok ? "ok" : "error" }));
@@ -1168,6 +1120,7 @@ export default function ProviderDetailPage() {
       testingAllModels
       || testingModelIds.has(modelId)
       || testingWebSearchModelIdsRef.current.has(modelId)
+      || testingReasoningModelIdsRef.current.has(modelId)
     ) return;
 
     testingWebSearchModelIdsRef.current.add(modelId);
@@ -1192,12 +1145,73 @@ export default function ProviderDetailPage() {
     }
   };
 
+  const probeReasoning = async (modelId) => {
+    try {
+      const response = await fetch("/api/models/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: `${providerStorageAlias}/${modelId}`,
+          mode: "reasoning",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      return {
+        modelId,
+        ok: response.ok && data.ok === true && data.verdict === "verified",
+        verdict: data.verdict || (response.ok ? "unknown" : "error"),
+        latencyMs: data.latencyMs,
+        evidence: data.evidence,
+        reasoningTokens: data.reasoningTokens,
+        error: data.error || (response.ok ? "" : `HTTP ${response.status}`),
+      };
+    } catch (error) {
+      return {
+        modelId,
+        ok: false,
+        verdict: "error",
+        error: error?.message || "Network error",
+      };
+    }
+  };
+
+  const handleTestReasoning = async (modelId) => {
+    if (
+      testingAllModels
+      || testingModelIds.has(modelId)
+      || testingWebSearchModelIdsRef.current.has(modelId)
+      || testingReasoningModelIdsRef.current.has(modelId)
+    ) return;
+
+    testingReasoningModelIdsRef.current.add(modelId);
+    setTestingReasoningModelIds(new Set(testingReasoningModelIdsRef.current));
+    setReasoningTestNotice(null);
+
+    try {
+      const result = await probeReasoning(modelId);
+      setReasoningTestResults((previous) => ({
+        ...previous,
+        [modelId]: result.verdict,
+      }));
+      setReasoningTestNotice({
+        type: result.ok ? "success" : result.verdict === "unknown" ? "warning" : "error",
+        text: result.ok
+          ? `${providerDisplayAlias}/${modelId}: verified via ${result.evidence}${result.reasoningTokens ? `, ${result.reasoningTokens} reasoning tokens` : ""}${Number.isFinite(result.latencyMs) ? ` (${result.latencyMs} ms)` : ""}.`
+          : `${providerDisplayAlias}/${modelId}: ${result.error || "Reasoning could not be verified."}`,
+      });
+    } finally {
+      testingReasoningModelIdsRef.current.delete(modelId);
+      setTestingReasoningModelIds(new Set(testingReasoningModelIdsRef.current));
+    }
+  };
+
   const handleTestAllModels = async () => {
     if (
       !canTestProviderModels
       || testingAllModels
       || testingModelIds.size > 0
       || testingWebSearchModelIdsRef.current.size > 0
+      || testingReasoningModelIdsRef.current.size > 0
     ) return;
     setTestingAllModels(true);
     setModelsTestError("");
@@ -1238,10 +1252,13 @@ export default function ProviderDetailPage() {
           onDeleteCustomModel={(modelId) => handleDeleteCustomModel(modelId, "llm", providerStorageAlias)}
           onTestModel={handleTestModel}
           onTestWebSearch={handleTestWebSearch}
+          onTestReasoning={handleTestReasoning}
           modelTestResults={modelTestResults}
           webSearchTestResults={webSearchTestResults}
+          reasoningTestResults={reasoningTestResults}
           testingModelIds={testingModelIds}
           testingWebSearchModelIds={testingWebSearchModelIds}
+          testingReasoningModelIds={testingReasoningModelIds}
           connections={connections}
           isAnthropic={isAnthropicCompatible}
         />
@@ -1289,12 +1306,14 @@ export default function ProviderDetailPage() {
             onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
             webSearchTestStatus={webSearchTestResults[model.id]}
             onTestWebSearch={hasActiveConnection || isFreeNoAuth ? () => handleTestWebSearch(model.id) : undefined}
+            reasoningTestStatus={reasoningTestResults[model.id]}
+            onTestReasoning={hasActiveConnection || isFreeNoAuth ? () => handleTestReasoning(model.id) : undefined}
             isTesting={testingModelIds.has(model.id)}
             isTestingWebSearch={testingWebSearchModelIds.has(model.id)}
+            isTestingReasoning={testingReasoningModelIds.has(model.id)}
             isCustom
             isFree={false}
             caps={getCaps(`${providerId}/${model.id}`)}
-            thinkingSuffix={resolveThinkingSuffix(model.id)}
           />
         ))}
 
@@ -1318,12 +1337,14 @@ export default function ProviderDetailPage() {
               onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
               webSearchTestStatus={webSearchTestResults[model.id]}
               onTestWebSearch={hasActiveConnection || isFreeNoAuth ? () => handleTestWebSearch(model.id) : undefined}
+              reasoningTestStatus={reasoningTestResults[model.id]}
+              onTestReasoning={hasActiveConnection || isFreeNoAuth ? () => handleTestReasoning(model.id) : undefined}
               isTesting={testingModelIds.has(model.id)}
               isTestingWebSearch={testingWebSearchModelIds.has(model.id)}
+              isTestingReasoning={testingReasoningModelIds.has(model.id)}
               isFree={model.isFree}
               onDisable={() => handleDisableModel(model.id)}
               caps={getCaps(`${providerId}/${model.id}`)}
-              thinkingSuffix={resolveThinkingSuffix(model.id)}
             />
           );
         })}
@@ -1446,7 +1467,7 @@ export default function ProviderDetailPage() {
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 px-1 sm:gap-8 sm:px-0">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Header */}
       <div className="min-w-0">
         <Link
@@ -1484,7 +1505,7 @@ export default function ProviderDetailPage() {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="truncate font-mono text-2xl font-semibold tracking-tight sm:text-3xl">{providerInfo.name}</h1>
+              <h1 className="truncate font-mono text-xl font-semibold tracking-tight">{providerInfo.name}</h1>
               {(providerInfo.notice?.apiKeyUrl || providerInfo.notice?.signupUrl || providerInfo.website) && (
                 <a
                   href={providerInfo.notice?.apiKeyUrl || providerInfo.notice?.signupUrl || providerInfo.website}
@@ -1532,7 +1553,7 @@ export default function ProviderDetailPage() {
         <Card>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h2 className="font-mono text-lg font-semibold">{isAnthropicCompatible ? "Anthropic Compatible Details" : "OpenAI Compatible Details"}</h2>
+              <h2 className="font-mono text-sm font-semibold">{isAnthropicCompatible ? "Anthropic Compatible Details" : "OpenAI Compatible Details"}</h2>
               <p className="break-all text-sm text-text-muted">
                 {isAnthropicCompatible ? "Messages API" : (providerNode.apiType === "responses" ? "Responses API" : "Chat Completions")} · {(providerNode.baseUrl || "").replace(/\/$/, "")}/
                 {isAnthropicCompatible ? "messages" : (providerNode.apiType === "responses" ? "responses" : "chat/completions")}
@@ -1595,7 +1616,7 @@ export default function ProviderDetailPage() {
       ) : (
         <Card>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-mono text-lg font-semibold">Connections</h2>
+            <h2 className="font-mono text-sm font-semibold">Connections</h2>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               {connections.length > 0 && proxyPools.length > 0 && (
                 <Button
@@ -1812,21 +1833,9 @@ export default function ProviderDetailPage() {
       <Card>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="font-mono text-lg font-semibold">
+            <h2 className="font-mono text-sm font-semibold">
               {"Available Models"}
             </h2>
-            {providerThinkingLevels && (
-              <select
-                value={thinkingMode}
-                onChange={(e) => handleThinkingModeChange(e.target.value)}
-                title="Appends (level) suffix to copied model names"
-                className="rounded-sm border border-border bg-background px-2 py-1 text-xs font-mono focus:border-primary focus:outline-none"
-              >
-                {providerThinkingLevels.map((opt) => (
-                  <option key={opt} value={opt}>{`Thinking: ${opt.charAt(0).toUpperCase() + opt.slice(1)}`}</option>
-                ))}
-              </select>
-            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -1846,7 +1855,7 @@ export default function ProviderDetailPage() {
               icon="science"
               onClick={handleTestAllModels}
               loading={testingAllModels}
-              disabled={!canTestProviderModels || testingAllModels || testingModelIds.size > 0 || testingWebSearchModelIds.size > 0}
+              disabled={!canTestProviderModels || testingAllModels || testingModelIds.size > 0 || testingWebSearchModelIds.size > 0 || testingReasoningModelIds.size > 0}
               title={canTestProviderModels ? "Test every active model for this provider" : "Add an active connection and at least one model to test"}
             >
               {testingAllModels ? "Testing..." : `Test All${availableModelIds.length > 0 ? ` (${availableModelIds.length})` : ""}`}
@@ -1878,6 +1887,15 @@ export default function ProviderDetailPage() {
             className={`mb-3 break-words text-xs ${webSearchTestNotice.type === "success" ? "text-emerald-600 dark:text-emerald-400" : webSearchTestNotice.type === "warning" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}
           >
             Native web search — {webSearchTestNotice.text}
+          </p>
+        )}
+        {reasoningTestNotice && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`mb-3 break-words text-xs ${reasoningTestNotice.type === "success" ? "text-emerald-600 dark:text-emerald-400" : reasoningTestNotice.type === "warning" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}
+          >
+            Reasoning — {reasoningTestNotice.text}
           </p>
         )}
         {renderModelsSection()}

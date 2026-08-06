@@ -37,7 +37,7 @@ function ProviderNode({ data }) {
   const [imgError, setImgError] = useState(false);
   return (
     <div
-      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg"
+      className="flex items-center gap-2.5 px-4 py-2.5 rounded-sm border-2 transition-all duration-300 bg-bg"
       style={{
         borderColor: active ? color : "var(--color-border)",
         boxShadow: active ? `0 0 16px ${color}40` : "none",
@@ -83,8 +83,8 @@ function ProviderNode({ data }) {
       {/* Active indicator */}
       {active && (
         <span className="relative flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 motion-reduce:hidden" style={{ backgroundColor: color }} />
-          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
+          <span className="absolute inline-flex h-full w-full animate-ping opacity-75 motion-reduce:hidden" style={{ backgroundColor: color }} />
+          <span className="relative inline-flex h-2 w-2" style={{ backgroundColor: color }} />
         </span>
       )}
     </div>
@@ -100,10 +100,10 @@ function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
-      className={`relative z-10 flex min-w-[130px] items-center justify-center rounded-xl border-2 px-5 py-3 ${
+      className={`relative z-10 flex min-w-[130px] items-center justify-center rounded-sm border-2 px-5 py-3 ${
         powering
           ? "topology-router-core border-yellow-300 bg-gradient-to-br from-primary/30 via-yellow-400/20 to-cyan-400/25"
-          : "border-primary bg-primary/5 shadow-md"
+          : "border-primary bg-primary/5"
       }`}
     >
       <Handle type="source" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -122,7 +122,7 @@ function RouterNode({ data }) {
         Router2k
       </span>
       {data.activeCount > 0 && (
-        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-yellow-400 text-black text-xs font-bold topology-router-badge">
+        <span className="ml-2 px-1.5 py-0.5 bg-yellow-400 text-black text-xs font-bold topology-router-badge">
           {data.activeCount}
         </span>
       )}

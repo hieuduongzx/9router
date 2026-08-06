@@ -92,9 +92,9 @@ export default function PxpipeClient() {
           : "Stopped";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-mono text-lg font-semibold flex items-center gap-2">
+        <h2 className="font-mono text-sm font-semibold flex items-center gap-2">
           <span className="material-symbols-outlined text-primary">image</span>
           PXPIPE Dashboard
         </h2>
@@ -187,7 +187,7 @@ export default function PxpipeClient() {
         <h3 className="font-mono font-medium mb-3">History</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="thead-data">
               <tr className="text-left text-xs font-mono text-text-muted border-b border-border">
                 <th className="py-2 pr-3">Time</th>
                 <th className="py-2 pr-3">Model</th>

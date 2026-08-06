@@ -29,7 +29,9 @@ export async function GET(request, { params }) {
   const apiKeys = await getApiKeys(id);
   const [stats, ledger] = await Promise.all([
     getUsageStats(period, { apiKeyFilter: apiKeys.map((key) => key.key) }),
-    listCreditLedger(id, { limit: LEDGER_LIMIT }),
+    // Per-request spend already appears in the usage panels below. Keep this
+    // ledger aligned with the "Credit history" label: top-ups and adjustments.
+    listCreditLedger(id, { limit: LEDGER_LIMIT, includeUsage: false }),
   ]);
 
   // Per-key rollup so an admin can see which key drives the account's traffic.

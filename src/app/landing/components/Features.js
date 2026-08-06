@@ -37,7 +37,7 @@ export default function Features() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {FEATURES.map(([icon, title, desc]) => (
             <article key={title} className="group rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-sm shadow-blue-950/5 transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-950/8">
-              <div className="mb-5 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 transition group-hover:bg-blue-600 group-hover:text-white">
+              <div className="mb-5 flex size-12 items-center justify-center rounded-sm bg-blue-50 text-blue-700 transition group-hover:bg-blue-600 group-hover:text-white">
                 <span className="material-symbols-outlined">{icon}</span>
               </div>
               <h3 className="text-xl font-black tracking-[-0.025em] text-zinc-950">{title}</h3>

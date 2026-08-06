@@ -69,25 +69,32 @@ function writeJsonFile(sessionPath, filename, data) {
   }
 }
 
-// Mask sensitive data in headers (DISABLED - keep full token for testing)
+const SENSITIVE_HEADER_KEYS = ["authorization", "x-api-key", "cookie", "token", "api-key", "secret"];
+
+/**
+ * Mask credentials before they reach disk. These dumps live in a plain `logs/`
+ * directory with no rotation, so an unmasked bearer token written here outlives
+ * the request by an unbounded amount of time.
+ *
+ * Set `LOG_UNMASKED_HEADERS=true` to keep full values while debugging an auth
+ * problem — opt-in per run, never the default.
+ */
 function maskSensitiveHeaders(headers) {
   if (!headers) return {};
-  return { ...headers };
-  
-  // Old masking code (disabled):
-  // const masked = { ...headers };
-  // const sensitiveKeys = ["authorization", "x-api-key", "cookie", "token"];
-  // 
-  // for (const key of Object.keys(masked)) {
-  //   const lowerKey = key.toLowerCase();
-  //   if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
-  //     const value = masked[key];
-  //     if (value && value.length > 20) {
-  //       masked[key] = value.slice(0, 10) + "..." + value.slice(-5);
-  //     }
-  //   }
-  // }
-  // return masked;
+  const masked = { ...headers };
+  if (process.env.LOG_UNMASKED_HEADERS === "true") return masked;
+
+  for (const key of Object.keys(masked)) {
+    const lowerKey = key.toLowerCase();
+    if (!SENSITIVE_HEADER_KEYS.some((sk) => lowerKey.includes(sk))) continue;
+    const value = masked[key];
+    if (typeof value !== "string" || !value) continue;
+    // Keep enough to identify the scheme and the credential, never enough to use it.
+    masked[key] = value.length > 20
+      ? `${value.slice(0, 10)}...${value.slice(-5)}`
+      : "***";
+  }
+  return masked;
 }
 
 // No-op logger when logging is disabled

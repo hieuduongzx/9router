@@ -15,6 +15,7 @@ export async function POST(request) {
     const body = await request.json();
     const username = String(body?.username || "").trim();
     const password = body?.password;
+    const rememberMe = body?.rememberMe === true;
     const ip = getClientIp(request);
     const limiterKey = `${ip}:${username.toLowerCase() || "unknown"}`;
     const lock = checkLock(limiterKey);
@@ -45,7 +46,7 @@ export async function POST(request) {
         email: user.email,
         role: user.role,
         authType: "account",
-      });
+      }, { remember: rememberMe });
 
       return NextResponse.json({
         success: true,

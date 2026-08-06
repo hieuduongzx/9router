@@ -69,7 +69,7 @@ export default function MediaProviderDetailPage() {
   if (!isCustom && !kinds.includes(kind)) return notFound();
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Back */}
       <div>
         <Link
@@ -94,7 +94,7 @@ export default function MediaProviderDetailPage() {
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <h1 className="font-mono text-3xl font-semibold tracking-tight">{provider.name}</h1>
+              <h1 className="font-mono text-xl font-semibold tracking-tight">{provider.name}</h1>
               {!isCustom && provider.notice?.apiKeyUrl && (
                 <a
                   href={provider.notice.apiKeyUrl}

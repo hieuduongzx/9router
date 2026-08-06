@@ -139,7 +139,7 @@ export default function ProviderActivityTab({ period }) {
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Requests by provider</h2>
             <p className="mt-0.5 text-xs text-text-muted">Compare routing volume across providers.</p>
           </div>
@@ -157,7 +157,7 @@ export default function ProviderActivityTab({ period }) {
         </Card>
 
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Spend by provider</h2>
             <p className="mt-0.5 text-xs text-text-muted">Estimated upstream cost by routing target.</p>
           </div>
@@ -177,7 +177,7 @@ export default function ProviderActivityTab({ period }) {
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Live routing topology</h2>
             <p className="mt-0.5 text-xs text-text-muted">Active request paths and the most recently selected provider.</p>
           </div>
@@ -192,7 +192,7 @@ export default function ProviderActivityTab({ period }) {
         </Card>
 
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+          <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
             <div>
               <h2 className="font-mono text-sm font-semibold text-text-main">Connection health</h2>
               <p className="mt-0.5 text-xs text-text-muted">Account-level availability reported by provider checks.</p>
@@ -204,7 +204,7 @@ export default function ProviderActivityTab({ period }) {
               const status = connectionStatus(connection);
               return (
                 <Link key={connection.id} href={`/dashboard/providers/${connection.provider}`} className="flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
-                  <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
+                  <span className={`size-2 shrink-0 ${status.dot}`} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-mono text-xs font-medium text-text-main">{connection.name || providerLabel(connection.provider, nodeNames)}</span>
                     <span className="mt-0.5 block truncate font-mono text-[10px] text-text-muted">{providerLabel(connection.provider, nodeNames)}</span>
@@ -219,7 +219,7 @@ export default function ProviderActivityTab({ period }) {
       </div>
 
       <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h2 className="font-mono text-sm font-semibold text-text-main">Usage by provider</h2>
             <p className="mt-0.5 text-xs text-text-muted">Operational traffic distribution for the selected period.</p>
@@ -228,7 +228,7 @@ export default function ProviderActivityTab({ period }) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-xs">
-            <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
+            <thead className="thead-data">
               <tr>
                 <th className="px-5 py-3 font-mono font-medium">Provider</th>
                 <th className="px-4 py-3 text-right font-mono font-medium">Requests</th>
@@ -256,7 +256,7 @@ export default function ProviderActivityTab({ period }) {
       </Card>
 
       <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h2 className="font-mono text-sm font-semibold text-text-main">Usage by provider account</h2>
             <p className="mt-0.5 text-xs text-text-muted">Traffic attributed to individual configured credentials.</p>
@@ -265,7 +265,7 @@ export default function ProviderActivityTab({ period }) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-xs">
-            <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
+            <thead className="thead-data">
               <tr>
                 <th className="px-5 py-3 font-mono font-medium">Account</th>
                 <th className="px-4 py-3 font-mono font-medium">Provider</th>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -10,9 +10,34 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 import LobeProviderIcon from "@/shared/components/LobeProviderIcon";
 import { normalizeLobeIconKey } from "@/shared/utils/lobeIcons";
+import {
+  PRICING_FIELDS,
+  draftFromPricing,
+  draftLooksFree,
+  formatRate,
+  freePricing,
+  isFreePricing,
+  parseDraft,
+} from "@/shared/utils/modelPricing";
+import {
+  MODEL_CAPABILITIES,
+  deriveComboCapabilities,
+  getComboThinkingProfile,
+  getEffectiveComboCapabilities,
+  normalizeCapabilityOverrides,
+  thinkingModeMeta,
+} from "@/shared/utils/comboModelConfig";
+import { THINKING_COMPLIANCE, judgeThinkingCompliance } from "@/lib/reasoningEvidence";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
+
+const THINKING_STATE_STYLE = {
+  [THINKING_COMPLIANCE.OK]: { icon: "check_circle", color: "text-success" },
+  [THINKING_COMPLIANCE.VIOLATION]: { icon: "cancel", color: "text-danger" },
+  [THINKING_COMPLIANCE.UNPROVEN]: { icon: "help", color: "text-warning" },
+  [THINKING_COMPLIANCE.ERROR]: { icon: "warning", color: "text-danger" },
+};
 
 export default function CombosPage() {
   const [combos, setCombos] = useState([]);
@@ -30,6 +55,11 @@ export default function CombosPage() {
   const [publishedIds, setPublishedIds] = useState(() => new Set());
   const [publishingId, setPublishingId] = useState("");
   const [publishError, setPublishError] = useState("");
+  // Public prices are set here — a route's rates are keyed by its owner
+  // provider plus its public name, the same key /v1 bills against.
+  const [canEditPricing, setCanEditPricing] = useState(false);
+  const [pricingCombo, setPricingCombo] = useState(null);
+  const [sortBy, setSortBy] = useState("provider");
   const { copied, copy } = useCopyToClipboard();
 
   useEffect(() => {
@@ -55,7 +85,10 @@ export default function CombosPage() {
       }
 
       // Only LLM combos here - webSearch/webFetch combos belong to media-providers/web
-      if (combosRes.ok) setCombos((combosData.combos || []).filter(c => !c.kind || c.kind === "llm"));
+      if (combosRes.ok) {
+        setCombos((combosData.combos || []).filter(c => !c.kind || c.kind === "llm"));
+        setCanEditPricing(combosData.canEditPricing === true);
+      }
       if (providersRes.ok) {
         setActiveProviders(providersData.connections || []);
       }
@@ -179,6 +212,40 @@ export default function CombosPage() {
     }
   };
 
+  // Reflect a pricing write locally so the table updates without a full refetch.
+  const applyPricingLocally = (comboId, pricing, source) => {
+    setCombos((current) => current.map((item) => (
+      item.id === comboId ? { ...item, pricing, pricingSource: source } : item
+    )));
+    setPricingCombo((current) => (
+      current?.id === comboId ? { ...current, pricing, pricingSource: source } : current
+    ));
+  };
+
+  const handleSavePricing = async (combo, pricing) => {
+    const target = combo.pricingTarget;
+    if (!target) throw new Error("Set a model provider before pricing this route.");
+    const response = await fetch("/api/pricing", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [target.provider]: { [target.model]: pricing } }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Unable to save price");
+    applyPricingLocally(combo.id, pricing, "custom");
+  };
+
+  const handleResetPricing = async (combo) => {
+    const target = combo.pricingTarget;
+    if (!target) throw new Error("Set a model provider before pricing this route.");
+    const params = new URLSearchParams({ provider: target.provider, model: target.model });
+    const response = await fetch(`/api/pricing?${params}`, { method: "DELETE" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Unable to restore default price");
+    const defaultPricing = combo.defaultPricing || null;
+    applyPricingLocally(combo.id, defaultPricing, defaultPricing ? "default" : "unpriced");
+  };
+
   // Merge a per-combo strategy patch into settings.comboStrategies. Passing an empty
   // patch (strategy back to default "fallback") drops the entry entirely.
   const handleSetComboStrategy = async (comboName, patch) => {
@@ -236,6 +303,32 @@ export default function CombosPage() {
     }
   };
 
+  const sortedCombos = useMemo(() => {
+    const list = [...combos];
+    switch (sortBy) {
+      case "name":
+        list.sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: "base" }));
+        break;
+      case "status":
+        list.sort((a, b) => {
+          const enabled = (combo) => publishedIds.has(combo.id);
+          if (enabled(a) !== enabled(b)) return enabled(a) ? -1 : 1;
+          return String(a.name).localeCompare(String(b.name), undefined, { sensitivity: "base" });
+        });
+        break;
+      case "provider":
+      default:
+        list.sort((a, b) => {
+          const pa = String(a.modelProvider || "").toLowerCase();
+          const pb = String(b.modelProvider || "").toLowerCase();
+          if (pa !== pb) return pa.localeCompare(pb);
+          return String(a.name).localeCompare(String(b.name), undefined, { sensitivity: "base" });
+        });
+        break;
+    }
+    return list;
+  }, [combos, sortBy, publishedIds]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -246,7 +339,7 @@ export default function CombosPage() {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
+    <div className="flex min-w-0 flex-col gap-6">
       <SegmentedControl
         size="sm"
         value={activeTab}
@@ -261,7 +354,7 @@ export default function CombosPage() {
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-text-muted">
-              Public model IDs, provider ownership, routed members, and fallback strategy.
+              Public model IDs, model behavior, advertised capabilities, pricing, and fallback strategy.
               {combos.length > 0 && (
                 <>
                   {" "}
@@ -272,9 +365,18 @@ export default function CombosPage() {
                 </>
               )}
             </p>
-            <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full whitespace-nowrap sm:w-auto">
-              Create Route
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select
+                options={SORT_OPTIONS}
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                selectClassName="h-9 w-40 py-1 text-xs"
+                aria-label="Sort routes"
+              />
+              <Button icon="add" onClick={() => setShowCreateModal(true)} className="whitespace-nowrap">
+                Create Route
+              </Button>
+            </div>
           </div>
 
           {/* Model Routes Table */}
@@ -299,20 +401,24 @@ export default function CombosPage() {
                 </div>
               )}
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] table-fixed text-left text-sm">
-                  <thead className="border-b border-border">
+                <table className="w-full min-w-[1240px] table-fixed text-left text-sm">
+                  <thead className="thead-data">
                     <tr className="font-mono text-[11px] uppercase tracking-wide text-text-muted">
                       <th className="w-[64px] px-3 py-2 font-medium">On</th>
-                      <th className="w-[24%] px-3 py-2 font-medium">Route</th>
-                      <th className="w-[24%] px-2 py-2 font-medium">Members</th>
-                      <th className="w-[32%] px-2 py-2 font-medium">Strategy</th>
-                      <th className="w-[16%] px-2 py-2 text-right font-medium">
+                      <th className="w-[19%] px-3 py-2 font-medium">Route</th>
+                      <th className="w-[16%] px-2 py-2 font-medium">Members</th>
+                      <th className="w-[18%] px-2 py-2 font-medium">Model profile</th>
+                      <th className="w-[14%] px-2 py-2 font-medium" title="Input / output, USD per one million tokens">
+                        Price (in / out)
+                      </th>
+                      <th className="w-[23%] px-2 py-2 font-medium">Strategy</th>
+                      <th className="w-[10%] px-2 py-2 text-right font-medium">
                         <span className="sr-only">Actions</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {combos.map((combo, index) => (
+                    {sortedCombos.map((combo, index) => (
                       <ComboTableRow
                         key={combo.id}
                         combo={combo}
@@ -325,6 +431,8 @@ export default function CombosPage() {
                         onCopy={copy}
                         onEdit={() => setEditingCombo(combo)}
                         onDelete={() => handleDelete(combo.id)}
+                        canEditPricing={canEditPricing}
+                        onEditPricing={() => setPricingCombo(combo)}
                         strategy={comboStrategies[combo.name] || {}}
                         onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
                         onSelectJudge={() => setJudgeCombo(combo)}
@@ -364,6 +472,16 @@ export default function CombosPage() {
           onTest={(overrides) => handleTestCombo(editingCombo, overrides)}
         />
       )}
+
+          {pricingCombo && (
+            <RoutePricingModal
+              key={`pricing-${pricingCombo.id}`}
+              combo={pricingCombo}
+              onClose={() => setPricingCombo(null)}
+              onSave={(pricing) => handleSavePricing(pricingCombo, pricing)}
+              onReset={() => handleResetPricing(pricingCombo)}
+            />
+          )}
 
           {judgeCombo && (
             <ModelSelectModal
@@ -405,6 +523,12 @@ export default function CombosPage() {
   );
 }
 
+const SORT_OPTIONS = [
+  { value: "provider", label: "Sort by Provider" },
+  { value: "name", label: "Sort by Name" },
+  { value: "status", label: "Enabled first" },
+];
+
 const STRATEGY_OPTIONS = [
   { value: "fallback", label: "Fallback" },
   { value: "round-robin", label: "Round Robin" },
@@ -441,7 +565,7 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
     <section className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-mono text-base font-semibold text-text-main">Virtual Providers</h2>
+          <h2 className="font-mono text-sm font-semibold text-text-main">Virtual Providers</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
             Manage the public model owners shown in Dashboard / Models and returned as owned_by from /v1/models.
           </p>
@@ -689,7 +813,7 @@ function RouteTestDetails({ combo, testState }) {
 
   return (
     <tr className="border-b border-border/60 bg-surface-2/40">
-      <td colSpan={5} className="px-3 py-2">
+      <td colSpan={7} className="px-3 py-2">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
             <span className="uppercase tracking-wide text-text-muted">{strategyLabel} test</span>
@@ -722,6 +846,230 @@ function RouteTestDetails({ combo, testState }) {
   );
 }
 
+function RouteProfileCell({ combo }) {
+  const thinking = thinkingModeMeta(combo.thinkingMode);
+  const effectiveCapabilities = getEffectiveComboCapabilities(combo);
+  const activeCapabilities = MODEL_CAPABILITIES.filter(([key]) => effectiveCapabilities[key]);
+  const overrideCount = Object.keys(normalizeCapabilityOverrides(combo.capabilityOverrides)).length;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 items-baseline gap-1.5">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">Thinking</span>
+        <span className={`truncate font-mono text-[11px] font-semibold ${thinking.value === "auto" ? "text-text-muted" : "text-text-main"}`}>
+          {thinking.label}
+        </span>
+      </div>
+      <div
+        className="flex min-w-0 items-center gap-1 text-text-muted"
+        title={activeCapabilities.length > 0
+          ? `Advertised capabilities: ${activeCapabilities.map(([, label]) => label).join(", ")}`
+          : "No advertised capabilities"}
+      >
+        {activeCapabilities.slice(0, 4).map(([key, label, icon]) => (
+          <span key={key} className="material-symbols-outlined text-sm" aria-label={label}>
+            {icon}
+          </span>
+        ))}
+        {activeCapabilities.length === 0 && (
+          <span className="font-mono text-[11px] text-text-subtle">No Caps</span>
+        )}
+        {activeCapabilities.length > 4 && (
+          <span className="font-mono text-[11px] text-text-subtle">+{activeCapabilities.length - 4}</span>
+        )}
+        {overrideCount > 0 && (
+          <span className="ml-1 font-mono text-[11px] uppercase tracking-wide text-primary">
+            {overrideCount} override{overrideCount === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Input / output rates, clickable for administrators. */
+function RoutePriceCell({ combo, canEdit, onEdit }) {
+  const priceable = Boolean(combo.pricingTarget);
+  const free = priceable && isFreePricing(combo.pricing);
+  const custom = combo.pricingSource === "custom";
+
+  const body = !priceable ? (
+    <span className="font-mono text-[11px] text-text-subtle">Needs provider</span>
+  ) : free ? (
+    <span className="font-mono text-[11px] font-semibold text-success">Free</span>
+  ) : combo.pricing ? (
+    <span className="font-mono text-[11px] tabular-nums text-text-main">
+      {formatRate(combo.pricing.input)} <span className="text-text-subtle">/</span> {formatRate(combo.pricing.output)}
+    </span>
+  ) : (
+    <span className="font-mono text-[11px] text-text-subtle">Not set</span>
+  );
+
+  const marker = custom && priceable && (
+    <span
+      className="shrink-0 rounded-sm border border-primary/40 px-1 font-mono text-[9px] uppercase tracking-wide text-primary"
+      title="Custom price overrides the built-in default"
+    >
+      Custom
+    </span>
+  );
+
+  if (!canEdit || !priceable) {
+    return (
+      <div className="flex min-w-0 items-center gap-1.5" title="USD per one million tokens">
+        {body}
+        {marker}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="flex min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-1 text-left transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+      title={`Set price for ${combo.name} (USD per one million tokens)`}
+      aria-label={`Set price for ${combo.name}`}
+    >
+      {body}
+      {marker}
+      <span className="material-symbols-outlined shrink-0 text-[14px] text-text-subtle group-hover:text-text-muted">edit</span>
+    </button>
+  );
+}
+
+function RoutePricingModal({ combo, onClose, onSave, onReset }) {
+  const [draft, setDraft] = useState(() => draftFromPricing(combo.pricing || {}));
+  const [free, setFree] = useState(() => isFreePricing(combo.pricing));
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [error, setError] = useState("");
+  const busy = saving || resetting;
+
+  const updateField = (field, value) => {
+    setError("");
+    setDraft((current) => {
+      const merged = { ...current, [field]: value };
+      // Typing a real rate leaves Free; zeroing everything back re-enters it.
+      if (Number(value) > 0) setFree(false);
+      else if (draftLooksFree(merged)) setFree(true);
+      return merged;
+    });
+  };
+
+  const toggleFree = (next) => {
+    setError("");
+    setFree(next);
+    setDraft(next
+      ? draftFromPricing(freePricing())
+      : draftFromPricing(combo.defaultPricing || combo.pricing || {}));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const pricing = parseDraft(draft, { basePricing: combo.pricing || {}, free });
+      await onSave(pricing);
+      onClose();
+    } catch (reason) {
+      setError(reason.message || "Unable to save price");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setResetting(true);
+    setError("");
+    try {
+      await onReset();
+      onClose();
+    } catch (reason) {
+      setError(reason.message || "Unable to restore default price");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title={`Pricing — ${combo.name}`} footer={null}>
+      <div className="flex flex-col gap-4">
+        <div className="border border-border bg-surface-2 px-3 py-2">
+          <p className="font-mono text-[11px] text-text-muted">
+            Billed as{" "}
+            <code className="text-text-main">
+              {combo.pricingTarget?.provider}/{combo.pricingTarget?.model}
+            </code>
+          </p>
+          <p className="mt-1 text-[11px] text-text-muted">
+            Rates are USD per one million tokens. Renaming the route or changing its provider starts a new price entry.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border border-border px-3 py-2">
+          <span className="min-w-0">
+            <span className="block font-mono text-xs font-semibold text-text-main">Free</span>
+            <span className="block text-[11px] text-text-muted">Bill this route at zero on every rate.</span>
+          </span>
+          <Toggle
+            size="sm"
+            checked={free}
+            disabled={busy}
+            onChange={toggleFree}
+            ariaLabel={`Set ${combo.name} free`}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {PRICING_FIELDS.map(([field, label]) => (
+            <div key={field}>
+              <label
+                htmlFor={`price-${field}`}
+                className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+              >
+                {label}
+              </label>
+              <input
+                id={`price-${field}`}
+                type="number"
+                min="0"
+                step="0.000001"
+                inputMode="decimal"
+                disabled={busy || free}
+                value={draft[field] ?? ""}
+                onChange={(event) => updateField(field, event.target.value)}
+                placeholder="0"
+                className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-text-main outline-none focus:border-primary/40 disabled:opacity-60"
+              />
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {combo.pricingSource === "custom" && (
+            <Button type="button" variant="ghost" size="sm" fullWidth onClick={handleReset} loading={resetting} disabled={busy}>
+              Restore default
+            </Button>
+          )}
+          <Button type="button" variant="ghost" size="sm" fullWidth onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button type="button" size="sm" fullWidth onClick={handleSave} loading={saving} disabled={busy}>
+            Save price
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function ComboTableRow({
   combo,
   index,
@@ -736,6 +1084,8 @@ function ComboTableRow({
   strategy = {},
   onSetStrategy,
   onSelectJudge,
+  canEditPricing = false,
+  onEditPricing,
   testState,
   onTest,
 }) {
@@ -806,6 +1156,16 @@ function ComboTableRow({
           ) : (
             <span className="font-mono text-xs text-text-subtle">—</span>
           )}
+        </td>
+        <td className="px-2 py-2 align-middle">
+          <RouteProfileCell combo={combo} />
+        </td>
+        <td className="px-2 py-2 align-middle">
+          <RoutePriceCell
+            combo={combo}
+            canEdit={canEditPricing}
+            onEdit={onEditPricing}
+          />
         </td>
         <td className="px-2 py-2 align-middle">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -1030,6 +1390,10 @@ function ComboFormModal({
   const [name, setName] = useState(combo?.name || "");
   const [models, setModels] = useState(combo?.models || []);
   const [modelProvider, setModelProvider] = useState(combo?.modelProvider || "");
+  const [thinkingMode, setThinkingMode] = useState(combo?.thinkingMode || "auto");
+  const [capabilityOverrides, setCapabilityOverrides] = useState(() =>
+    normalizeCapabilityOverrides(combo?.capabilityOverrides)
+  );
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -1039,6 +1403,22 @@ function ComboFormModal({
   const [testStrategy, setTestStrategy] = useState(strategy.fallbackStrategy || "fallback");
   const [testJudge, setTestJudge] = useState(strategy.judgeModel || "");
   const [modalTestState, setModalTestState] = useState(testState || null);
+  const [thinkingTest, setThinkingTest] = useState(null);
+
+  const baseCapabilities = useMemo(() => deriveComboCapabilities(models), [models]);
+  const effectiveCapabilities = useMemo(
+    () => ({ ...baseCapabilities, ...capabilityOverrides }),
+    [baseCapabilities, capabilityOverrides]
+  );
+  const thinkingProfile = useMemo(() => getComboThinkingProfile(models), [models]);
+  const thinkingOptions = useMemo(() => {
+    if (thinkingProfile.options.some((option) => option.value === thinkingMode)) {
+      return thinkingProfile.options;
+    }
+    return [...thinkingProfile.options, thinkingModeMeta(thinkingMode)];
+  }, [thinkingMode, thinkingProfile]);
+  const selectedThinking = thinkingModeMeta(thinkingMode);
+  const capabilityOverrideCount = Object.keys(capabilityOverrides).length;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1131,8 +1511,23 @@ function ComboFormModal({
     }
     setProviderError("");
     setSaving(true);
-    await onSave({ name: name.trim(), models, modelProvider: normalizedProvider });
+    await onSave({
+      name: name.trim(),
+      models,
+      modelProvider: normalizedProvider,
+      thinkingMode,
+      capabilityOverrides,
+    });
     setSaving(false);
+  };
+
+  const handleCapabilityChange = (key, enabled) => {
+    setCapabilityOverrides((current) => {
+      const next = { ...current };
+      if (Boolean(baseCapabilities[key]) === enabled) delete next[key];
+      else next[key] = enabled;
+      return next;
+    });
   };
 
   const handleRunTest = async () => {
@@ -1162,6 +1557,36 @@ function ComboFormModal({
     }
   };
 
+  // Probe every member with the thinking default currently selected in this form,
+  // so "Off" is checked the way the router would actually send it. This is the
+  // runtime counterpart to the static cannotDisable warning below.
+  const handleRunThinkingTest = async () => {
+    const mode = thinkingMode;
+    const testedModels = [...models];
+    setThinkingTest({ testing: true, mode, rows: [] });
+
+    const rows = await Promise.all(testedModels.map(async (member) => {
+      try {
+        const response = await fetch("/api/models/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: member, mode: "reasoning", thinking: mode }),
+        });
+        const data = await response.json().catch(() => ({}));
+        const probe = response.ok ? data : { verdict: "error", error: data.error || `HTTP ${response.status}` };
+        return { model: member, ...judgeThinkingCompliance(mode, probe) };
+      } catch (error) {
+        return {
+          model: member,
+          state: THINKING_COMPLIANCE.ERROR,
+          label: error?.message || "Network error",
+        };
+      }
+    }));
+
+    setThinkingTest({ testing: false, mode, rows });
+  };
+
   const isEdit = !!combo;
   const modalResultsByIndex = new Map((modalTestState?.results || []).map((result) => [result.index, result]));
 
@@ -1171,6 +1596,7 @@ function ComboFormModal({
         isOpen={isOpen}
         onClose={onClose}
         title={isEdit ? "Edit Model Route" : "Create Model Route"}
+        size="full"
       >
         <div className="flex flex-col gap-3">
           {/* Name */}
@@ -1269,6 +1695,134 @@ function ComboFormModal({
               Add Model
             </button>
           </div>
+
+          <section className="border-y border-border py-3" aria-labelledby="model-behavior-heading">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <span>
+                <span id="model-behavior-heading" className="block font-mono text-[11px] font-semibold uppercase tracking-wide text-text-main">
+                  Model behavior
+                </span>
+                <span className="block text-xs text-text-muted">
+                  Defaults and advertised Caps belong to this route, not its provider connection.
+                </span>
+              </span>
+              {capabilityOverrideCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCapabilityOverrides({})}
+                  className="self-start rounded-sm px-2 py-1 font-mono text-[11px] uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
+                >
+                  Reset Caps to automatic
+                </button>
+              )}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div className="min-w-0">
+                <Select
+                  label="Thinking default"
+                  value={thinkingMode}
+                  onChange={(event) => setThinkingMode(event.target.value)}
+                  options={thinkingOptions.map((option) => ({ value: option.value, label: option.label }))}
+                />
+                <p className="mt-1 text-xs leading-relaxed text-text-muted">{selectedThinking.description}</p>
+                <p className="mt-2 font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                  Client request wins · {thinkingProfile.reasoningModels} reasoning member{thinkingProfile.reasoningModels === 1 ? "" : "s"}
+                </p>
+                {thinkingMode === "none" && thinkingProfile.cannotDisable > 0 && (
+                  <p className="mt-2 border-l-2 border-warning pl-2 text-xs text-warning">
+                    {thinkingProfile.cannotDisable} member{thinkingProfile.cannotDisable === 1 ? "" : "s"} cannot fully disable reasoning and will use the minimum supported level.
+                  </p>
+                )}
+
+                <div className="mt-3 border-t border-border pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleRunThinkingTest}
+                      loading={thinkingTest?.testing}
+                      disabled={models.length === 0 || thinkingTest?.testing}
+                    >
+                      Test thinking default
+                    </Button>
+                    <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                      Sends one request per member as &quot;{selectedThinking.label}&quot;
+                    </span>
+                  </div>
+
+                  {thinkingTest && !thinkingTest.testing && thinkingTest.rows.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {thinkingTest.mode !== thinkingMode && (
+                        <p className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                          Results are for &quot;{thinkingModeMeta(thinkingTest.mode).label}&quot; — re-run to match the current setting.
+                        </p>
+                      )}
+                      {thinkingTest.rows.map((row, index) => (
+                        <div key={`${row.model}-${index}`} className="flex min-w-0 items-start gap-1.5">
+                          <span
+                            className={`material-symbols-outlined shrink-0 text-sm ${THINKING_STATE_STYLE[row.state].color}`}
+                            aria-hidden="true"
+                          >
+                            {THINKING_STATE_STYLE[row.state].icon}
+                          </span>
+                          <span className="min-w-0 text-xs">
+                            <span className="font-mono text-text-main">{row.model}</span>
+                            <span className={`ml-1.5 ${THINKING_STATE_STYLE[row.state].color}`}>{row.label}</span>
+                          </span>
+                        </div>
+                      ))}
+                      {thinkingTest.rows.some((row) => row.state === THINKING_COMPLIANCE.VIOLATION) && (
+                        <p className="mt-1 border-l-2 border-danger pl-2 text-xs text-danger">
+                          Runtime disagrees with the capability catalog — these members do not honour this thinking default.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="min-w-0 border border-border">
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2">
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Caps exposed by this model</span>
+                  <span className="font-mono text-[11px] text-text-subtle">Dashboard / Models · /v1/models</span>
+                </div>
+                <div className="grid sm:grid-cols-2">
+                  {MODEL_CAPABILITIES.map(([key, label, icon], index) => {
+                    const overridden = Object.prototype.hasOwnProperty.call(capabilityOverrides, key);
+                    const enabled = Boolean(effectiveCapabilities[key]);
+                    return (
+                      <div
+                        key={key}
+                        className={`flex min-w-0 items-center justify-between gap-3 px-3 py-2 ${index < MODEL_CAPABILITIES.length - 2 ? "border-b border-border" : ""} ${index % 2 === 0 ? "sm:border-r sm:border-border" : ""}`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className={`material-symbols-outlined text-base ${enabled ? "text-primary" : "text-text-subtle"}`}>
+                            {icon}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs font-medium text-text-main">{label}</span>
+                            <span className="block font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                              {overridden ? `Override ${enabled ? "on" : "off"}` : `Inherited ${enabled ? "on" : "off"}`}
+                            </span>
+                          </span>
+                        </span>
+                        <Toggle
+                          size="sm"
+                          checked={enabled}
+                          onChange={(next) => handleCapabilityChange(key, next)}
+                          ariaLabel={`${enabled ? "Disable" : "Enable"} ${label} for ${name || "this route"}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-text-subtle">
+              Caps change public model metadata only. Routing still checks each member's actual capabilities.
+            </p>
+          </section>
 
           {isEdit && onTest && (
             <div className="border-y border-border py-3">

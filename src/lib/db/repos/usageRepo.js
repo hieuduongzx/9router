@@ -417,6 +417,167 @@ export async function saveRequestUsage(entry) {
   }
 }
 
+/** Map an upstream HTTP status onto the taxonomy `normalizeUsageStatus` reads. */
+export function classifyFailureStatus(statusCode) {
+  const code = Number(statusCode);
+  if (code === 429) return "rate_limited";
+  if (Number.isFinite(code) && code > 0) return `error_${code}`;
+  return "error";
+}
+
+/**
+ * Record a failed request so success-rate readouts reflect reality.
+ *
+ * Until this existed, `usageHistory` only ever received successful requests
+ * (`saveUsageStats` bails when both token counts are zero and is never reached
+ * on an error path), which made every `byStatus` readout a structural 100%
+ * success.
+ *
+ * The row is aggregated into `usageDaily` and the lifetime counter exactly like
+ * a successful one, because `totalRequests` is summed from `usageHistory` for
+ * short periods but from `usageDaily` for long ones — updating only one of them
+ * would make the same number disagree with itself depending on the range.
+ * Tokens and cost are zero, so the token/spend tiles are untouched; only the
+ * request count grows, which is correct: a failed call is still a call made.
+ */
+export async function saveRequestFailure(entry = {}) {
+  try {
+    const db = await getAdapter();
+    const timestamp = entry.timestamp || new Date().toISOString();
+    const status = entry.status || classifyFailureStatus(entry.statusCode);
+
+    db.transaction(() => {
+      // A retried attempt can land on the same millisecond as its predecessor;
+      // dedupe on the full identity so one failure is not counted twice.
+      const existing = db.get(
+        `SELECT id FROM usageHistory
+         WHERE timestamp = ?
+           AND COALESCE(provider, '') = COALESCE(?, '')
+           AND COALESCE(model, '') = COALESCE(?, '')
+           AND COALESCE(connectionId, '') = COALESCE(?, '')
+           AND COALESCE(apiKey, '') = COALESCE(?, '')
+           AND COALESCE(status, '') = COALESCE(?, '')
+         LIMIT 1`,
+        [
+          timestamp, entry.provider || null, entry.model || null,
+          entry.connectionId || null, entry.apiKey || null, status,
+        ],
+      );
+      if (existing) return;
+
+      db.run(
+        `INSERT INTO usageHistory(timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, status, tokens, meta) VALUES(?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)`,
+        [
+          timestamp, entry.provider || null, entry.model || null,
+          entry.connectionId || null, entry.apiKey || null, entry.endpoint || null,
+          status,
+          stringifyJson({}),
+          stringifyJson({
+            failure: true,
+            statusCode: Number(entry.statusCode) || null,
+            message: typeof entry.message === "string" ? entry.message.slice(0, 500) : null,
+          }),
+        ],
+      );
+
+      const dayEntry = {
+        provider: entry.provider,
+        model: entry.model,
+        connectionId: entry.connectionId,
+        apiKey: entry.apiKey,
+        endpoint: entry.endpoint,
+        tokens: {},
+        cost: 0,
+      };
+      const dateKey = getLocalDateKey(timestamp);
+      const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);
+      const day = row ? parseJson(row.data, {}) : {
+        requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
+        byProvider: {}, byModel: {}, byAccount: {}, byApiKey: {}, byEndpoint: {},
+      };
+      aggregateEntryToDay(day, dayEntry);
+      db.run(`INSERT INTO usageDaily(dateKey, data) VALUES(?, ?) ON CONFLICT(dateKey) DO UPDATE SET data = excluded.data`, [dateKey, stringifyJson(day)]);
+
+      const cur = db.get(`SELECT value FROM _meta WHERE key = 'totalRequestsLifetime'`);
+      const next = (cur ? parseInt(cur.value, 10) : 0) + 1;
+      db.run(`INSERT INTO _meta(key, value) VALUES('totalRequestsLifetime', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [String(next)]);
+    });
+
+    scheduleStatsEvent("update", 250);
+  } catch (e) {
+    // Telemetry must never break the request it is describing.
+    console.error("Failed to save request failure:", e?.message || e);
+  }
+}
+
+const DEFAULT_USAGE_RETENTION_DAYS = 180;
+const PRUNE_BATCH = 5000;
+
+/**
+ * Drop per-request usage rows older than the retention window.
+ *
+ * `usageHistory` had no delete path at all — one row per request, four indexes,
+ * kept forever. The daily rollup in `usageDaily` is what every chart and total
+ * actually reads for older windows, and it is tiny (one row per day), so the
+ * raw rows can age out without losing any headline number. Only per-request
+ * drill-down beyond the window is lost.
+ *
+ * Deletes in batches so a first run on a large table cannot hold one long write
+ * lock. Returns the number of rows removed.
+ */
+export async function pruneUsageHistory({ retentionDays, vacuum = false } = {}) {
+  let days = retentionDays;
+  if (!Number.isFinite(days)) {
+    try {
+      const { getSettings } = await import("./settingsRepo.js");
+      const settings = await getSettings();
+      days = Number(settings?.usageRetentionDays);
+    } catch {
+      days = DEFAULT_USAGE_RETENTION_DAYS;
+    }
+  }
+  if (!Number.isFinite(days)) days = DEFAULT_USAGE_RETENTION_DAYS;
+  if (days <= 0) return 0;
+
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const db = await getAdapter();
+  let removed = 0;
+
+  try {
+    for (;;) {
+      let batch = 0;
+      db.transaction(() => {
+        const rows = db.all(
+          `SELECT id FROM usageHistory WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?`,
+          [cutoff, PRUNE_BATCH],
+        );
+        if (!rows.length) return;
+        const placeholders = rows.map(() => "?").join(", ");
+        db.run(`DELETE FROM usageHistory WHERE id IN (${placeholders})`, rows.map((r) => r.id));
+        batch = rows.length;
+      });
+      if (!batch) break;
+      removed += batch;
+      if (batch < PRUNE_BATCH) break;
+    }
+
+    // SQLite never returns freed pages to the filesystem on its own, so a prune
+    // that deletes hundreds of thousands of rows otherwise shrinks nothing.
+    if (removed > 0 && vacuum) {
+      try {
+        db.exec("VACUUM");
+      } catch (e) {
+        console.warn("[usageRepo] VACUUM after prune failed:", e?.message || e);
+      }
+    }
+  } catch (e) {
+    console.error("[usageRepo] usageHistory prune failed:", e?.message || e);
+  }
+
+  if (removed > 0) console.log(`[usageRepo] pruned ${removed} usageHistory rows older than ${days}d`);
+  return removed;
+}
+
 export async function getUsageHistory(filter = {}) {
   const db = await getAdapter();
   const conds = [];

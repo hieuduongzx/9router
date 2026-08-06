@@ -50,7 +50,7 @@ export default function UsageStats({
   }, [period, apiKeyId]);
 
   if (!stats && !loading) {
-    return <div role="alert" className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">Model usage could not be loaded.</div>;
+    return <div role="alert" className="rounded-sm border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">Model usage could not be loaded.</div>;
   }
 
   const spinner = (

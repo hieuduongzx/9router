@@ -654,7 +654,7 @@ export default function ProfilePage() {
                 <span className="material-symbols-outlined text-xl sm:text-2xl">computer</span>
               </div>
               <div>
-                <h2 className="font-mono text-lg sm:text-xl font-semibold">Local Mode</h2>
+                <h2 className="font-mono text-sm font-semibold text-text-main">Local Mode</h2>
                 <p className="text-sm text-text-muted">Running on your machine</p>
               </div>
             </div>
@@ -727,7 +727,7 @@ export default function ProfilePage() {
             <div className="size-10 border border-border bg-surface-2 text-text-main flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[20px]">language</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Language</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Language</h3>
           </div>
           <button
             onClick={() => setLangOpen(true)}
@@ -745,7 +745,7 @@ export default function ProfilePage() {
             <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">shield</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Security</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Security</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
@@ -851,7 +851,7 @@ export default function ProfilePage() {
               <span className="material-symbols-outlined text-[20px]">lock_open</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-mono text-base sm:text-lg font-semibold">OIDC Dashboard Login</h3>
+              <h3 className="font-mono text-sm font-semibold text-text-main">OIDC Dashboard Login</h3>
               <p className="text-xs text-text-muted">
                 {settings.authMode === "oidc" ? "OIDC active" : settings.authMode === "both" ? "Accounts + OIDC active" : "Optional SSO via Authentik/Keycloak/Google"}
               </p>
@@ -1009,7 +1009,7 @@ export default function ProfilePage() {
             <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">route</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Routing Strategy</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Routing Strategy</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
@@ -1114,7 +1114,7 @@ export default function ProfilePage() {
             <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">wifi</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Network</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Network</h3>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -1186,7 +1186,7 @@ export default function ProfilePage() {
             <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">monitoring</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Observability</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Observability</h3>
           </div>
           <div className="flex items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
@@ -1209,7 +1209,7 @@ export default function ProfilePage() {
             <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
               <span className="material-symbols-outlined text-[20px]">bug_report</span>
             </div>
-            <h3 className="font-mono text-base sm:text-lg font-semibold">Diagnostics</h3>
+            <h3 className="font-mono text-sm font-semibold text-text-main">Diagnostics</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1273,9 +1273,9 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* App Info */}
-        <div className="text-center text-xs sm:text-sm text-text-muted py-4">
-          <p className="font-mono">{APP_CONFIG.name} v{APP_CONFIG.version}</p>
+        {/* App Info — no version string in the UI; the API still reports it. */}
+        <div className="py-4 text-center text-xs text-text-muted sm:text-sm">
+          <p className="font-mono">{APP_CONFIG.name}</p>
           <p className="mt-1">Local Mode - All data stored on your machine</p>
         </div>
       </div>

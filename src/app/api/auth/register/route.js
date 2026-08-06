@@ -34,7 +34,7 @@ export async function POST(request) {
       email: user.email,
       role: user.role,
       authType: "account",
-    });
+    }, { remember: body?.rememberMe === true });
 
     return NextResponse.json({ success: true, user }, { status: 201, headers: NO_STORE_HEADERS });
   } catch (error) {

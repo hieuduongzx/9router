@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
+import { Plus } from "lucide-react";
 import ProviderIcon from "@/shared/components/ProviderIcon";
-import AccountMenu from "@/shared/components/AccountMenu";
 import HeaderLanguage from "@/shared/components/HeaderLanguage";
 import ThemeToggle from "@/shared/components/ThemeToggle";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
@@ -229,9 +229,6 @@ const getPageInfo = (pathname) => {
 
 export default function Header({ onMenuClick, showMenuButton = true }) {
   const pathname = usePathname();
-  const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState("");
-  const [creditCents, setCreditCents] = useState(null);
   const [viewMode, setViewMode] = useState(DASHBOARD_VIEW_USER);
   const [canSwitchDashboardView, setCanSwitchDashboardView] = useState(false);
   const [switchingView, setSwitchingView] = useState(false);
@@ -239,8 +236,10 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
 
   // Memoize page info to prevent unnecessary recalculations
   const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
-  const { title, description, icon, breadcrumbs } = pageInfo;
+  const { title, description, breadcrumbs } = pageInfo;
+  const onApiKeysPage = pathname?.includes("/api-keys");
 
+  // Identity moved to the sidebar; the header only still needs the view mode.
   useEffect(() => {
     let cancelled = false;
 
@@ -250,17 +249,11 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled) {
-          setDisplayName(data?.displayName || data?.oidcName || data?.oidcEmail || "");
-          setRole(data?.role || "");
-          setCreditCents(Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null);
           setViewMode(data?.viewMode || DASHBOARD_VIEW_USER);
           setCanSwitchDashboardView(data?.canSwitchDashboardView === true);
         }
       } catch {
         if (!cancelled) {
-          setDisplayName("");
-          setRole("");
-          setCreditCents(null);
           setViewMode(DASHBOARD_VIEW_USER);
           setCanSwitchDashboardView(false);
         }
@@ -274,17 +267,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       window.removeEventListener("account-profile-updated", loadAuthStatus);
     };
   }, []);
-
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
-      if (res.ok) {
-        window.location.assign("/login");
-      }
-    } catch (err) {
-      console.error("Failed to logout:", err);
-    }
-  };
 
   const handleViewModeToggle = async () => {
     if (switchingView) return;
@@ -375,17 +357,10 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
             ))}
           </div>
         ) : title ? (
-          <div>
-            <div className="flex items-center gap-2">
-              {icon && (
-                <span className="material-symbols-outlined text-text-main text-xl lg:text-2xl">
-                  {icon}
-                </span>
-              )}
-              <h1 className="font-mono text-base lg:text-xl font-semibold tracking-tight truncate">
-                {translate(title)}
-              </h1>
-            </div>
+          <div className="min-w-0">
+            <h1 className="truncate font-mono text-base font-semibold tracking-tight lg:text-xl">
+              {translate(title)}
+            </h1>
             {description && (
               <p className="hidden lg:block text-sm text-text-muted truncate">
                 {translate(description)}
@@ -395,9 +370,18 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         ) : null}
       </div>
 
-      {/* Right actions: utilities first, profile owns the far-right corner */}
-      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+      {/* Right actions — identity is not here; it lives at the foot of the rail */}
+      <div className="flex shrink-0 items-center gap-1">
         <HeaderSearch />
+        {!onApiKeysPage && (
+          <Link
+            href="/dashboard/api-keys"
+            className="ml-1 hidden h-9 shrink-0 items-center gap-1.5 rounded-sm bg-primary px-3 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 md:inline-flex"
+          >
+            <Plus aria-hidden size={14} strokeWidth={2.75} />
+            New key
+          </Link>
+        )}
         <div className="hidden sm:block"><ThemeToggle /></div>
         <HeaderLanguage />
         {canSwitchDashboardView && (
@@ -409,7 +393,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
             />
           </div>
         )}
-        <AccountMenu displayName={displayName} role={role} creditCents={creditCents} onLogout={handleLogout} />
       </div>
       {viewModeError && (
         <div
@@ -447,7 +430,7 @@ function DashboardViewToggle({ mode, pending, onToggle }) {
         aria-hidden="true"
         className={`relative hidden h-4 w-7 rounded-full transition-colors sm:block ${adminView ? "bg-primary" : "bg-text-subtle/40"}`}
       >
-        <span className={`absolute top-0.5 size-3 rounded-full bg-white shadow-sm transition-transform ${adminView ? "translate-x-3.5" : "translate-x-0.5"}`} />
+        <span className={`absolute top-0.5 size-3 rounded-full bg-white transition-transform ${adminView ? "translate-x-3.5" : "translate-x-0.5"}`} />
       </span>
     </button>
   );
@@ -468,8 +451,8 @@ function HeaderSearch() {
   if (!visible) return null;
 
   return (
-    <div className="relative w-[160px] sm:w-[220px]">
-      <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-text-muted text-[16px] pointer-events-none">
+    <div className="relative w-[160px] sm:w-[240px] xl:w-[300px]">
+      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px] pointer-events-none">
         search
       </span>
       <input
@@ -477,7 +460,7 @@ function HeaderSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-8 pl-7 pr-7 rounded-sm border border-border bg-surface/60 font-mono text-sm focus:outline-none focus:border-primary transition-colors"
+        className="h-9 w-full rounded-sm border border-border bg-surface/60 pl-8 pr-7 font-mono text-xs transition-colors focus:border-primary focus:outline-none"
       />
       {query && (
         <button

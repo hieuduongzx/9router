@@ -86,7 +86,7 @@ export default function UsageOverTime({ period, onPeriodChange, apiKeyId = "all"
 
   return (
     <div className="border border-border bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <SectionLabel className="!mb-0">{title}</SectionLabel>
         {onPeriodChange && <PeriodDropdown value={period} onChange={onPeriodChange} disabled={loading} />}
       </div>

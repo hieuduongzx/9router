@@ -100,7 +100,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
       {error && <div role="alert" className="rounded-sm border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
 
       <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h2 className="font-mono text-sm font-semibold text-text-main">Model request history</h2>
             <p className="mt-0.5 text-xs text-text-muted">Token, timing, and price details for requests in your current account scope.</p>
@@ -110,7 +110,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-xs leading-tight">
             <caption className="sr-only">Model request history for the current account and date filters</caption>
-            <thead className="border-b border-border font-mono text-text-muted">
+            <thead className="thead-data">
               <tr>
                 <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Time</th>
                 <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Total Cost</th>

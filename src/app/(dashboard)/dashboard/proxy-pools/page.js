@@ -573,12 +573,9 @@ export default function ProxyPoolsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-1 sm:gap-6 sm:px-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="font-mono text-xl font-semibold tracking-tight sm:text-2xl">Proxy Pools</h1>
-        </div>
-
+    <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
+      {/* No page title here — the shared Header already renders it. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
           <div className="relative" ref={relayMenuRef}>
             <Button

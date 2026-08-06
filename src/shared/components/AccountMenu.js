@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PropTypes from "prop-types";
+import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
+import { cn } from "@/shared/utils/cn";
 
 const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -10,82 +12,125 @@ const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
 });
 
-export default function AccountMenu({ displayName, role, creditCents, onLogout }) {
+/**
+ * Identity row at the foot of the sidebar rail (it used to sit in the page
+ * header). The menu opens upward because the trigger is pinned to the bottom of
+ * the viewport, and collapses to the avatar alone on the 64px rail.
+ */
+export default function AccountMenu({
+  displayName,
+  role,
+  creditCents,
+  collapsed = false,
+  onLogout,
+  onNavigate,
+}) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
-  const formattedCredit = Number.isSafeInteger(creditCents) ? CREDIT_FORMAT.format(creditCents / 100) : null;
+  const hasCredit = Number.isSafeInteger(creditCents);
+  const formattedCredit = hasCredit ? CREDIT_FORMAT.format(creditCents / 100) : null;
   const avatarLabel = String(displayName || "A").trim().charAt(0).toUpperCase() || "A";
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const closeOnOutsideClick = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) setOpen(false);
     };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [open]);
 
   if (!displayName) return null;
 
+  const subtitle = [role || "user", formattedCredit].filter(Boolean).join(" · ");
+
   return (
-    <div className="relative ml-0.5 sm:ml-1" ref={menuRef}>
+    <div className={cn("relative", collapsed ? "shrink-0" : "min-w-0 flex-1")} ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={displayName ? `Account menu for ${displayName}` : "Open account menu"}
-        className="flex size-11 max-w-[220px] items-center justify-center gap-2 rounded-full border border-border bg-surface p-1 text-left text-text-muted transition-colors hover:border-border hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 sm:w-auto sm:justify-start sm:pr-2.5"
+        aria-label={`Account menu for ${displayName}`}
+        title={collapsed ? displayName : undefined}
+        className={cn(
+          "flex items-center rounded-sm text-left transition-colors",
+          "hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
+          collapsed ? "size-8 justify-center" : "h-11 w-full gap-2.5 px-1.5"
+        )}
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+        <span className="flex size-7 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-[11px] font-semibold text-text-main">
           {avatarLabel}
         </span>
-        <span className="hidden min-w-0 sm:block">
-          <span className="block max-w-[120px] truncate text-[13px] font-semibold leading-tight text-text-main">
-            {displayName}
-          </span>
-          {formattedCredit && (
-            <span className="mt-0.5 block whitespace-nowrap font-mono text-[11px] font-medium leading-none text-text-main tabular-nums">
-              {formattedCredit}
+        {collapsed ? null : (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-medium leading-tight text-text-main">
+                {displayName}
+              </span>
+              <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                {subtitle}
+              </span>
             </span>
-          )}
-        </span>
-        <span className="ml-0.5 hidden shrink-0 sm:inline-flex">
-          <span className="material-symbols-outlined text-[16px] text-text-muted">expand_more</span>
-        </span>
+            <ChevronsUpDown aria-hidden size={14} strokeWidth={2.25} className="shrink-0 text-text-subtle" />
+          </>
+        )}
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 border border-border bg-surface">
-          <div className="border-b border-border px-4 py-3">
-            <p className="truncate text-sm font-semibold text-text-main">{displayName}</p>
-            <p className="mt-0.5 text-xs capitalize text-text-muted">{role || "user"} account</p>
-            {Number.isSafeInteger(creditCents) && (
-              <div className="mt-2 flex items-center justify-between gap-3 border border-border bg-surface-2/50 px-2.5 py-2">
-                <span className="font-mono text-[10px] font-medium uppercase tracking-wide text-text-muted">Balance</span>
+        <div
+          role="menu"
+          className={cn(
+            "absolute bottom-full z-50 mb-2 w-60 border border-border bg-surface",
+            collapsed ? "left-0" : "left-0 right-0 w-auto min-w-[15rem]"
+          )}
+        >
+          <div className="border-b border-border px-3 py-2.5">
+            <p className="truncate text-sm font-medium text-text-main">{displayName}</p>
+            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+              {role || "user"} account
+            </p>
+            {hasCredit && (
+              <div className="mt-2 flex items-center justify-between gap-3 border border-border px-2.5 py-1.5">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                  Balance
+                </span>
                 <span className="font-mono text-xs font-semibold tabular-nums text-text-main">
-                  {CREDIT_FORMAT.format(creditCents / 100)}
+                  {formattedCredit}
                 </span>
               </div>
             )}
           </div>
-          <div className="p-1.5">
+          <div className="p-1">
             <Link
               href="/dashboard/account"
               role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-text-main transition-colors hover:bg-surface-2"
+              onClick={() => {
+                setOpen(false);
+                onNavigate?.();
+              }}
+              className="flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm text-text-main transition-colors hover:bg-surface-2"
             >
-              <span className="material-symbols-outlined text-[19px] text-text-muted">manage_accounts</span>
-              Profile & account
+              <UserCog aria-hidden size={15} strokeWidth={2.25} className="text-text-muted" />
+              Profile &amp; account
             </Link>
             <button
               type="button"
               role="menuitem"
-              onClick={() => { setOpen(false); onLogout(); }}
-              className="flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-danger transition-colors hover:bg-danger/10"
+              onClick={() => {
+                setOpen(false);
+                onLogout();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm text-danger transition-colors hover:bg-danger/10"
             >
-              <span className="material-symbols-outlined text-[19px]">logout</span>
+              <LogOut aria-hidden size={15} strokeWidth={2.25} />
               Sign out
             </button>
           </div>
@@ -99,5 +144,7 @@ AccountMenu.propTypes = {
   displayName: PropTypes.string,
   role: PropTypes.string,
   creditCents: PropTypes.number,
+  collapsed: PropTypes.bool,
   onLogout: PropTypes.func.isRequired,
+  onNavigate: PropTypes.func,
 };

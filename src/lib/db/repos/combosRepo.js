@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { normalizeCapabilityOverrides, normalizeThinkingMode } from "@/shared/utils/comboModelConfig";
 
 function rowToCombo(row) {
   if (!row) return null;
@@ -10,6 +11,8 @@ function rowToCombo(row) {
     kind: row.kind,
     modelProvider: row.modelProvider || null,
     models: parseJson(row.models, []),
+    thinkingMode: normalizeThinkingMode(row.thinkingMode),
+    capabilityOverrides: normalizeCapabilityOverrides(parseJson(row.capabilityOverrides, {})),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -42,12 +45,14 @@ export async function createCombo(data) {
     kind: data.kind || null,
     modelProvider: data.modelProvider || null,
     models: data.models || [],
+    thinkingMode: normalizeThinkingMode(data.thinkingMode),
+    capabilityOverrides: normalizeCapabilityOverrides(data.capabilityOverrides),
     createdAt: now,
     updatedAt: now,
   };
   db.run(
-    `INSERT INTO combos(id, name, kind, modelProvider, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-    [combo.id, combo.name, combo.kind, combo.modelProvider, stringifyJson(combo.models), combo.createdAt, combo.updatedAt]
+    `INSERT INTO combos(id, name, kind, modelProvider, models, thinkingMode, capabilityOverrides, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [combo.id, combo.name, combo.kind, combo.modelProvider, stringifyJson(combo.models), combo.thinkingMode, stringifyJson(combo.capabilityOverrides), combo.createdAt, combo.updatedAt]
   );
   return combo;
 }
@@ -59,9 +64,11 @@ export async function updateCombo(id, data) {
     const row = db.get(`SELECT * FROM combos WHERE id = ?`, [id]);
     if (!row) return;
     const merged = { ...rowToCombo(row), ...data, updatedAt: new Date().toISOString() };
+    merged.thinkingMode = normalizeThinkingMode(merged.thinkingMode);
+    merged.capabilityOverrides = normalizeCapabilityOverrides(merged.capabilityOverrides);
     db.run(
-      `UPDATE combos SET name = ?, kind = ?, modelProvider = ?, models = ?, updatedAt = ? WHERE id = ?`,
-      [merged.name, merged.kind, merged.modelProvider || null, stringifyJson(merged.models || []), merged.updatedAt, id]
+      `UPDATE combos SET name = ?, kind = ?, modelProvider = ?, models = ?, thinkingMode = ?, capabilityOverrides = ?, updatedAt = ? WHERE id = ?`,
+      [merged.name, merged.kind, merged.modelProvider || null, stringifyJson(merged.models || []), merged.thinkingMode, stringifyJson(merged.capabilityOverrides), merged.updatedAt, id]
     );
     result = merged;
   });

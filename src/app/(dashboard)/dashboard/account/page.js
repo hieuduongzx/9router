@@ -90,7 +90,7 @@ function StatusMessage({ status }) {
 
 function ProfileSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5" aria-label="Loading account">
+    <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-6" aria-label="Loading account">
       <div className="h-28 animate-pulse bg-surface-2" />
       <div className="h-12 animate-pulse bg-surface-2" />
       <div className="h-80 animate-pulse bg-surface-2" />
@@ -306,7 +306,7 @@ function AccountPage() {
     return (
       <div className="mx-auto flex min-h-72 w-full max-w-xl flex-col items-center justify-center border border-border bg-surface px-6 text-center">
         <span className="material-symbols-outlined text-3xl text-danger">account_circle_off</span>
-        <h2 className="mt-3 font-mono text-base font-semibold text-text-main">Account unavailable</h2>
+        <h2 className="mt-3 font-mono text-sm font-semibold text-text-main">Account unavailable</h2>
         <p className="mt-1 max-w-md text-sm text-text-muted">{loadError || "Your account could not be loaded."}</p>
         <Button className="mt-5" variant="outline" onClick={() => loadProfile()}>Try again</Button>
       </div>
@@ -314,7 +314,7 @@ function AccountPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-8">
+    <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-6 pb-8">
       <section className="overflow-hidden border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -361,7 +361,7 @@ function AccountPage() {
       {activeTab === "profile" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
           <Card padding="lg" className="min-w-0">
-            <h2 className="font-mono text-base font-semibold text-text-main">Identity</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Identity</h2>
             <p className="mt-1 text-sm text-text-muted">Update the username and email on this account.</p>
             {isOidc ? (
               <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
@@ -419,7 +419,7 @@ function AccountPage() {
       {activeTab === "wallet" && (
         <div className="space-y-5">
           <Card padding="none" className="overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
                 <h2 className="font-mono text-sm font-semibold text-text-main">Wallet history</h2>
                 <p className="text-xs text-text-muted">
@@ -444,7 +444,7 @@ function AccountPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b border-border-subtle bg-bg-alt/70 font-mono text-[11px] uppercase tracking-wide text-text-muted">
+                  <thead className="thead-data">
                     <tr>
                       <th className="px-4 py-2.5 font-medium">When</th>
                       <th className="px-4 py-2.5 font-medium">Type</th>
@@ -463,7 +463,7 @@ function AccountPage() {
                             {formatDateTime(entry.createdAt)}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+                            <span className={`inline-flex px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                               positive
                                 ? "bg-success/10 text-success"
                                 : negative
@@ -501,7 +501,7 @@ function AccountPage() {
       {activeTab === "security" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
           <Card padding="lg">
-            <h2 className="font-mono text-base font-semibold text-text-main">Password</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Password</h2>
             <p className="mt-1 text-sm text-text-muted">Change the password used for dashboard sign-in.</p>
             {isOidc ? (
               <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
@@ -537,7 +537,7 @@ function AccountPage() {
           </Card>
 
           <Card padding="lg">
-            <h2 className="font-mono text-base font-semibold text-text-main">Quick links</h2>
+            <h2 className="font-mono text-sm font-semibold text-text-main">Quick links</h2>
             <div className="mt-4 space-y-2">
               <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
                 <span className="material-symbols-outlined text-[18px] text-text-muted">vpn_key</span>

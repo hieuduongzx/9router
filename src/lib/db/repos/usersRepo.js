@@ -327,6 +327,18 @@ export async function debitUserCreditForUsage(userId, costUsd, meta = null) {
     const next = available - take;
     const updatedAt = new Date().toISOString();
     db.run("UPDATE users SET creditCents = ?, updatedAt = ? WHERE id = ?", [next, updatedAt, userId]);
+    // Without this the balance dropped with nothing in the wallet to explain it:
+    // only top-ups and admin adjustments were ever written to the ledger.
+    insertCreditLedgerEntry(db, {
+      userId,
+      amountCents: -take,
+      balanceAfterCents: next,
+      type: "usage",
+      source: "api_usage",
+      note: meta?.model ? `${meta.provider || "api"} · ${meta.model}` : "API usage",
+      meta,
+      createdAt: updatedAt,
+    });
     result = { ok: true, debitedCents: take, creditCents: next, requestedCents: debitCents };
   });
   return result;

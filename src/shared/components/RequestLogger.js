@@ -123,7 +123,7 @@ export default function RequestLogger({ period = "all" }) {
             <div className="p-8 text-center text-sm text-text-muted">No request details recorded yet.</div>
           ) : (
             <table className="w-full min-w-[1080px] border-collapse text-left text-xs">
-              <thead className="sticky top-0 z-10 border-b border-border font-mono text-text-muted">
+              <thead className="thead-data">
                 <tr>
                   <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Time</th>
                   <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Account</th>

@@ -86,7 +86,7 @@ export default function RequestActivityTab({ period }) {
       </div>
       <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Request outcomes</h2>
             <p className="mt-0.5 text-xs text-text-muted">Success, error, and rate-limit distribution.</p>
           </div>
@@ -109,7 +109,7 @@ export default function RequestActivityTab({ period }) {
         </Card>
 
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Request latency</h2>
             <p className="mt-0.5 text-xs text-text-muted">Average and percentile response times.</p>
           </div>

@@ -28,7 +28,7 @@ export default function ToolSummaryCard({ toolId, tool, status }) {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-mono font-medium text-sm truncate">{tool.name}</h3>
-              <span className={`inline-block mt-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide rounded-full border border-current/30 ${s.cls}`}>{s.label}</span>
+              <span className={`inline-block mt-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-current/30 ${s.cls}`}>{s.label}</span>
             </div>
             <span className="material-symbols-outlined text-text-muted text-[18px] shrink-0">chevron_right</span>
           </div>

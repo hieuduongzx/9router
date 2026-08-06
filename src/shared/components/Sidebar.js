@@ -5,51 +5,34 @@ import PropTypes from "prop-types";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  Activity,
   AudioLines,
-  Boxes,
   Braces,
   Brush,
-  ChartColumn,
   Check,
   ChevronDown,
-  Coins,
   Copy,
   Download,
   Film,
-  Gauge,
-  GitFork,
   Globe,
-  House,
-  KeyRound,
-  Languages,
-  Lock,
   Images,
   Mic,
-  Network,
   PanelLeftClose,
   PanelLeftOpen,
   PowerOff,
-  Puzzle,
   Route,
-  ScrollText,
-  Server,
-  Settings,
-  Terminal,
-  User,
-  Users,
-  Wallet,
+  Search,
   X,
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
+import { DASHBOARD_NAV_GROUPS, visibleNavItems } from "@/shared/constants/dashboardNav";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
+import AccountMenu from "./AccountMenu";
 import Button from "./Button";
+import JumpToPalette from "./JumpToPalette";
 import { ConfirmModal } from "./Modal";
-
-const HEALTH_POLL_MS = 20000;
 
 /**
  * Lucide strokes are authored on a 24px grid, so a 16px icon renders them at
@@ -82,37 +65,6 @@ const COMBINED_WEB_ITEM = {
   href: "/dashboard/media-providers/web",
 };
 
-const GLOBAL_NAV = [
-  { href: "/dashboard", label: "Home", icon: House, exact: true },
-  { href: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
-  { href: "/dashboard/models", label: "Models", icon: Boxes },
-  { href: "/dashboard/usage", label: "Usage", icon: ChartColumn },
-];
-
-const PERSONAL_NAV = [
-  { href: "/dashboard/account", label: "Profile", icon: User, exact: true },
-  { href: "/dashboard/account?tab=wallet", label: "Wallet", icon: Wallet, match: "wallet" },
-  { href: "/dashboard/account?tab=security", label: "Security", icon: Lock, match: "security" },
-];
-
-const ADMIN_NAV = [
-  { href: "/dashboard/activity", label: "Activity", icon: Activity },
-  { href: "/dashboard/providers", label: "Providers", icon: Server },
-  { href: "/dashboard/combos", label: "Model Routes", icon: GitFork },
-  { href: "/dashboard/quota", label: "Quota", icon: Gauge },
-  { href: "/dashboard/token-saver", label: "Token Saver", icon: Coins },
-  { href: "/dashboard/cli-tools", label: "CLI Tools", icon: Terminal },
-  { href: "/dashboard/users", label: "Accounts", icon: Users },
-];
-
-const SYSTEM_NAV = [
-  { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: Network },
-  { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
-  { href: "/dashboard/console-log", label: "Console Log", icon: ScrollText },
-  { href: "/dashboard/translator", label: "Translator", icon: Languages, requiresTranslator: true },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
-
 function isPathActive(pathname, href, exact = false) {
   if (exact) return pathname === href || pathname === `${href}/`;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -126,12 +78,27 @@ function isPathActive(pathname, href, exact = false) {
  * rule is waived here by user decision. Mono stays on identifiers (version) and
  * the structural eyebrows.
  */
-function NavItem({ href, label, icon: Icon, active, onClick, nested = false, collapsed = false }) {
+/**
+ * Marks a row the member view never renders. Only administrators ever see this
+ * tag, so it reads as "hidden from your users" rather than as a lock.
+ */
+function AdminTag() {
+  return (
+    <span
+      aria-hidden
+      className="shrink-0 rounded-sm border border-border px-1 font-mono text-[9px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-text-subtle"
+    >
+      Admin
+    </span>
+  );
+}
+
+function NavItem({ href, label, icon: Icon, active, onClick, nested = false, collapsed = false, adminOnly = false }) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      title={label}
+      title={adminOnly ? `${label} — admin only` : label}
       aria-current={active ? "page" : undefined}
       className={cn(
         "group relative flex h-9 items-center text-sm outline-none transition-colors",
@@ -159,7 +126,11 @@ function NavItem({ href, label, icon: Icon, active, onClick, nested = false, col
         )}
       />
       {/* Collapsed rows keep an accessible name even with the label hidden. */}
-      <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{label}</span>
+      <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+        {label}
+        {adminOnly && <span className="sr-only"> (admin only)</span>}
+      </span>
+      {!collapsed && adminOnly && <AdminTag />}
     </Link>
   );
 }
@@ -172,6 +143,7 @@ NavItem.propTypes = {
   onClick: PropTypes.func,
   nested: PropTypes.bool,
   collapsed: PropTypes.bool,
+  adminOnly: PropTypes.bool,
 };
 
 /**
@@ -221,18 +193,18 @@ export default function Sidebar({ onClose }) {
   const [mediaOpen, setMediaOpen] = useState(onMediaRoute);
   const [lastMediaRoute, setLastMediaRoute] = useState(onMediaRoute);
   const [isDisconnected, setIsDisconnected] = useState(false);
-  const [gatewayOnline, setGatewayOnline] = useState(true);
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [account, setAccount] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
   const [enableTranslator, setEnableTranslator] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { copied, copy } = useCopyToClipboard(2000);
   const [storedCollapsed, setCollapsed] = useSidebarCollapsed();
 
   const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
-  const online = gatewayOnline && !isDisconnected;
 
   // `onClose` is only passed by the mobile drawer, which is always full width —
   // collapsing there would leave a rail floating over the overlay.
@@ -255,6 +227,55 @@ export default function Sidebar({ onClose }) {
     []
   );
 
+  const navGroups = useMemo(
+    () => DASHBOARD_NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: visibleNavItems(group.items, { isAdmin, enableTranslator }),
+      }))
+      // "Capabilities" still renders for admins on the strength of the media
+      // submenu alone, which is not part of the item list.
+      .filter((group) => group.items.length > 0 || (group.id === "capabilities" && isAdmin)),
+    [isAdmin, enableTranslator]
+  );
+
+  /** Same destinations as the rail, flattened for the ⌘K navigator. */
+  const paletteItems = useMemo(() => {
+    const rows = navGroups.flatMap((group) =>
+      group.items.map((item) => ({
+        href: item.href,
+        label: item.label,
+        group: group.label,
+        icon: item.icon,
+      }))
+    );
+    if (!isAdmin) return rows;
+    const media = [
+      ...mediaKinds.map((kind) => ({
+        href: `/dashboard/media-providers/${kind.id}`,
+        label: kind.label,
+        group: "Media",
+        icon: MEDIA_ICONS[kind.id] || Images,
+      })),
+      { href: COMBINED_WEB_ITEM.href, label: COMBINED_WEB_ITEM.label, group: "Media", icon: COMBINED_WEB_ITEM.icon },
+    ];
+    return [...rows, ...media];
+  }, [navGroups, isAdmin, mediaKinds]);
+
+  // ⌘K / Ctrl+K opens the navigator from anywhere in the dashboard. Bound on the
+  // desktop rail only — the drawer instance would double-register the shortcut.
+  useEffect(() => {
+    if (isDrawer) return undefined;
+    const onKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isDrawer]);
+
   // Auto-reveal the media group when routing into it; a manual collapse still wins afterwards.
   // Adjusted during render (not in an effect) so it never causes a cascading re-render.
   if (onMediaRoute !== lastMediaRoute) {
@@ -262,20 +283,32 @@ export default function Sidebar({ onClose }) {
     if (onMediaRoute) setMediaOpen(true);
   }
 
+  // One auth read serves both the nav gating and the account row at the foot of
+  // the rail, so moving the profile out of the header cost no extra request.
   useEffect(() => {
-    fetch("/api/auth/status", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        const admin = data.isAdminView === true;
-        setIsAdmin(admin);
-        if (!admin) return null;
-        return fetch("/api/settings")
-          .then((res) => (res.ok ? res.json() : null))
-          .then((settings) => {
-            if (settings?.enableTranslator) setEnableTranslator(true);
+    const loadAuthStatus = () =>
+      fetch("/api/auth/status", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          const admin = data.isAdminView === true;
+          setIsAdmin(admin);
+          setAccount({
+            displayName: data?.displayName || data?.oidcName || data?.oidcEmail || "",
+            role: data?.role || "",
+            creditCents: Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null,
           });
-      })
-      .catch(() => {});
+          if (!admin) return null;
+          return fetch("/api/settings")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((settings) => {
+              if (settings?.enableTranslator) setEnableTranslator(true);
+            });
+        })
+        .catch(() => {});
+
+    loadAuthStatus();
+    window.addEventListener("account-profile-updated", loadAuthStatus);
+    return () => window.removeEventListener("account-profile-updated", loadAuthStatus);
   }, []);
 
   useEffect(() => {
@@ -287,30 +320,18 @@ export default function Sidebar({ onClose }) {
       .catch(() => {});
   }, []);
 
-  // Footer readout reflects the real gateway, not a hardcoded "Online".
-  useEffect(() => {
-    let cancelled = false;
-    const ping = () => {
-      if (document.hidden) return;
-      fetch("/api/health", { cache: "no-store" })
-        .then((res) => {
-          if (!cancelled) setGatewayOnline(res.ok);
-        })
-        .catch(() => {
-          if (!cancelled) setGatewayOnline(false);
-        });
-    };
-    ping();
-    const timer = setInterval(ping, HEALTH_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
-
   const handleUpdate = () => {
     setShowUpdateModal(false);
     setIsUpdating(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) window.location.assign("/login");
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    }
   };
 
   const handleCopyAndShutdown = async () => {
@@ -337,10 +358,6 @@ export default function Sidebar({ onClose }) {
     setIsUpdating(false);
     setShutdownCountdown(0);
   };
-
-  const systemItems = SYSTEM_NAV.filter(
-    (item) => !item.requiresTranslator || enableTranslator
-  );
 
   return (
     <>
@@ -373,9 +390,6 @@ export default function Sidebar({ onClose }) {
               <span className="block truncate font-mono text-sm font-semibold tracking-tight text-text-main">
                 {APP_CONFIG.name}
               </span>
-              <span className="block truncate font-mono text-[10px] font-medium tracking-[0.06em] text-text-subtle">
-                v{APP_CONFIG.version}
-              </span>
             </span>
           </Link>
           {onClose ? (
@@ -390,14 +404,40 @@ export default function Sidebar({ onClose }) {
           ) : null}
         </div>
 
+        {/* ⌘K navigator trigger */}
+        <div className={cn("shrink-0", collapsed ? "flex justify-center py-2" : "px-2 py-2")}>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Jump to page"
+            aria-label="Jump to page"
+            aria-keyshortcuts="Meta+K Control+K"
+            className={cn(
+              "flex items-center rounded-sm border border-border bg-surface text-text-muted transition-colors",
+              "hover:border-text-subtle hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
+              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2"
+            )}
+          >
+            <Search aria-hidden size={14} strokeWidth={STROKE_IDLE} className="shrink-0" />
+            {collapsed ? null : (
+              <>
+                <span className="min-w-0 flex-1 truncate text-left text-sm">Jump to...</span>
+                <kbd className="shrink-0 font-mono text-[10px] font-semibold tracking-[0.06em] text-text-subtle">
+                  ⌘K
+                </kbd>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Update strip — collapses to a single affordance so the notice survives */}
         {isAdmin && updateInfo && collapsed ? (
           <div className="flex shrink-0 justify-center border-b border-border bg-surface-2/40 py-2.5">
             <button
               type="button"
               onClick={() => setShowUpdateModal(true)}
-              title={`v${updateInfo.latestVersion} available`}
-              aria-label={`Update available: v${updateInfo.latestVersion}`}
+              title="Update available"
+              aria-label="Update available"
               className="flex size-8 items-center justify-center rounded-sm border border-border text-text-main transition-colors hover:bg-surface-2"
             >
               <Download aria-hidden size={15} strokeWidth={STROKE_IDLE} />
@@ -414,7 +454,7 @@ export default function Sidebar({ onClose }) {
               <span className="h-px flex-1 bg-border" aria-hidden />
             </div>
             <p className="mt-1.5 truncate font-mono text-xs font-medium text-text-main">
-              v{updateInfo.latestVersion} available
+              A newer release is available
             </p>
             <div className="mt-2 flex items-center gap-1.5">
               <button
@@ -451,40 +491,17 @@ export default function Sidebar({ onClose }) {
             collapsed ? "px-0" : "px-2"
           )}
         >
-          <NavGroup label="Routing" collapsed={collapsed}>
-            {GLOBAL_NAV.map((item) => (
-              <NavItem
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                collapsed={collapsed}
-                active={isPathActive(pathname, item.href, item.exact)}
-                onClick={onClose}
-              />
-            ))}
-          </NavGroup>
-
-          {isAdmin ? (
-            <>
-              <NavGroup label="Admin" collapsed={collapsed}>
-                {ADMIN_NAV.map((item) => (
-                  <NavItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                    collapsed={collapsed}
-                    active={isPathActive(pathname, item.href)}
-                    onClick={onClose}
-                  />
-                ))}
-
-                <button
+          {navGroups.map((group) => (
+            <NavGroup key={group.id} label={group.label} collapsed={collapsed}>
+              {/* Media sits at the head of Capabilities: it is the only row with
+                  children, and a submenu reads better before flat siblings. */}
+              {group.id === "capabilities" && isAdmin ? (
+                <>
+                  <button
                   type="button"
                   onClick={handleMediaToggle}
                   aria-expanded={collapsed ? false : mediaOpen}
-                  title="Media Providers"
+                  title="Media Providers — admin only"
                   className={cn(
                     "group relative flex h-9 w-full items-center text-sm outline-none transition-colors",
                     "focus-visible:ring-1 focus-visible:ring-primary/40",
@@ -512,7 +529,9 @@ export default function Sidebar({ onClose }) {
                   />
                   <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate text-left"}>
                     Media Providers
+                    <span className="sr-only"> (admin only)</span>
                   </span>
+                  {collapsed ? null : <AdminTag />}
                   {collapsed ? null : (
                     <ChevronDown
                       aria-hidden
@@ -559,73 +578,50 @@ export default function Sidebar({ onClose }) {
                     </div>
                   </div>
                 </div>
-              </NavGroup>
+                </>
+              ) : null}
 
-              <NavGroup label="System" collapsed={collapsed}>
-                {systemItems.map((item) => (
+              {group.items.map((item) => {
+                // Account rows all share one route and differ by ?tab=, so they
+                // cannot be resolved by pathname alone.
+                const onAccount =
+                  pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
+                const active = item.match
+                  ? onAccount && (accountTab || "profile") === item.match
+                  : isPathActive(pathname, item.href, item.exact);
+                return (
                   <NavItem
                     key={item.href}
                     href={item.href}
                     label={item.label}
                     icon={item.icon}
                     collapsed={collapsed}
-                    active={isPathActive(pathname, item.href)}
+                    active={active}
+                    adminOnly={item.admin === true}
                     onClick={onClose}
                   />
-                ))}
-              </NavGroup>
-            </>
-          ) : null}
-
-          <NavGroup label="Account" collapsed={collapsed}>
-            {PERSONAL_NAV.map((item) => {
-              const onAccount =
-                pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
-              let active = false;
-              if (item.match === "wallet") active = onAccount && accountTab === "wallet";
-              else if (item.match === "security") active = onAccount && accountTab === "security";
-              else active = onAccount && (accountTab === "profile" || !accountTab);
-              return (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  collapsed={collapsed}
-                  active={active}
-                  onClick={onClose}
-                />
-              );
-            })}
-          </NavGroup>
+                );
+              })}
+            </NavGroup>
+          ))}
         </nav>
 
-        {/* Status readout + rail toggle */}
+        {/* Account row + rail toggle — the profile lives at the foot of the rail,
+            not in the page header. */}
         <div
           className={cn(
             "shrink-0 border-t border-border",
-            collapsed ? "flex flex-col items-center gap-2 py-2.5" : "flex items-center gap-2 px-3 py-2.5"
+            collapsed ? "flex flex-col items-center gap-2 py-2.5" : "flex items-center gap-1 px-2 py-2"
           )}
         >
-          <div
-            role="status"
-            title={`Gateway ${online ? "online" : "offline"}`}
-            className={cn(
-              "flex items-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em]",
-              collapsed ? "justify-center" : "min-w-0 flex-1 justify-between"
-            )}
-          >
-            <span className={collapsed ? "sr-only" : "text-text-subtle"}>Gateway</span>
-            <span className="inline-flex items-center gap-1.5 text-text-muted">
-              <span
-                aria-hidden
-                className={cn("size-1.5 shrink-0", online ? "bg-success" : "bg-danger")}
-              />
-              <span className={collapsed ? "sr-only" : undefined}>
-                {online ? "Online" : "Offline"}
-              </span>
-            </span>
-          </div>
+          <AccountMenu
+            displayName={account?.displayName}
+            role={account?.role}
+            creditCents={account?.creditCents}
+            collapsed={collapsed}
+            onLogout={handleLogout}
+            onNavigate={onClose}
+          />
 
           {/* Drawer mode is always full width, so the rail toggle is desktop-only. */}
           {isDrawer ? null : (
@@ -647,12 +643,18 @@ export default function Sidebar({ onClose }) {
         </div>
       </aside>
 
+      <JumpToPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        items={paletteItems}
+      />
+
       <ConfirmModal
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
         onConfirm={handleUpdate}
-        title="Update Router2k"
-        message={`Show install command for v${updateInfo?.latestVersion || ""}? You can copy it and shutdown to install manually.`}
+        title={`Update ${APP_CONFIG.name}`}
+        message="Show the install command? You can copy it and shut the server down to install manually."
         confirmText="Show Command"
         cancelText="Cancel"
         variant="primary"
@@ -662,7 +664,6 @@ export default function Sidebar({ onClose }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
           {isUpdating ? (
             <ManualUpdatePanel
-              latestVersion={updateInfo?.latestVersion}
               installCmd={INSTALL_CMD}
               copied={copied}
               onCopyAndShutdown={handleCopyAndShutdown}
@@ -693,7 +694,6 @@ Sidebar.propTypes = {
 };
 
 function ManualUpdatePanel({
-  latestVersion,
   installCmd,
   copied,
   onCopyAndShutdown,
@@ -709,9 +709,7 @@ function ManualUpdatePanel({
           <Copy aria-hidden size={20} strokeWidth={2} />
         </div>
         <div>
-          <h2 className="font-mono text-lg font-semibold">
-            Update Router2k{latestVersion ? ` to v${latestVersion}` : ""}
-          </h2>
+          <h2 className="font-mono text-lg font-semibold">Update {APP_CONFIG.name}</h2>
           <p className="text-xs text-white/60">
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."
@@ -762,7 +760,6 @@ function ManualUpdatePanel({
 }
 
 ManualUpdatePanel.propTypes = {
-  latestVersion: PropTypes.string,
   installCmd: PropTypes.string.isRequired,
   copied: PropTypes.bool,
   onCopyAndShutdown: PropTypes.func.isRequired,

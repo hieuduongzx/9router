@@ -3,6 +3,48 @@
 import { useEffect, useState } from "react";
 import { Button, Input, CropFrame } from "@/shared/components";
 
+const REMEMBER_KEY = "router2k.login.remember";
+const REMEMBERED_USER_KEY = "router2k.login.username";
+
+function readRememberedLogin() {
+  try {
+    const remember = window.localStorage.getItem(REMEMBER_KEY);
+    return {
+      // Default to remembering — the dashboard is a long-lived operator tool.
+      remember: remember === null ? true : remember === "1",
+      username: window.localStorage.getItem(REMEMBERED_USER_KEY) || "",
+    };
+  } catch {
+    return { remember: true, username: "" };
+  }
+}
+
+function persistRememberedLogin(remember, username) {
+  try {
+    window.localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
+    if (remember && username) window.localStorage.setItem(REMEMBERED_USER_KEY, username);
+    else window.localStorage.removeItem(REMEMBERED_USER_KEY);
+  } catch {}
+}
+
+function RememberMeField({ id, checked, onChange }) {
+  return (
+    <label htmlFor={id} className="flex cursor-pointer select-none items-start gap-2.5">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 size-4 shrink-0 cursor-pointer appearance-none border border-border bg-surface checked:border-primary checked:bg-primary checked:bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22white%22><path d=%22M6.2 11.6 3 8.4l1.1-1.1 2.1 2.1 5-5L12.3 5.5z%22/></svg>')] checked:bg-center checked:bg-no-repeat focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      />
+      <span className="font-mono text-sm text-text-muted">
+        Keep me signed in
+        <span className="mt-0.5 block text-[11px] text-text-subtle">Stays signed in for 30 days on this browser.</span>
+      </span>
+    </label>
+  );
+}
+
 export default function LoginPage() {
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState("login");
@@ -20,6 +62,7 @@ export default function LoginPage() {
   const [oidcLoginLabel, setOidcLoginLabel] = useState("Sign in with OIDC");
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [mustChange, setMustChange] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     if (retryAfter <= 0) return;
@@ -33,6 +76,10 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedMode = params.get("mode");
     if (requestedMode === "register") setMode("register");
+
+    const remembered = readRememberedLogin();
+    setRememberMe(remembered.remember);
+    if (remembered.username) setUsername(remembered.username);
 
     fetch("/api/auth/status", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -79,7 +126,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rememberMe }),
       });
       const data = await response.json();
 
@@ -89,6 +136,7 @@ export default function LoginPage() {
         if (data.retryAfter) setRetryAfter(Number(data.retryAfter));
         return;
       }
+      persistRememberedLogin(rememberMe, username);
       if (data.mustChangePassword) {
         setMustChange(true);
         return;
@@ -114,13 +162,14 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, rememberMe }),
       });
       const data = await response.json();
       if (!response.ok) {
         setError(data.error || "Unable to create account.");
         return;
       }
+      persistRememberedLogin(rememberMe, username);
       window.location.assign("/dashboard");
     } catch {
       setError("Unable to reach Router2k. Try again.");
@@ -249,15 +298,22 @@ export default function LoginPage() {
                       <Input id="register-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
                       <Input id="confirm-password" label="Confirm password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required />
                     </div>
+                    <RememberMeField id="register-remember" checked={rememberMe} onChange={setRememberMe} />
                     {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                     <Button type="submit" variant="primary" className="w-full" loading={loading}>Create user account</Button>
                   </form>
                 ) : (
                   <div className="mt-6 space-y-5">
                     {oidcAvailable && (
-                      <Button type="button" variant="primary" className="w-full" onClick={() => { window.location.href = "/api/auth/oidc/start"; }}>
-                        {oidcLoginLabel}
-                      </Button>
+                      <div className="space-y-4">
+                        <Button type="button" variant="primary" className="w-full" onClick={() => {
+                          persistRememberedLogin(rememberMe, username);
+                          window.location.href = `/api/auth/oidc/start?remember=${rememberMe ? "1" : "0"}`;
+                        }}>
+                          {oidcLoginLabel}
+                        </Button>
+                        {!accountAvailable && <RememberMeField id="oidc-remember" checked={rememberMe} onChange={setRememberMe} />}
+                      </div>
                     )}
                     {oidcAvailable && accountAvailable && (
                       <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-wide text-text-subtle"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
@@ -266,6 +322,7 @@ export default function LoginPage() {
                       <form onSubmit={handleLogin} className="space-y-4">
                         <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" autoComplete="username" required autoFocus={!oidcAvailable} />
                         <Input id="login-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
+                        <RememberMeField id="login-remember" checked={rememberMe} onChange={setRememberMe} />
                         {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                         {retryAfter > 0 && <p className="font-mono text-sm text-warning">Locked. Retry in <span className="font-semibold">{retryAfter}s</span>.</p>}
                         {resetHint && <p className="text-xs leading-5 text-text-muted">Reset the admin account from the local Router2k CLI (<code className="rounded-sm bg-surface-2 px-1.5 py-0.5 font-mono">9router</code>) → Settings → Reset Admin Account.</p>}

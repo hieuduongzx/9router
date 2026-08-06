@@ -83,12 +83,18 @@ export async function getModelInfo(modelStr) {
  * @returns {Promise<string[]|null>} Array of models or null if not a combo
  */
 export async function getComboModels(modelStr) {
+  const combo = await getComboRoute(modelStr);
+  return combo?.models?.length ? combo.models : null;
+}
+
+/**
+ * Resolve a public model route and its model-level defaults.
+ * @returns {Promise<object|null>}
+ */
+export async function getComboRoute(modelStr) {
   // Only check if it's not in provider/model format
   if (modelStr.includes("/")) return null;
 
   const combo = await getComboByName(modelStr);
-  if (combo && combo.models && combo.models.length > 0) {
-    return combo.models;
-  }
-  return null;
+  return combo && combo.models && combo.models.length > 0 ? combo : null;
 }

@@ -350,7 +350,7 @@ export default function RequestDetailDrawer({
 
           <div className="flex items-start gap-3">
             <span className="relative z-10 flex size-5 shrink-0 items-center justify-center bg-surface">
-              <span className={cn("size-2 rounded-full", completed ? "bg-emerald-500" : "bg-red-500")} />
+              <span className={cn("size-2 ", completed ? "bg-emerald-500" : "bg-red-500")} />
             </span>
             <p className={cn("font-mono text-xs", completed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
               {completed

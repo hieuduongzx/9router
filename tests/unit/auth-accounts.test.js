@@ -104,7 +104,9 @@ describe("account login", () => {
     expect(mocks.setDashboardAuthCookie).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ userId: "admin-id", username: "admin", role: "admin", authType: "account" })
+      expect.objectContaining({ userId: "admin-id", username: "admin", role: "admin", authType: "account" }),
+      // 4th arg carries the "keep me signed in" choice; absent in the body → false.
+      { remember: false }
     );
   });
 
@@ -143,7 +145,8 @@ describe("account registration", () => {
     expect(mocks.setDashboardAuthCookie).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ userId: "user-id", role: "user", authType: "account" })
+      expect.objectContaining({ userId: "user-id", role: "user", authType: "account" }),
+      { remember: false }
     );
   });
 });

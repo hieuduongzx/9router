@@ -149,8 +149,18 @@ function importLegacyMain(adapter, data) {
 
   importWithAssertion(adapter, "combos", data.combos || [], (c) => {
     adapter.run(
-      `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-      [c.id, c.name, c.kind || null, c.modelProvider || null, stringifyJson(c.models || []), c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
+      `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, thinkingMode, capabilityOverrides, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        c.id,
+        c.name,
+        c.kind || null,
+        c.modelProvider || null,
+        stringifyJson(c.models || []),
+        c.thinkingMode || "auto",
+        stringifyJson(c.capabilityOverrides || {}),
+        c.createdAt || new Date().toISOString(),
+        c.updatedAt || new Date().toISOString(),
+      ]
     );
   }, (c) => ({ id: c.id ?? null, name: c.name ?? null }));
 

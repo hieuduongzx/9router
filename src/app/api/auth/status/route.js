@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { getSettings } from "@/lib/localDb";
 import { getPrimaryAdmin, getUserById, publicUser } from "@/lib/db/repos/usersRepo";
 import { isOidcConfigured } from "@/lib/auth/oidc";
-import { getDashboardAuthSession } from "@/lib/auth/dashboardSession";
+import { getDashboardAuthSession, renewDashboardAuthCookie } from "@/lib/auth/dashboardSession";
 import {
   DASHBOARD_VIEW_COOKIE,
   resolveDashboardViewMode,
@@ -11,7 +11,7 @@ import {
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
-export async function GET() {
+export async function GET(request) {
   try {
     await getPrimaryAdmin();
     const settings = await getSettings();
@@ -19,6 +19,14 @@ export async function GET() {
     const session = await getDashboardAuthSession(cookieStore.get("auth_token")?.value);
     const account = session?.userId ? await getUserById(session.userId) : null;
     const activeAccount = account?.isActive ? account : null;
+
+    // The dashboard polls this on every page load — use it to slide the session.
+    // Fail-open: a renewal problem must never turn into a false "signed out".
+    if (activeAccount || session?.oidc) {
+      try {
+        await renewDashboardAuthCookie(cookieStore, request, session);
+      } catch {}
+    }
     const viewMode = resolveDashboardViewMode(
       activeAccount?.role,
       cookieStore.get(DASHBOARD_VIEW_COOKIE)?.value,

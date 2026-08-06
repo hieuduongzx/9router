@@ -1,40 +1,21 @@
-import { resolveProviderId } from "@/shared/constants/providers";
-import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
+import { getEffectiveComboCapabilities } from "@/shared/utils/comboModelConfig";
 
 const LLM_KIND = "llm";
 
-function memberValue(member) {
-  if (typeof member === "string") return member;
-  if (member && typeof member === "object") return member.value || member.id || "";
-  return "";
-}
-
-function mergeCapabilities(target, capabilities) {
-  for (const [key, value] of Object.entries(capabilities || {})) {
-    if (typeof value === "boolean") {
-      target[key] = Boolean(target[key]) || value;
-    } else if (typeof value === "number" && Number.isFinite(value)) {
-      target[key] = Math.max(Number(target[key]) || 0, value);
-    } else if (Array.isArray(value)) {
-      target[key] = Array.from(new Set([...(target[key] || []), ...value]));
-    } else if (value != null && target[key] == null) {
-      target[key] = value;
-    }
-  }
-}
-
 export function getComboCapabilities(combo) {
-  const capabilities = {};
-  for (const member of combo?.models || []) {
-    const value = memberValue(member).trim();
-    if (!value) continue;
-    const separator = value.indexOf("/");
-    const providerAlias = separator > 0 ? value.slice(0, separator) : "";
-    const modelId = separator > 0 ? value.slice(separator + 1) : value;
-    const providerId = resolveProviderId(providerAlias) || providerAlias;
-    mergeCapabilities(capabilities, getCapabilitiesForModel(providerId, modelId));
-  }
-  return capabilities;
+  return getEffectiveComboCapabilities(combo);
+}
+
+/**
+ * Pricing key for a route: its owner provider plus the public model id clients
+ * send. Returns null when the route has no owner yet, since an unowned route
+ * cannot be published and therefore cannot be priced.
+ */
+export function comboPricingTarget(combo) {
+  const model = String(combo?.name || "").trim();
+  const provider = String(combo?.modelProvider || "").trim();
+  if (!model || !provider) return null;
+  return { provider: provider.toLowerCase(), model };
 }
 
 export function buildPublishedModelsCatalog(combos, publishedModels) {
@@ -59,7 +40,7 @@ export function buildPublishedModelsCatalog(combos, publishedModels) {
       comboId: combo.id,
       memberCount: Array.isArray(combo.models) ? combo.models.length : 0,
       capabilities: getComboCapabilities(combo),
-      pricingTarget: { provider: ownedBy.toLowerCase(), model: id },
+      pricingTarget: comboPricingTarget(combo),
     });
   }
 

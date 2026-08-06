@@ -26,11 +26,20 @@ export function shouldUseSecureCookie(request) {
   return forceSecureCookie || isHttpsRequest;
 }
 
-export async function createDashboardAuthToken(claims = {}) {
-  return new SignJWT({ authenticated: true, ...claims })
+// Session lifetime: a plain sign-in lasts a browser session (cookie dropped on
+// browser close, token good for 24h); "remember me" persists the cookie on disk.
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
+const REMEMBER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+export function sessionMaxAge(remember) {
+  return remember ? REMEMBER_MAX_AGE_SECONDS : SESSION_MAX_AGE_SECONDS;
+}
+
+export async function createDashboardAuthToken(claims = {}, { remember = false } = {}) {
+  return new SignJWT({ authenticated: true, remember: remember === true, ...claims })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("24h")
+    .setExpirationTime(`${sessionMaxAge(remember)}s`)
     .sign(SECRET);
 }
 
@@ -66,18 +75,37 @@ export async function getDashboardAccount(request) {
 }
 
 
-export async function setDashboardAuthCookie(cookieStore, request, claims = {}) {
-  const token = await createDashboardAuthToken(claims);
+export async function setDashboardAuthCookie(cookieStore, request, claims = {}, { remember = false } = {}) {
+  const token = await createDashboardAuthToken(claims, { remember });
   cookieStore.set("auth_token", token, {
     httpOnly: true,
     secure: shouldUseSecureCookie(request),
     sameSite: "lax",
     path: "/",
+    // Omitting maxAge keeps it a session cookie, which is what a non-remembered
+    // sign-in wants; "remember me" pins it for 30 days across browser restarts.
+    ...(remember ? { maxAge: REMEMBER_MAX_AGE_SECONDS } : {}),
   });
 }
 
 export function clearDashboardAuthCookie(cookieStore) {
   cookieStore.delete("auth_token");
+}
+
+// Sliding renewal: once a live session is past half its lifetime, reissue it so
+// an operator who keeps using the dashboard is never dropped at the hard expiry.
+// No-op for fresh tokens, so it costs one cheap check per status poll.
+export async function renewDashboardAuthCookie(cookieStore, request, session) {
+  if (!session?.authenticated) return false;
+  const { iat, exp, authenticated, remember, ...claims } = session;
+  if (!Number.isFinite(exp)) return false;
+
+  const remainingSeconds = exp - Math.floor(Date.now() / 1000);
+  if (remainingSeconds <= 0) return false;
+  if (remainingSeconds > sessionMaxAge(remember === true) / 2) return false;
+
+  await setDashboardAuthCookie(cookieStore, request, claims, { remember: remember === true });
+  return true;
 }
 
 // Verify the current dashboard password (re-auth for sensitive actions).

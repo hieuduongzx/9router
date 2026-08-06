@@ -44,6 +44,8 @@ export async function GET(request) {
     cookieStore.set("oidc_state", state, baseOptions);
     cookieStore.set("oidc_nonce", nonce, baseOptions);
     cookieStore.set("oidc_code_verifier", verifier, baseOptions);
+    // Carry the login form's "keep me signed in" choice across the IdP round-trip.
+    cookieStore.set("oidc_remember", request.nextUrl.searchParams.get("remember") === "1" ? "1" : "0", baseOptions);
 
     return NextResponse.redirect(authUrl);
   } catch (error) {

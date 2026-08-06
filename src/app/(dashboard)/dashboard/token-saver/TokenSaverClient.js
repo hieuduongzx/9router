@@ -462,17 +462,10 @@ export default function TokenSaverClient() {
       : "bg-warning/15 text-warning";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <Card id="rtk">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold font-mono flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">
-              bolt
-            </span>
-            Token Saver
-          </h2>
-        </div>
-        <div className="flex items-center justify-between pt-2 pb-4 border-b border-border gap-4">
+        {/* Page title comes from the shared Header, not from the first card. */}
+        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <div className="min-w-0 flex-1">
             <p className="font-medium">
               Compress tool output{" "}

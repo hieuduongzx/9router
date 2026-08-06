@@ -69,16 +69,22 @@ export default function ConsoleLogClient() {
   }, [logs]);
 
   return (
-    <div className="">
-      <Card>
-        <div className="flex items-center justify-end px-4 pt-3 pb-2">
+    <div className="flex min-w-0 flex-col gap-6">
+      <Card padding="none" className="min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+          <h2 className="font-mono text-sm font-semibold text-text-main">
+            Console output
+            <span className="ml-2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {connected ? "Live" : "Disconnected"}
+            </span>
+          </h2>
           <Button size="sm" variant="outline" icon="delete" onClick={handleClear}>
             Clear
           </Button>
         </div>
         <div
           ref={logRef}
-          className="bg-black p-4 text-xs font-mono h-[calc(100vh-220px)] overflow-y-auto"
+          className="terminal-block h-[calc(100vh-260px)] overflow-y-auto border-0 p-4 text-xs"
         >
           {logs.length === 0 ? (
             <span className="text-text-muted">No console logs yet.</span>

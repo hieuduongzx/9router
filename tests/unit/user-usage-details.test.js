@@ -15,6 +15,7 @@ describe("admin account usage details", () => {
     expect(route).toContain("getUserById(id)");
     expect(route).toContain("getApiKeys(id)");
     expect(route).toContain("getUsageStats(period, { apiKeyFilter:");
+    expect(route).toContain("listCreditLedger(id, { limit: LEDGER_LIMIT, includeUsage: false })");
   });
 
   it("lets an administrator open account details from the Accounts list", () => {

@@ -231,7 +231,7 @@ export default function UsersPageClient() {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="tile-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           chip="info"
@@ -264,7 +264,7 @@ export default function UsersPageClient() {
       )}
 
       <div className="border border-border bg-surface">
-        <div className="flex flex-col gap-3 border-b border-border-subtle px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <h2 className="font-mono text-sm font-semibold text-text-main">Accounts</h2>
             <p className="mt-0.5 text-xs text-text-muted">
@@ -333,7 +333,7 @@ export default function UsersPageClient() {
             {/* Desktop: dense table */}
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[1040px] text-left text-sm">
-                <thead className="border-b border-border-subtle bg-bg-alt/70 font-mono text-[11px] uppercase tracking-wide text-text-muted">
+                <thead className="thead-data">
                   <tr>
                     <th scope="col" className="px-4 py-2.5 font-medium">Account</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Role</th>

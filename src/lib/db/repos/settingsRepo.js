@@ -23,6 +23,9 @@ const DEFAULT_SETTINGS = {
   oidcScopes: "openid profile email",
   oidcLoginLabel: "Sign in with OIDC",
   enableObservability: true,
+  // Days of per-request usage rows to keep. usageHistory grows one row per
+  // request forever otherwise; 0 disables pruning and accepts that.
+  usageRetentionDays: 180,
   observabilityMaxRecords: 1000,
   observabilityBatchSize: 20,
   observabilityFlushIntervalMs: 5000,

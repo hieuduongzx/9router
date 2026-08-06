@@ -4,21 +4,27 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import Card from "@/shared/components/Card";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
+import SectionLabel from "@/shared/components/SectionLabel";
 import StatTile from "@/shared/components/StatTile";
+import { USAGE_PERIODS } from "@/shared/constants/usagePeriods";
+import { cn } from "@/shared/utils/cn";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
-import EndpointPageClient from "./endpoint/EndpointPageClient";
+import QuickStartPanel from "./components/QuickStartPanel";
+
+const COLOR_INPUT = "#7C3AED";
+const COLOR_OUTPUT = "#2563EB";
+const COLOR_COST = "#16A34A";
 
 const STATUS_META = {
   success: { label: "Successful", color: "#16A34A" },
@@ -26,15 +32,58 @@ const STATUS_META = {
   rate_limited: { label: "Rate limited", color: "#F59E0B" },
   other: { label: "Other", color: "#2563EB" },
 };
-const MODEL_COLORS = ["#7C3AED", "#16A34A", "#F59E0B", "#2563EB", "#DC2626"];
+
+const MODEL_COLORS = ["#7C3AED", "#2563EB", "#16A34A", "#F59E0B"];
+const OTHER_COLOR = "#A1A1AA";
+
+const DEFAULT_PERIOD = "24h";
+
+/**
+ * Per-range extras layered onto the shared period ladder, so Home offers the
+ * same windows as Usage and Activity instead of its own shorter set.
+ *
+ * `compare` names a chart wide enough to also cover the window *before* the
+ * selected one; `buckets` is how many of that chart's buckets make up one
+ * window, and the deltas come from the pair immediately preceding the displayed
+ * one. Ranges with no such chart ("today" is calendar-scoped, "all" unbounded)
+ * render no delta rather than a guessed one.
+ *
+ * `days` drives the "/day average" note; sub-day windows use `costNote`
+ * instead, since extrapolating an hour of spend to a daily rate would mislead.
+ */
+const RANGE_META = {
+  today: { days: null, costNote: "Today so far", compare: null },
+  "1h": { days: null, costNote: "Over the last hour", compare: { period: "6h", buckets: 4 } },
+  "6h": { days: null, costNote: "Over the last 6 hours", compare: { period: "12h", buckets: 12 } },
+  "24h": { days: 1, costNote: null, compare: { period: "3d", buckets: 24 } },
+  "7d": { days: 7, costNote: null, compare: { period: "14d", buckets: 7 } },
+  "30d": { days: 30, costNote: null, compare: { period: "60d", buckets: 30 } },
+  all: { days: null, costNote: "Across all recorded usage", compare: null },
+};
+
+const RANGES = USAGE_PERIODS.map((period) => ({
+  value: period.value,
+  label: period.label,
+  ...(RANGE_META[period.value] || { days: null, costNote: null, compare: null }),
+}));
+
+function findRange(value) {
+  return RANGES.find((item) => item.value === value)
+    || RANGES.find((item) => item.value === DEFAULT_PERIOD);
+}
 
 const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+const plainNumber = new Intl.NumberFormat("en");
 
 function formatNumber(value) {
   return compactNumber.format(Number(value) || 0);
+}
+
+function formatExact(value) {
+  return plainNumber.format(Number(value) || 0);
 }
 
 function formatCurrency(value) {
@@ -49,16 +98,25 @@ function formatPercent(value) {
 
 function formatTimeAgo(timestamp) {
   const value = new Date(timestamp).getTime();
-  if (!Number.isFinite(value)) return "Unknown time";
+  if (!Number.isFinite(value)) return "—";
   const seconds = Math.max(0, Math.floor((Date.now() - value) / 1000));
-  if (seconds < 60) return "Just now";
+  if (seconds < 60) return "now";
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }
 
+/** null when the previous window had no traffic — a jump from zero is not a percentage. */
+function percentChange(current, previous) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0) return undefined;
+  return ((current - previous) / previous) * 100;
+}
+
+function sumPoints(points, key) {
+  return points.reduce((total, point) => total + (Number(point[key]) || 0), 0);
+}
 
 async function fetchJson(path, signal) {
   const response = await fetch(path, { cache: "no-store", signal });
@@ -66,44 +124,85 @@ async function fetchJson(path, signal) {
   return response.json();
 }
 
+function isRequestOk(status) {
+  const value = String(status ?? "").trim().toLowerCase();
+  return value === "" || value === "ok" || value === "200" || value.includes("success");
+}
+
 function DashboardSkeleton() {
   return (
-    <div className="space-y-5" aria-label="Loading dashboard">
-      <div className="h-16 animate-pulse bg-surface-2" />
-      <div className="h-32 animate-pulse bg-surface-2" />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.75fr)_minmax(280px,0.75fr)]">
-        <div className="h-[350px] animate-pulse bg-surface-2" />
-        <div className="h-[350px] animate-pulse bg-surface-2" />
-      </div>
+    <div className="flex flex-col gap-6" aria-label="Loading dashboard">
+      <div className="h-40 animate-pulse border border-border bg-surface-2" />
+      <div className="h-32 animate-pulse border border-border bg-surface-2" />
+      <div className="h-[320px] animate-pulse border border-border bg-surface-2" />
+    </div>
+  );
+}
+
+/** `▪ LABEL` chart legend marker — square chip for bars, rule for the cost line. */
+function LegendChip({ color, label, line = false }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+      <span
+        aria-hidden
+        className={cn("shrink-0", line ? "h-0.5 w-3.5" : "size-2")}
+        style={{ backgroundColor: color }}
+      />
+      {label}
+    </span>
+  );
+}
+
+function CardHead({ title, children }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+      <h2 className="font-mono text-sm font-semibold text-text-main">{title}</h2>
+      <div className="flex shrink-0 items-center gap-3">{children}</div>
+    </div>
+  );
+}
+
+function EmptyState({ title, hint, className }) {
+  return (
+    <div className={cn("flex flex-col items-center justify-center px-6 py-10 text-center", className)}>
+      <p className="font-mono text-sm font-medium text-text-main">{title}</p>
+      <p className="mt-1 max-w-xs text-xs text-text-muted">{hint}</p>
     </div>
   );
 }
 
 export default function DashboardHomeClient() {
-  const [period, setPeriod] = useState("7d");
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [priorTotals, setPriorTotals] = useState(null);
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const range = useMemo(() => findRange(period), [period]);
 
   const fetchDashboardData = useCallback(async (signal) => {
     const auth = await fetchJson("/api/auth/status", signal).catch(() => null);
     const admin = auth?.isAdminView === true;
     setIsAdmin(admin);
     const scope = admin ? "&scope=system" : "";
+    const compare = findRange(period)?.compare;
+
     const results = await Promise.allSettled([
       fetchJson(`/api/usage/stats?period=${period}${scope}`, signal),
       fetchJson(`/api/usage/chart?period=${period}${scope}`, signal),
       fetchJson("/api/keys", signal),
+      compare
+        ? fetchJson(`/api/usage/chart?period=${compare.period}${scope}`, signal)
+        : Promise.resolve(null),
     ]);
 
     if (signal?.aborted) return;
 
-    const [statsResult, chartResult, keysResult] = results;
+    const [statsResult, chartResult, keysResult, compareResult] = results;
     if (statsResult.status === "fulfilled") setStats(statsResult.value);
     if (chartResult.status === "fulfilled") {
       setChartData(normalizeUsageChartPoints(chartResult.value));
@@ -111,9 +210,25 @@ export default function DashboardHomeClient() {
     if (keysResult.status === "fulfilled") {
       setKeys(Array.isArray(keysResult.value?.keys) ? keysResult.value.keys : []);
     }
+
+    // Previous window = the buckets immediately before the displayed ones.
+    let prior = null;
+    if (compare && compareResult.status === "fulfilled" && compareResult.value) {
+      const points = normalizeUsageChartPoints(compareResult.value);
+      const span = compare.buckets;
+      if (points.length >= span * 2) {
+        const window = points.slice(points.length - span * 2, points.length - span);
+        prior = {
+          requests: sumPoints(window, "requests"),
+          tokens: sumPoints(window, "tokens"),
+          cost: sumPoints(window, "cost"),
+        };
+      }
+    }
+    setPriorTotals(prior);
+
     const usageFailed = statsResult.status === "rejected" || chartResult.status === "rejected";
     setError(usageFailed ? "Your usage data could not be loaded. Try refreshing this page." : "");
-    setLastUpdated(new Date());
     setLoading(false);
   }, [period]);
 
@@ -135,10 +250,29 @@ export default function DashboardHomeClient() {
     };
   }, [fetchDashboardData]);
 
-  const cacheRate = stats?.totalPromptTokens
-    ? (Number(stats.totalCachedTokens || 0) / Number(stats.totalPromptTokens)) * 100
-    : 0;
+  const promptTokens = Number(stats?.totalPromptTokens || 0);
+  const completionTokens = Number(stats?.totalCompletionTokens || 0);
+  const cachedTokens = Number(stats?.totalCachedTokens || 0);
+  const totalTokens = promptTokens + completionTokens;
+  const totalCost = Number(stats?.totalCost || 0);
+  const cacheRate = promptTokens ? (cachedTokens / promptTokens) * 100 : 0;
 
+  const inFlight = useMemo(
+    () => (Array.isArray(stats?.activeRequests) ? stats.activeRequests : [])
+      .reduce((total, entry) => total + (Number(entry.count) || 0), 0),
+    [stats],
+  );
+
+  // Deltas compare like with like: both sides summed from chart buckets.
+  const currentTotals = useMemo(() => ({
+    requests: sumPoints(chartData, "requests"),
+    tokens: sumPoints(chartData, "tokens"),
+    cost: sumPoints(chartData, "cost"),
+  }), [chartData]);
+
+  const requestsDelta = percentChange(currentTotals.requests, priorTotals?.requests);
+  const tokensDelta = percentChange(currentTotals.tokens, priorTotals?.tokens);
+  const costDelta = percentChange(currentTotals.cost, priorTotals?.cost);
 
   const modelData = useMemo(() => {
     const entries = Object.values(stats?.byModel || {})
@@ -153,9 +287,11 @@ export default function DashboardHomeClient() {
     const rest = entries.slice(4);
     return [
       ...entries.slice(0, 4),
-      { name: "Other models", value: rest.reduce((sum, item) => sum + item.value, 0) },
+      { name: "Other models", value: rest.reduce((sum, item) => sum + item.value, 0), isOther: true },
     ];
   }, [stats]);
+
+  const modelTotal = modelData.reduce((sum, model) => sum + model.value, 0);
 
   const outcomeData = useMemo(
     () => Object.entries(STATUS_META)
@@ -172,318 +308,230 @@ export default function DashboardHomeClient() {
   const successfulRequests = outcomeData.find((entry) => entry.id === "success")?.value || 0;
   const successRate = outcomeTotal ? (successfulRequests / outcomeTotal) * 100 : 0;
 
-  const recentRequests = Array.isArray(stats?.recentRequests) ? stats.recentRequests.slice(0, 6) : [];
+  const recentRequests = useMemo(() => {
+    const rows = Array.isArray(stats?.recentRequests) ? stats.recentRequests : [];
+    return rows.slice(0, 8);
+  }, [stats]);
+
   const chartHasData = chartData.some((point) => Number(point.tokens) > 0);
-  const costHasData = chartData.some((point) => Number(point.cost) > 0);
-  const activeKeys = keys.filter((key) => key.isActive).length;
+  const primaryKey = keys.find((key) => key.isActive)?.key || keys[0]?.key || "";
+  const spendNote = range.days
+    ? `${formatCurrency(totalCost / range.days)}/day average`
+    : range.costNote || "Across the selected window";
 
   if (loading && !stats) return <DashboardSkeleton />;
 
   return (
-    <div className="flex min-w-0 flex-col gap-5 pb-8">
-      {/* Title and description come from the shared Header for every dashboard
-          route — repeating them here produced two competing page titles. */}
-      <section className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-xs text-text-muted">
-          {isAdmin ? "Gateway-wide traffic" : "Traffic for your API keys"}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <PeriodDropdown value={period} onChange={setPeriod} />
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex size-9 items-center justify-center rounded-sm border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
-            aria-label="Refresh dashboard"
-            title="Refresh dashboard"
-          >
-            <span className={`material-symbols-outlined text-[18px] ${refreshing ? "animate-spin" : ""}`}>refresh</span>
-          </button>
-        </div>
-      </section>
+    <div className="flex min-w-0 flex-col gap-6 pb-8">
+      <QuickStartPanel apiKey={primaryKey} />
 
       {error && (
-        <div className="flex items-start gap-3 border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">
-          <span className="material-symbols-outlined mt-0.5 text-[18px] text-warning">warning</span>
-          <p className="flex-1">{error}</p>
+        <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">
+          {error}
         </div>
       )}
 
-      {isAdmin && <EndpointPageClient />}
-
-      <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          chip="requests"
-          label="Requests"
-          value={formatNumber(stats?.totalRequests)}
-          sub={`${stats?.activeRequests?.length || 0} active now`}
-        />
-        <StatTile
-          chip="tokens"
-          label="Total tokens"
-          value={formatNumber(Number(stats?.totalPromptTokens || 0) + Number(stats?.totalCompletionTokens || 0))}
-          sub={`${formatNumber(stats?.totalCompletionTokens)} generated`}
-        />
-        <StatTile
-          chip="tokens"
-          label="Cache utilization"
-          value={formatPercent(cacheRate)}
-          sub={`${formatNumber(stats?.totalCachedTokens)} cached tokens`}
-        />
-        <StatTile
-          chip="cost"
-          label="Estimated cost"
-          value={formatCurrency(stats?.totalCost)}
-          sub={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Awaiting data"}
-        />
-      </div>
-
-      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-        <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-            <div>
-              <h2 className="font-mono text-sm font-semibold text-text-main">Token traffic</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Prompt and completion volume over the selected period</p>
+      <section className="min-w-0">
+        <SectionLabel
+          action={
+            <div className="flex shrink-0 items-center gap-2">
+              <PeriodDropdown value={period} onChange={setPeriod} disabled={refreshing} />
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex size-7 items-center justify-center border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
+                aria-label="Refresh dashboard"
+                title="Refresh dashboard"
+              >
+                <RefreshCw aria-hidden size={13} strokeWidth={2.25} className={refreshing ? "animate-spin" : ""} />
+              </button>
             </div>
-            <Link href="/dashboard/usage" className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
-              Full usage
-            </Link>
-          </div>
-          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Input and output token traffic stacked bar chart">
-            {chartHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }} barCategoryGap="24%">
-                  <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickMargin={10} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickFormatter={formatNumber} width={54} />
-                  <Tooltip
-                    cursor={{ fill: "var(--color-surface-2)", opacity: 0.7 }}
-                    contentStyle={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 0,
-                      color: "var(--color-text-main)",
-                      fontSize: 12,
-                    }}
-                    formatter={(value, name) => [formatNumber(value), name]}
-                  />
-                  <Bar
-                    dataKey="promptTokens"
-                    name="Input tokens"
-                    stackId="tokens"
-                    fill="#7C3AED"
-                    maxBarSize={32}
-                    isAnimationActive={false}
-                  />
-                  <Bar
-                    dataKey="completionTokens"
-                    name="Output tokens"
-                    stackId="tokens"
-                    fill="#2563EB"
-                    maxBarSize={32}
-                    isAnimationActive={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <span className="material-symbols-outlined text-3xl text-text-subtle">monitoring</span>
-                <p className="mt-2 text-sm font-medium text-text-main">No traffic in this period</p>
-                <p className="mt-1 text-xs text-text-muted">Requests will appear here as they pass through Router2k.</p>
-              </div>
-            )}
-          </div>
-        </Card>
+          }
+        >
+          Traffic — {isAdmin ? "Gateway wide" : "Your API keys"}
+        </SectionLabel>
 
-        <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-            <div>
-              <h2 className="font-mono text-sm font-semibold text-text-main">Spend over time</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Estimated model cost across the selected period</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-warning">
-              {formatCurrency(stats?.totalCost)}
-            </span>
-          </div>
-          <div className="h-[286px] min-w-0 px-2 pb-3 pt-5 sm:px-4" role="img" aria-label="Estimated spend bar chart">
-            {costHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }} barCategoryGap="24%">
-                  <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickMargin={10} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} tickFormatter={formatCurrency} width={60} />
-                  <Tooltip
-                    cursor={{ fill: "var(--color-surface-2)", opacity: 0.7 }}
-                    contentStyle={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 0,
-                      color: "var(--color-text-main)",
-                      fontSize: 12,
-                    }}
-                    formatter={(value) => [formatCurrency(value), "Estimated cost"]}
-                  />
-                  <Bar
-                    dataKey="cost"
-                    fill="#16A34A"
-                    maxBarSize={32}
-                    isAnimationActive={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                <span className="material-symbols-outlined text-3xl text-text-subtle">payments</span>
-                <p className="mt-2 text-sm font-medium text-text-main">No priced usage in this period</p>
-                <p className="mt-1 text-xs text-text-muted">Requests without configured model rates do not add estimated cost.</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
+        <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile
+            chip="requests"
+            label="Requests"
+            value={formatExact(stats?.totalRequests)}
+            delta={requestsDelta}
+            sub={inFlight ? `${inFlight} in flight` : "Nothing in flight"}
+          />
+          <StatTile
+            chip="tokens"
+            label="Tokens"
+            value={formatNumber(totalTokens)}
+            delta={tokensDelta}
+            sub={`${formatNumber(promptTokens)} in · ${formatNumber(completionTokens)} out`}
+          />
+          <StatTile
+            chip="tokens"
+            label="Cache hit"
+            value={formatPercent(cacheRate)}
+            bar={{ value: cacheRate / 100 }}
+            sub={`${formatNumber(cachedTokens)} of ${formatNumber(promptTokens)} input tokens`}
+          />
+          <StatTile
+            chip="cost"
+            label="Spend"
+            value={formatCurrency(totalCost)}
+            delta={costDelta}
+            deltaTone="neutral"
+            sub={spendNote}
+          />
+        </div>
+      </section>
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-        <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Model mix</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Share of requests by model</p>
+      <Card padding="none" className="min-w-0 overflow-hidden">
+        <CardHead title="Tokens & spend">
+          <div className="hidden items-center gap-3 sm:flex">
+            <LegendChip color={COLOR_INPUT} label="Input" />
+            <LegendChip color={COLOR_OUTPUT} label="Output" />
+            <LegendChip color={COLOR_COST} label="Cost" line />
           </div>
-          {modelData.length ? (
-            <div className="grid min-h-[280px] items-center gap-4 px-5 py-5 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
-              <div className="relative mx-auto h-40 w-full max-w-[220px]" role="img" aria-label="Model request share donut chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={modelData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={68} paddingAngle={modelData.length > 1 ? 3 : 0} stroke="none" isAnimationActive={false}>
-                      {modelData.map((entry, index) => (
-                        <Cell key={entry.name} fill={MODEL_COLORS[index % MODEL_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--color-surface)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 0,
-                        color: "var(--color-text-main)",
-                        fontSize: 12,
-                      }}
-                      formatter={(value) => [`${formatNumber(value)} requests`, "Usage"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-xl font-semibold tabular-nums text-text-main">{formatNumber(stats?.totalRequests)}</span>
-                  <span className="text-[10px] text-text-muted">requests</span>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                {modelData.map((model, index) => (
-                  <div key={model.name} className="flex min-w-0 items-center gap-2 text-xs">
-                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: MODEL_COLORS[index % MODEL_COLORS.length] }} />
-                    <span className="min-w-0 flex-1 truncate text-text-main" title={model.name}>{model.name}</span>
-                    <span className="shrink-0 tabular-nums text-text-muted">{formatPercent((model.value / Math.max(1, stats?.totalRequests || 0)) * 100)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <Link
+            href="/dashboard/usage"
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted transition-colors hover:text-text-main"
+          >
+            Full usage
+            <ArrowRight aria-hidden size={12} strokeWidth={2.5} />
+          </Link>
+        </CardHead>
+        <div
+          className="h-[300px] min-w-0 px-2 pb-3 pt-5 sm:px-4"
+          role="img"
+          aria-label="Input and output tokens with estimated cost over the selected period"
+        >
+          {chartHasData ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }} barCategoryGap="34%">
+                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--color-text-muted)", fontSize: 10 }}
+                  tickMargin={10}
+                  minTickGap={16}
+                />
+                <YAxis
+                  yAxisId="tokens"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--color-text-muted)", fontSize: 10 }}
+                  tickFormatter={formatNumber}
+                  width={54}
+                />
+                <YAxis yAxisId="cost" orientation="right" hide />
+                <Tooltip
+                  cursor={{ fill: "var(--color-surface-2)", opacity: 0.6 }}
+                  contentStyle={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 0,
+                    color: "var(--color-text-main)",
+                    fontSize: 12,
+                  }}
+                  formatter={(value, name) => [
+                    name === "Cost" ? formatCurrency(value) : formatNumber(value),
+                    name,
+                  ]}
+                />
+                <Bar
+                  yAxisId="tokens"
+                  dataKey="promptTokens"
+                  name="Input"
+                  stackId="tokens"
+                  fill={COLOR_INPUT}
+                  maxBarSize={34}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  yAxisId="tokens"
+                  dataKey="completionTokens"
+                  name="Output"
+                  stackId="tokens"
+                  fill={COLOR_OUTPUT}
+                  maxBarSize={34}
+                  isAnimationActive={false}
+                />
+                <Line
+                  yAxisId="cost"
+                  type="linear"
+                  dataKey="cost"
+                  name="Cost"
+                  stroke={COLOR_COST}
+                  strokeWidth={1.75}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
-              <span className="material-symbols-outlined text-3xl text-text-subtle">donut_large</span>
-              <p className="mt-2 text-sm font-medium text-text-main">No model activity yet</p>
-              <p className="mt-1 text-xs text-text-muted">Model distribution appears after the first request.</p>
-            </div>
+            <EmptyState
+              className="h-full"
+              title="No traffic in this period"
+              hint="Requests appear here as they pass through the gateway."
+            />
           )}
-        </Card>
+        </div>
+      </Card>
 
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Request outcomes</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Completion health across recorded request details</p>
-          </div>
-          {outcomeData.length ? (
-            <div className="grid min-h-[280px] items-center gap-4 px-5 py-5 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
-              <div className="relative mx-auto h-40 w-full max-w-[220px]" role="img" aria-label="Request outcome donut chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={outcomeData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={68} paddingAngle={outcomeData.length > 1 ? 3 : 0} stroke="none" isAnimationActive={false}>
-                      {outcomeData.map((entry) => (
-                        <Cell key={entry.id} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--color-surface)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 0,
-                        color: "var(--color-text-main)",
-                        fontSize: 12,
-                      }}
-                      formatter={(value) => [`${formatNumber(value)} requests`, "Outcome"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-xl font-semibold tabular-nums text-text-main">{formatPercent(successRate)}</span>
-                  <span className="text-[10px] text-text-muted">successful</span>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                {outcomeData.map((outcome) => (
-                  <div key={outcome.id} className="flex min-w-0 items-center gap-2 text-xs">
-                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: outcome.color }} />
-                    <span className="min-w-0 flex-1 truncate text-text-main">{outcome.name}</span>
-                    <span className="shrink-0 tabular-nums text-text-muted">
-                      {formatNumber(outcome.value)} · {formatPercent((outcome.value / outcomeTotal) * 100)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
-              <span className="material-symbols-outlined text-3xl text-text-subtle">task_alt</span>
-              <p className="mt-2 text-sm font-medium text-text-main">No outcomes recorded</p>
-              <p className="mt-1 text-xs text-text-muted">Success and failure distribution appears after request details are stored.</p>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-        <Card padding="none" className="min-w-0 overflow-hidden">
-          <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
-            <div>
-              <h2 className="font-mono text-sm font-semibold text-text-main">Recent requests</h2>
-              <p className="mt-0.5 text-xs text-text-muted">{isAdmin ? "Latest model traffic across the gateway" : "Latest model traffic for your API keys"}</p>
-            </div>
-            <Link href={isAdmin ? "/dashboard/activity?tab=requests" : "/dashboard/usage"} className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300">
-              {isAdmin ? "View operations" : "View history"}
+          <CardHead title="Live requests">
+            {/* Request history lives on Usage for every role — Activity is a
+                separate operations view, not the deeper cut of this table. */}
+            <Link
+              href="/dashboard/usage"
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted transition-colors hover:text-text-main"
+            >
+              History
+              <ArrowRight aria-hidden size={12} strokeWidth={2.5} />
             </Link>
-          </div>
+          </CardHead>
           {recentRequests.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-left font-mono text-xs">
-                <thead className="border-b border-border text-text-muted">
+                <thead className="thead-data">
                   <tr>
-                    <th className="px-5 py-2.5 font-semibold uppercase tracking-wide">Model</th>
-                    <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">Tokens</th>
-                    <th className="px-4 py-2.5 font-semibold uppercase tracking-wide">Status</th>
-                    <th className="px-5 py-2.5 text-right font-semibold uppercase tracking-wide">Time</th>
+                    <th className="px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.08em]">Model</th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.08em]">Route</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em]">Tokens</th>
+                    <th className="px-5 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em]">Time</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {recentRequests.map((request, index) => {
-                    const successful = request.status === "ok" || request.status === "success";
+                    const ok = isRequestOk(request.status);
                     return (
-                      <tr key={`${request.timestamp}-${request.model}-${index}`} className="transition-colors hover:bg-surface-2/50">
-                        <td className="max-w-[190px] truncate px-5 py-3 font-medium text-text-main" title={request.model}>{request.model || "Unknown"}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-text-main">{formatNumber(Number(request.promptTokens || 0) + Number(request.completionTokens || 0))}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 font-medium uppercase ${successful ? "text-success" : "text-danger"}`}>
-                            <span className={`size-1.5 rounded-full ${successful ? "bg-success" : "bg-danger"}`} />
-                            {successful ? "Completed" : "Failed"}
+                      <tr
+                        key={`${request.timestamp}-${request.model}-${index}`}
+                        className={cn("transition-colors hover:bg-surface-2/50", !ok && "bg-danger/[0.04]")}
+                      >
+                        <td className="max-w-[220px] px-5 py-3 text-text-main">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span
+                              aria-hidden
+                              className={cn("size-1.5 shrink-0", ok ? "bg-success" : "bg-danger")}
+                            />
+                            <span className="truncate" title={request.model}>{request.model || "Unknown"}</span>
+                            <span className="sr-only">{ok ? "Completed" : "Failed"}</span>
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-5 py-3 text-right text-text-muted">{formatTimeAgo(request.timestamp)}</td>
+                        <td className={cn("max-w-[160px] truncate px-4 py-3", ok ? "text-text-muted" : "text-danger")}>
+                          {request.provider || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-text-main">
+                          {formatNumber(Number(request.promptTokens || 0) + Number(request.completionTokens || 0))}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-text-muted">
+                          {formatTimeAgo(request.timestamp)}
+                        </td>
                       </tr>
                     );
                   })}
@@ -491,103 +539,104 @@ export default function DashboardHomeClient() {
               </table>
             </div>
           ) : (
-            <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
-              <span className="material-symbols-outlined text-3xl text-text-subtle">receipt_long</span>
-              <p className="mt-2 text-sm font-medium text-text-main">No recent requests</p>
-              <p className="mt-1 text-xs text-text-muted">Send a request to your local endpoint to begin.</p>
-            </div>
+            <EmptyState
+              title="No recent requests"
+              hint="Send a request to your local endpoint to begin."
+            />
           )}
         </Card>
 
-        {isAdmin ? (
-          <Card padding="none" className="overflow-hidden">
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="font-mono text-sm font-semibold text-text-main">Admin workspace</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Operational and account management shortcuts</p>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              <Link href="/dashboard/activity" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">monitoring</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">Operations activity</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">System, routing, and request diagnostics</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-              <Link href="/dashboard/users" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">Accounts</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">Users, access, and credit controls</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-              <Link href="/dashboard/settings" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">settings</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">Gateway settings</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">Runtime, security, and pricing</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 border-t border-border-subtle bg-bg-alt/60">
-              <div className="border-r border-border-subtle px-5 py-4">
-                <p className="text-[10px] font-medium text-text-muted">API keys</p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-text-main">{activeKeys} active</p>
+        <div className="flex min-w-0 flex-col gap-5">
+          <Card padding="none" className="min-w-0 overflow-hidden">
+            <CardHead title="Model mix" />
+            {modelData.length ? (
+              <div className="flex flex-col gap-3.5 px-5 py-4">
+                {modelData.map((model, index) => {
+                  const share = modelTotal ? (model.value / modelTotal) * 100 : 0;
+                  const color = model.isOther ? OTHER_COLOR : MODEL_COLORS[index % MODEL_COLORS.length];
+                  return (
+                    <div key={model.name} className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span
+                          className={cn(
+                            "min-w-0 truncate font-mono text-xs",
+                            model.isOther ? "text-text-muted" : "text-text-main"
+                          )}
+                          title={model.name}
+                        >
+                          {model.name}
+                        </span>
+                        <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
+                          {formatPercent(share)}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 w-full bg-surface-2">
+                        <div
+                          className="h-full"
+                          style={{ width: `${Math.min(100, share)}%`, backgroundColor: color }}
+                          aria-hidden
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="min-w-0 px-5 py-4">
-                <p className="text-[10px] font-medium text-text-muted">Endpoint mode</p>
-                <p className="mt-1 truncate text-sm font-semibold text-text-main">Self-hosted</p>
+            ) : (
+              <EmptyState
+                title="No model activity yet"
+                hint="Model distribution appears after the first request."
+              />
+            )}
+          </Card>
+
+          <Card padding="none" className="min-w-0 overflow-hidden">
+            <CardHead title="Outcomes" />
+            {outcomeTotal ? (
+              <div className="px-5 py-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-2xl font-semibold tabular-nums tracking-tight text-text-main">
+                    {formatPercent(successRate)}
+                  </span>
+                  <span className="min-w-0 truncate text-xs text-text-muted">
+                    success over {formatExact(outcomeTotal)} requests
+                  </span>
+                </div>
+                <div className="mt-3 flex h-2 w-full overflow-hidden bg-surface-2" aria-hidden>
+                  {outcomeData.map((outcome) => (
+                    <span
+                      key={outcome.id}
+                      className="h-full"
+                      style={{
+                        width: `${(outcome.value / outcomeTotal) * 100}%`,
+                        backgroundColor: outcome.color,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2">
+                  {outcomeData.map((outcome) => (
+                    <div key={outcome.id} className="flex min-w-0 items-center gap-2">
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0"
+                        style={{ backgroundColor: outcome.color }}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs text-text-main">{outcome.name}</span>
+                      <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
+                        {formatExact(outcome.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <EmptyState
+                title="No outcomes recorded"
+                hint="Success and failure counts appear after request details are stored."
+              />
+            )}
           </Card>
-        ) : (
-          <Card padding="none" className="overflow-hidden">
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="font-mono text-sm font-semibold text-text-main">Your access</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Account-owned resources</p>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              <Link href="/dashboard/api-keys" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">vpn_key</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">API keys</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">{activeKeys} active for this account</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-              <Link href="/dashboard/models" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">deployed_code</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">Available models</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">Copy routed model IDs</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-              <Link href="/dashboard/account" className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-bg-alt">
-                <span className="flex size-8 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-text-main">Account security</span>
-                  <span className="mt-0.5 block text-[10px] text-text-muted">Identity and password</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-text-subtle">chevron_right</span>
-              </Link>
-            </div>
-          </Card>
-        )}
+        </div>
       </div>
     </div>
   );

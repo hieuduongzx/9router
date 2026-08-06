@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCombos, getModelPricingCatalog, getModelProviders, getPublishedModels } from "@/lib/localDb";
-import { getDashboardAccount } from "@/lib/auth/dashboardSession";
+import { canEditPricing as resolveCanEditPricing } from "@/lib/auth/pricingAccess";
 import { buildPublishedModelsCatalog } from "@/lib/publishedModelsCatalog";
-import {
-  DASHBOARD_VIEW_ADMIN,
-  DASHBOARD_VIEW_COOKIE,
-  resolveDashboardViewMode,
-} from "@/shared/constants/dashboardView";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +17,7 @@ export async function GET(request) {
       modelProviders.map((provider) => [provider.name.toLowerCase(), provider.iconKey]),
     );
 
-    let canEditPricing = false;
-    try {
-      const account = await getDashboardAccount(request);
-      const viewMode = resolveDashboardViewMode(
-        account?.role,
-        request.cookies?.get(DASHBOARD_VIEW_COOKIE)?.value,
-      );
-      canEditPricing = account?.role === "admin" && viewMode === DASHBOARD_VIEW_ADMIN;
-    } catch {
-      canEditPricing = false;
-    }
+    const canEditPricing = await resolveCanEditPricing(request);
 
     const pricingEntries = await getModelPricingCatalog(
       models.map((model) => model.pricingTarget),

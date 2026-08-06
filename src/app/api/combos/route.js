@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCombos, createCombo, getComboByName, getModelProviderByName } from "@/lib/localDb";
+import { getCombos, createCombo, getComboByName, getModelProviderByName, getModelPricingCatalog } from "@/lib/localDb";
+import { canEditPricing } from "@/lib/auth/pricingAccess";
+import { comboPricingTarget } from "@/lib/publishedModelsCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +11,31 @@ const normalizeModelProvider = (value) => (
   typeof value === "string" ? value.trim() : ""
 );
 
-// GET /api/combos - Get all combos
-export async function GET() {
+// GET /api/combos - Get all combos, each resolved against the pricing catalog.
+// Routes are where public prices are set, so the list carries its own rates
+// rather than making the dashboard cross-reference the published-model catalog.
+export async function GET(request) {
   try {
     const combos = await getCombos();
-    return NextResponse.json({ combos });
+    const targets = combos.map((combo) => comboPricingTarget(combo));
+    const [pricingEntries, editable] = await Promise.all([
+      getModelPricingCatalog(targets.map((target) => target || {})),
+      canEditPricing(request),
+    ]);
+
+    return NextResponse.json({
+      canEditPricing: editable,
+      combos: combos.map((combo, index) => {
+        const resolved = pricingEntries[index];
+        return {
+          ...combo,
+          pricingTarget: targets[index],
+          pricing: resolved?.pricing || null,
+          pricingSource: resolved?.source || "unpriced",
+          defaultPricing: resolved?.defaultPricing || null,
+        };
+      }),
+    });
   } catch (error) {
     console.log("Error fetching combos:", error);
     return NextResponse.json({ error: "Failed to fetch combos" }, { status: 500 });
@@ -24,7 +46,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, models, kind } = body;
+    const { name, models, kind, thinkingMode, capabilityOverrides } = body;
     const modelProvider = normalizeModelProvider(body.modelProvider);
 
     if (!name) {
@@ -54,6 +76,8 @@ export async function POST(request) {
       models: Array.isArray(models) ? models : [],
       kind: kind || null,
       modelProvider: modelProvider || null,
+      thinkingMode,
+      capabilityOverrides,
     });
 
     return NextResponse.json(combo, { status: 201 });

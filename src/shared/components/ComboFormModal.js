@@ -134,7 +134,7 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
           <div>
             <label className="text-sm font-medium mb-1.5 block">Models</label>
             {models.length === 0 ? (
-              <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 rounded-lg bg-black/[0.01] dark:bg-white/[0.01]">
+              <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 rounded-sm bg-black/[0.01] dark:bg-white/[0.01]">
                 <span className="material-symbols-outlined text-text-muted text-xl mb-1">layers</span>
                 <p className="text-xs text-text-muted">No models added yet</p>
               </div>
@@ -151,7 +151,7 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
               </div>
             )}
             <button onClick={() => setShowModelSelect(true)}
-              className="w-full mt-2 py-2 border border-dashed border-black/10 dark:border-white/10 rounded-lg text-xs text-primary font-medium hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1">
+              className="w-full mt-2 py-2 border border-dashed border-black/10 dark:border-white/10 rounded-sm text-xs text-primary font-medium hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1">
               <span className="material-symbols-outlined text-[16px]">add</span>
               Add Model
             </button>

@@ -17,6 +17,7 @@ function clearOidcCookies(cookieStore) {
   cookieStore.delete("oidc_state");
   cookieStore.delete("oidc_nonce");
   cookieStore.delete("oidc_code_verifier");
+  cookieStore.delete("oidc_remember");
 }
 
 async function resolveOidcAccount({ issuer, payload }) {
@@ -113,6 +114,7 @@ export async function GET(request) {
 
     const account = await resolveOidcAccount({ issuer: discoveredIssuer, payload });
 
+    const remember = cookieStore.get("oidc_remember")?.value === "1";
     clearOidcCookies(cookieStore);
     await setDashboardAuthCookie(cookieStore, request, {
       oidc: true,
@@ -121,7 +123,7 @@ export async function GET(request) {
       oidcSub: payload.sub || null,
       oidcEmail: pickOidcEmail(payload) || null,
       oidcName: pickOidcDisplayName(payload),
-    });
+    }, { remember });
 
     return NextResponse.redirect(new URL("/dashboard", getPublicOrigin(request)));
   } catch (error) {

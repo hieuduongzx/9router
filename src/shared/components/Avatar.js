@@ -27,38 +27,11 @@ export default function Avatar({
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Generate color from name
-  const getColorFromName = (name) => {
-    if (!name) return "bg-primary";
-    const colors = [
-      "bg-red-500",
-      "bg-orange-500",
-      "bg-amber-500",
-      "bg-yellow-500",
-      "bg-lime-500",
-      "bg-green-500",
-      "bg-emerald-500",
-      "bg-teal-500",
-      "bg-cyan-500",
-      "bg-sky-500",
-      "bg-blue-500",
-      "bg-indigo-500",
-      "bg-violet-500",
-      "bg-purple-500",
-      "bg-fuchsia-500",
-      "bg-pink-500",
-      "bg-rose-500",
-    ];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
-  };
-
   if (src) {
     return (
       <div
         className={cn(
-          "rounded-full bg-cover bg-center bg-no-repeat",
-          "ring-2 ring-white dark:ring-surface-dark shadow-sm",
+          "shrink-0 border border-border bg-cover bg-center bg-no-repeat",
           sizes[size],
           className
         )}
@@ -69,13 +42,14 @@ export default function Avatar({
     );
   }
 
+  // Square, hairline, mono initials — identity is data here, not decoration, so
+  // it drops the coloured-circle treatment the rest of the system rejects.
   return (
     <div
       className={cn(
-        "rounded-full flex items-center justify-center font-semibold text-white",
-        "ring-2 ring-white dark:ring-surface-dark shadow-sm",
+        "flex shrink-0 items-center justify-center border border-border bg-surface-2",
+        "font-mono font-semibold uppercase text-text-main",
         sizes[size],
-        getColorFromName(name),
         className
       )}
       role="img"

@@ -43,7 +43,7 @@ export default function HowItWorks() {
           <div className="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-xl shadow-blue-950/8">
             {ROUTE_STEPS.map((step, index) => (
               <div key={step.title} className="grid gap-4 border-b border-zinc-100 p-6 last:border-b-0 md:grid-cols-[5rem_1fr] md:p-8">
-                <div className={`flex size-16 items-center justify-center rounded-2xl ${index === 0 ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"}`}>
+                <div className={`flex size-16 items-center justify-center rounded-sm ${index === 0 ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"}`}>
                   <span className="material-symbols-outlined text-3xl">{step.icon}</span>
                 </div>
                 <div>
@@ -62,7 +62,7 @@ export default function HowItWorks() {
             </h3>
             <div className="mt-7 grid gap-3">
               {MODES.map(([name, meta, text]) => (
-                <div key={name} className="rounded-2xl border border-white/10 bg-white/6 p-4">
+                <div key={name} className="rounded-sm border border-white/10 bg-white/6 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-black text-white">{name}</p>
                     <p className="rounded-full bg-blue-400/15 px-2.5 py-1 text-xs font-bold text-blue-100">{meta}</p>
@@ -71,7 +71,7 @@ export default function HowItWorks() {
                 </div>
               ))}
             </div>
-            <a className="mt-7 inline-flex h-11 items-center justify-center rounded-xl bg-white px-5 text-sm font-black text-zinc-950 transition hover:bg-blue-50" href="#features">
+            <a className="mt-7 inline-flex h-11 items-center justify-center rounded-sm bg-white px-5 text-sm font-black text-zinc-950 transition hover:bg-blue-50" href="#features">
               See guardrails ↓
             </a>
           </div>

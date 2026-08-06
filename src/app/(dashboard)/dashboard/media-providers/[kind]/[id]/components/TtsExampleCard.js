@@ -228,7 +228,7 @@ export function TtsExampleCard({ providerId }) {
   return (
     <>
       <Card>
-        <h2 className="font-mono text-lg font-semibold mb-4">Example</h2>
+        <h2 className="font-mono text-sm font-semibold mb-4">Example</h2>
 
         <div className="flex flex-col gap-2.5">
           {/* Endpoint + API Key as read-only text */}

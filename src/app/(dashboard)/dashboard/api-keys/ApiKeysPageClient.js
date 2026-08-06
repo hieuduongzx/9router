@@ -111,7 +111,7 @@ export default function ApiKeysPageClient() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <CardSkeleton />
       </div>
     );
@@ -120,11 +120,11 @@ export default function ApiKeysPageClient() {
   return (
     <div className="flex flex-col gap-6">
       <Card id="api-keys" padding="none" className="overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="flex flex-col gap-4 border-b border-border px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div>
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[20px] text-primary">vpn_key</span>
-              <h2 className="font-mono text-base font-semibold text-text-main">API keys</h2>
+              <h2 className="font-mono text-sm font-semibold text-text-main">API keys</h2>
             </div>
             <p className="mt-1 text-sm text-text-muted">
               Every AI request must include an active key.
@@ -159,7 +159,7 @@ export default function ApiKeysPageClient() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] table-fixed text-left text-sm">
-              <thead className="border-b border-border bg-bg-alt/70 font-mono text-xs text-text-muted">
+              <thead className="thead-data">
                 <tr>
                   <th className="w-[22%] px-4 py-2.5 font-medium sm:px-5">Name</th>
                   <th className="w-[36%] px-4 py-2.5 font-medium">Key</th>
@@ -215,10 +215,10 @@ export default function ApiKeysPageClient() {
                         {new Date(key.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-mono text-xs font-medium uppercase tracking-wide ${
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 font-mono text-xs font-medium uppercase tracking-wide ${
                           isActive ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                         }`}>
-                          <span className={`size-1.5 rounded-full ${isActive ? "bg-success" : "bg-warning"}`} />
+                          <span className={`size-1.5 ${isActive ? "bg-success" : "bg-warning"}`} />
                           {isActive ? "Active" : "Paused"}
                         </span>
                       </td>

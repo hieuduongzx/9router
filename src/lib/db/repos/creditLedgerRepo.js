@@ -69,23 +69,28 @@ export function insertCreditLedgerEntry(db, {
   });
 }
 
-export async function listCreditLedger(userId, { limit = 50, offset = 0 } = {}) {
+/**
+ * Wallet history. `includeUsage` controls whether per-request spend lines are
+ * returned alongside top-ups and admin adjustments — they are the reason a
+ * balance moves, so they are included by default; pass false for a top-ups-only
+ * view.
+ */
+export async function listCreditLedger(userId, { limit = 50, offset = 0, includeUsage = true } = {}) {
   if (!userId) return { entries: [], total: 0 };
   const db = await getAdapter();
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
   const safeOffset = Math.max(Number(offset) || 0, 0);
+  const usageFilter = includeUsage
+    ? ""
+    : ` AND type != 'usage' AND IFNULL(source, '') != 'api_usage'`;
   const total = db.get(
     `SELECT COUNT(*) AS count FROM creditLedger
-     WHERE userId = ?
-       AND type != 'usage'
-       AND IFNULL(source, '') != 'api_usage'`,
+     WHERE userId = ?${usageFilter}`,
     [userId],
   )?.count || 0;
   const rows = db.all(
     `SELECT * FROM creditLedger
-     WHERE userId = ?
-       AND type != 'usage'
-       AND IFNULL(source, '') != 'api_usage'
+     WHERE userId = ?${usageFilter}
      ORDER BY createdAt DESC, rowid DESC
      LIMIT ? OFFSET ?`,
     [userId, safeLimit, safeOffset],

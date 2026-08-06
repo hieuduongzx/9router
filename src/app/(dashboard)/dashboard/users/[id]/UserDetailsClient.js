@@ -169,7 +169,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
   ];
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Back navigation is provided by the Header breadcrumb for this route. */}
       <div className="border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
@@ -234,7 +234,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,1fr)]">
         <Card padding="none" className="min-w-0">
-          <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
             <div>
               <h2 className="font-mono text-sm font-semibold text-text-main">Account information</h2>
               <p className="mt-0.5 text-xs text-text-muted">Identity and security metadata visible to administrators.</p>
@@ -271,7 +271,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         </Card>
 
         <Card padding="none" className="min-w-0">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Access &amp; security</h2>
             <p className="mt-0.5 text-xs text-text-muted">Role, sign-in access, and credential actions.</p>
           </div>
@@ -332,7 +332,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       </div>
 
       <Card padding="none">
-        <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h2 className="font-mono text-sm font-semibold text-text-main">API keys</h2>
             <p className="mt-0.5 text-xs text-text-muted">
@@ -351,7 +351,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="border-b border-border-subtle bg-bg-alt/70 font-mono text-[11px] uppercase tracking-wide text-text-muted">
+              <thead className="thead-data">
                 <tr>
                   <th scope="col" className="px-5 py-2.5 font-medium">Key</th>
                   <th scope="col" className="px-3 py-2.5 font-medium">Status</th>
@@ -411,7 +411,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       </Card>
 
       <Card padding="none">
-        <div className="border-b border-border-subtle px-5 py-4">
+        <div className="border-b border-border px-5 py-3.5">
           <h2 className="font-mono text-sm font-semibold text-text-main">Credit history</h2>
           <p className="mt-0.5 text-xs text-text-muted">
             Top-ups, deductions, and signup credit. Per-request usage charges are tracked under usage, not here.
@@ -426,7 +426,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-sm">
-              <thead className="border-b border-border-subtle bg-bg-alt/70 font-mono text-[11px] uppercase tracking-wide text-text-muted">
+              <thead className="thead-data">
                 <tr>
                   <th scope="col" className="px-5 py-2.5 font-medium">When</th>
                   <th scope="col" className="px-3 py-2.5 font-medium">Type</th>
@@ -470,7 +470,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card padding="none" className="min-w-0">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Usage by model</h2>
             <p className="mt-0.5 text-xs text-text-muted">{periodLabel} · sorted by request volume</p>
           </div>
@@ -494,7 +494,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         </Card>
 
         <Card padding="none" className="min-w-0">
-          <div className="border-b border-border-subtle px-5 py-4">
+          <div className="border-b border-border px-5 py-3.5">
             <h2 className="font-mono text-sm font-semibold text-text-main">Recent activity</h2>
             <p className="mt-0.5 text-xs text-text-muted">Latest requests made with this account&apos;s keys</p>
           </div>

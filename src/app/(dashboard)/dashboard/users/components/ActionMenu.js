@@ -38,7 +38,7 @@ export default function ActionMenu({ items, label, align = "right" }) {
         <span className="material-symbols-outlined text-[18px]">more_horiz</span>
       </button>
       {open && (
-        <div className={`absolute top-9 z-30 w-52 border border-border bg-surface py-1 shadow-lg ${align === "left" ? "left-0" : "right-0"}`}>
+        <div className={`absolute top-9 z-30 w-52 border border-border bg-surface py-1 ${align === "left" ? "left-0" : "right-0"}`}>
           {items.map((item) => (
             <button
               key={item.label}

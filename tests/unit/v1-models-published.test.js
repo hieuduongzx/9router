@@ -23,6 +23,7 @@ describe("GET /v1/models published catalog", () => {
         kind: "llm",
         modelProvider: "Anthropic",
         models: ["cc/claude-sonnet-4-5", "cx/gpt-5.6-sol"],
+        capabilityOverrides: { vision: false, audioInput: true },
       },
       {
         id: "private-combo",
@@ -47,6 +48,11 @@ describe("GET /v1/models published catalog", () => {
           id: "claude-premium",
           object: "model",
           owned_by: "Anthropic",
+          capabilities: expect.objectContaining({
+            reasoning: true,
+            vision: false,
+            audioInput: true,
+          }),
         }),
       ],
     });

@@ -85,8 +85,8 @@ export {
 // Usage
 export {
   statsEmitter, trackPendingRequest, getActiveRequests,
-  saveRequestUsage, getUsageHistory, getUsageStats, getSystemUsageOverview, getChartData,
-  getUsageByOwner,
+  saveRequestUsage, saveRequestFailure, getUsageHistory, getUsageStats, getSystemUsageOverview, getChartData,
+  getUsageByOwner, pruneUsageHistory,
   appendRequestLog, getRecentLogs, getRequestLogsPage,
 } from "./repos/usageRepo.js";
 
@@ -105,14 +105,39 @@ export async function exportDb() {
     providerConnections: db.all(`SELECT * FROM providerConnections`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, provider: r.provider, authType: r.authType, name: r.name, email: r.email, priority: r.priority, isActive: r.isActive === 1, createdAt: r.createdAt, updatedAt: r.updatedAt })),
     providerNodes: db.all(`SELECT * FROM providerNodes`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, type: r.type, name: r.name, createdAt: r.createdAt, updatedAt: r.updatedAt })),
     proxyPools: db.all(`SELECT * FROM proxyPools`).map((r) => ({ ...parseJson(r.data, {}), id: r.id, isActive: r.isActive === 1, testStatus: r.testStatus, createdAt: r.createdAt, updatedAt: r.updatedAt })),
-    apiKeys: db.all(`SELECT * FROM apiKeys`).map((r) => ({ id: r.id, key: r.key, name: r.name, machineId: r.machineId, isActive: r.isActive === 1, createdAt: r.createdAt })),
-    combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, modelProvider: r.modelProvider, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
+    // ownerUserId must survive the round-trip: authorizeBillableApiKey rejects an
+    // ownerless key with 403, so dropping it here silently bricks every key on restore.
+    apiKeys: db.all(`SELECT * FROM apiKeys`).map((r) => ({ id: r.id, key: r.key, name: r.name, machineId: r.machineId, ownerUserId: r.ownerUserId || null, isActive: r.isActive === 1, createdAt: r.createdAt })),
+    // Accounts and their balances are part of the gateway's state, not telemetry —
+    // a backup without them restores a gateway nobody can sign into or bill.
+    users: db.all(`SELECT * FROM users`).map((r) => ({
+      id: r.id, username: r.username, email: r.email, passwordHash: r.passwordHash,
+      role: r.role, isActive: r.isActive === 1, mustChangePassword: r.mustChangePassword === 1,
+      creditCents: Number(r.creditCents) || 0, createdAt: r.createdAt, updatedAt: r.updatedAt,
+    })),
+    creditLedger: db.all(`SELECT * FROM creditLedger ORDER BY createdAt ASC`).map((r) => ({
+      id: r.id, userId: r.userId, amountCents: Number(r.amountCents) || 0,
+      balanceAfterCents: Number(r.balanceAfterCents) || 0, type: r.type, source: r.source,
+      note: r.note, actorUserId: r.actorUserId, meta: r.meta, createdAt: r.createdAt,
+    })),
+    combos: db.all(`SELECT * FROM combos`).map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind,
+      modelProvider: r.modelProvider,
+      models: parseJson(r.models, []),
+      thinkingMode: r.thinkingMode || "auto",
+      capabilityOverrides: parseJson(r.capabilityOverrides, {}),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })),
     modelAliases: {},
     customModels: [],
     publishedModels: [],
     modelProviders: [],
     mitmAlias: {},
     pricing: {},
+    disabledModels: {},
   };
 
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelAliases'`)) out.modelAliases[r.key] = parseJson(r.value);
@@ -121,6 +146,7 @@ export async function exportDb() {
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelProviders' AND key != '__initialized__'`)) out.modelProviders.push({ id: r.key, ...parseJson(r.value, {}) });
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'mitmAlias'`)) out.mitmAlias[r.key] = parseJson(r.value);
   for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'pricing'`)) out.pricing[r.key] = parseJson(r.value);
+  for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'disabledModels'`)) out.disabledModels[r.key] = parseJson(r.value);
 
   return out;
 }
@@ -131,6 +157,24 @@ export async function importDb(payload) {
   }
   const db = await getAdapter();
 
+  // Import wipes every table it manages. Take a restore point first — this is
+  // otherwise the one destructive operation in the app with no way back.
+  try {
+    const { makeBackupDir, backupDbLite, pruneOldBackups } = await import("./backup.js");
+    const dir = makeBackupDir("pre-import");
+    if (dir) {
+      backupDbLite(db, dir);
+      pruneOldBackups();
+      console.log(`[importDb] pre-import backup written to ${dir}`);
+    }
+  } catch (e) {
+    console.warn("[importDb] pre-import backup failed:", e?.message || e);
+  }
+
+  // Restoring accounts is opt-in on the payload: an older export has no `users`
+  // key, and wiping the live accounts to match it would lock everyone out.
+  const restoreAccounts = Array.isArray(payload.users);
+
   db.transaction(() => {
     // Wipe all tables (keep _meta)
     db.run(`DELETE FROM settings`);
@@ -139,7 +183,42 @@ export async function importDb(payload) {
     db.run(`DELETE FROM proxyPools`);
     db.run(`DELETE FROM apiKeys`);
     db.run(`DELETE FROM combos`);
-    db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'publishedModels', 'modelProviders', 'mitmAlias', 'pricing')`);
+    if (restoreAccounts) {
+      // creditLedger and apiKeys.ownerUserId both FK to users — clear children first.
+      db.run(`DELETE FROM creditLedger`);
+      db.run(`DELETE FROM users`);
+    }
+    db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'publishedModels', 'modelProviders', 'mitmAlias', 'pricing', 'disabledModels')`);
+
+    // Users must land before apiKeys and creditLedger so their FKs resolve.
+    if (restoreAccounts) {
+      for (const u of payload.users) {
+        if (!u?.id || !u?.username) continue;
+        db.run(
+          `INSERT OR REPLACE INTO users(id, username, email, passwordHash, role, isActive, mustChangePassword, creditCents, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            u.id, u.username, u.email, u.passwordHash,
+            u.role === "admin" ? "admin" : "user",
+            u.isActive === false ? 0 : 1,
+            u.mustChangePassword ? 1 : 0,
+            Math.max(0, Number(u.creditCents) || 0),
+            u.createdAt || new Date().toISOString(), u.updatedAt || new Date().toISOString(),
+          ]
+        );
+      }
+      for (const e of payload.creditLedger || []) {
+        if (!e?.id || !e?.userId) continue;
+        db.run(
+          `INSERT OR REPLACE INTO creditLedger(id, userId, amountCents, balanceAfterCents, type, source, note, actorUserId, meta, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            e.id, e.userId, Number(e.amountCents) || 0, Math.max(0, Number(e.balanceAfterCents) || 0),
+            e.type || "adjustment", e.source || null, e.note || null, e.actorUserId || null,
+            typeof e.meta === "string" ? e.meta : (e.meta == null ? null : stringifyJson(e.meta)),
+            e.createdAt || new Date().toISOString(),
+          ]
+        );
+      }
+    }
 
     // Settings
     if (payload.settings) {
@@ -168,15 +247,30 @@ export async function importDb(payload) {
       );
     }
     for (const k of payload.apiKeys || []) {
+      // Only keep an owner reference that actually resolves; a dangling FK would
+      // abort the whole import, and a NULL owner is recoverable (admin re-claims it).
+      const owner = k.ownerUserId
+        ? db.get(`SELECT id FROM users WHERE id = ?`, [k.ownerUserId])?.id || null
+        : null;
       db.run(
-        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
-        [k.id, k.key, k.name || null, k.machineId || null, k.isActive === false ? 0 : 1, k.createdAt || new Date().toISOString()]
+        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, ownerUserId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        [k.id, k.key, k.name || null, k.machineId || null, owner, k.isActive === false ? 0 : 1, k.createdAt || new Date().toISOString()]
       );
     }
     for (const c of payload.combos || []) {
       db.run(
-        `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-        [c.id, c.name, c.kind || null, c.modelProvider || null, stringifyJson(c.models || []), c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
+        `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, thinkingMode, capabilityOverrides, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          c.id,
+          c.name,
+          c.kind || null,
+          c.modelProvider || null,
+          stringifyJson(c.models || []),
+          c.thinkingMode || "auto",
+          stringifyJson(c.capabilityOverrides || {}),
+          c.createdAt || new Date().toISOString(),
+          c.updatedAt || new Date().toISOString(),
+        ]
       );
     }
     for (const [a, m] of Object.entries(payload.modelAliases || {})) {
@@ -204,6 +298,9 @@ export async function importDb(payload) {
     }
     for (const [provider, models] of Object.entries(payload.pricing || {})) {
       db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('pricing', ?, ?)`, [provider, stringifyJson(models || {})]);
+    }
+    for (const [provider, models] of Object.entries(payload.disabledModels || {})) {
+      db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('disabledModels', ?, ?)`, [provider, stringifyJson(models || [])]);
     }
   });
 

@@ -114,6 +114,14 @@ Swiss/schematic grid: dashboard stat rows are 3 equal hairline-bordered columns 
 
 Sidebar is a 256px icon+label rail — paper-dim background, hairline right border, no shadow — collapsible on desktop to a 64px icon-only rail (state persisted per browser). Collapsed, group eyebrows reduce to their hairline rule, labels move to `sr-only` plus a native tooltip, and the media submenu is closed rather than shown, since a nested list has nowhere to go at that width.
 
+Rail order, top to bottom: wordmark → `Jump to… ⌘K` navigator → update notice (admin, only when one exists) → nav groups `PINNED / TRAFFIC / CAPABILITIES / SYSTEM / ACCOUNT` → the account row. **Identity lives at the foot of the rail, never in the page header** — the header carries page context and actions only. Nav groups come from `src/shared/constants/dashboardNav.js`, which the rail and the ⌘K palette both read, so a route can never appear in one and not the other.
+
+### Page shell (every dashboard route)
+- Root element is `flex min-w-0 flex-col gap-6` — no page-level padding (the layout already pads) and no `space-y-*` stacks.
+- **No page renders its own `<h1>` title when the shared `Header` already names it.** Detail routes that name an entity (a provider, an account) may carry one `<h1>` at `font-mono text-xl font-semibold`; a description line under it is Inter `text-sm text-text-muted`.
+- Card head is `border-b border-border px-5 py-3.5` with a `font-mono text-sm font-semibold` title; body padding is `p-5`/`p-6`, or `padding="none"` when the body is a table.
+- Tables use `<thead className="thead-data">` (globals.css) so column headers are identical everywhere; per-cell padding stays with the table, since density is a per-table decision.
+
 ## Elevation & Depth
 
 Flat by default and always — this system has no shadow vocabulary. Depth is conveyed by hairline borders and by the crop-mark corner-bracket ornament on emphasized containers, never by `box-shadow`, blur, or z-lift on hover. `--shadow-*` tokens in `globals.css` are retained only for legacy components not yet migrated and must resolve to `none`/transparent for the new primitives.
@@ -124,8 +132,8 @@ Flat by default and always — this system has no shadow vocabulary. Depth is co
 ## Shapes
 
 Two-tier radius, applied narrowly:
-- **Containers** (Card, Sidebar, Header, table, code block): `radius: 0`, square corners, 1px hairline border.
-- **Interactive controls** (Button, Input, Badge/chip, Select): `radius: 3–4px` — enough to read as a control, never a pill.
+- **Containers and chips** (Card, Sidebar, Header, table, code block, Badge, StatusPill, avatar, progress track, status dot): `radius: 0`, square corners, 1px hairline border. A chip is data, not a control — it does not get a radius.
+- **Interactive controls only** (Button, Input, Select, icon button): `radius: 3–4px` — enough to read as a control, never a pill. The one exception is a switch/toggle knob, which stays round because that is what makes it read as a switch.
 - **Crop-mark ornament**: 8–10px L-shaped corner brackets (border-top+border-left / border-top+border-right / etc.), 1px, hairline color, offset ~6px outside or inside the corner of a featured card — the system's one decorative device, reserved for hero/featured containers (landing hero frame, dashboard "Get Started" panel, pilot/reference cards), not applied to every card.
 
 ## Components
@@ -138,7 +146,8 @@ Two-tier radius, applied narrowly:
 - **Danger:** same shape, red text/border outline by default, solid red only for destructive-confirm actions.
 
 ### Chips (data-role badges)
-- Small flat square or dot (4–6px) + mono uppercase label, 10–11px, `0.06em` tracking — used for stat-tile captions and table status/mode cells. Not a filled rounded pill except for the existing status pills (`COMPLETED`/`FAILED`), which keep their current rounded-bordered shape since that already reads like a terminal status tag.
+- Small flat square or dot (4–6px) + mono uppercase label, 10–11px, `0.06em` tracking — used for stat-tile captions and table status/mode cells. Square corners, hairline border, tinted fill at most; never a rounded pill. Status tags (`COMPLETED`/`FAILED`) follow the same square shape — one chip shape across the product.
+- **Avatars** are square too: hairline border, `surface-2` fill, mono uppercase initials. No coloured circle, no ring.
 
 ### Cards / Containers
 - **Corner Style:** `radius: 0`.
@@ -155,6 +164,8 @@ Two-tier radius, applied narrowly:
 
 ### Navigation (Sidebar)
 - Flat paper-dim rail, hairline right border, no active-pill background — active item gets a 2px left ink bar + ink text, inactive = muted text. Group labels are mono `LABEL` style at 10–11px tracked uppercase with a trailing hairline rule, replacing the current plain uppercase sans labels.
+- **Jump-to navigator:** a hairline field under the wordmark opens a ⌘K/Ctrl+K dialog listing the same destinations as the rail — substring match on label and group, arrow keys + Enter to go. It navigates; it never searches server data.
+- **Account row:** square avatar + name + `ROLE · BALANCE` in mono, chevron on the right, menu opening upward (profile link, sign out). Collapsed, it is the avatar alone.
 
 ### Code / terminal blocks
 - Signature component: black (`#000`/`#0a0a0a`) background regardless of theme, mono text, small "Copy" button top-right (hairline border, not filled) — matches the reference `$ npm i -g ...` blocks exactly; this is the one place true black-on-white-elsewhere is correct.
@@ -173,7 +184,9 @@ Two-tier radius, applied narrowly:
 
 ### Don't:
 - **Don't** add box-shadow, gradient, or blur/glass to any new or restyled surface.
-- **Don't** round any container corner — radius belongs to controls (button/input/chip) only, at 3–4px max.
+- **Don't** round any container or chip corner — radius belongs to controls (button/input/select) only, at 3–4px max.
+- **Don't** print a version string anywhere in the UI (no `v2.4.1` chip, no "vX available" notice, no build number). The API still reports it and the updater still uses it; the interface just never shows it. Update notices say *that* an update exists, not which one.
+- **Don't** render a gateway online/offline (or latency) readout. The dashboard failing to load is the status signal; a permanent green "online" badge is decoration.
 - **Don't** invent billing/credit/plan copy or numbers that don't exist in this codebase's real data, even though the reference screenshots show a plans/billing page — Router2k has no such feature yet (see PRODUCT.md).
 - **Don't** use Material Symbols icon tiles as colorful decoration; where an icon is kept, render it as a small flat mono-bordered square, not a soft colored rounded tile.
 - **Don't** rename `Router2k` to anything else without the user confirming again — brand name stays as-is, only tagline/microcopy may tighten to fit the terminal voice.

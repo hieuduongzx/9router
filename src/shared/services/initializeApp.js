@@ -1,7 +1,7 @@
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync } from "fs";
-import { cleanupProviderConnections, getSettings, updateSettings, getApiKeys } from "@/lib/localDb";
+import { cleanupProviderConnections, getSettings, updateSettings, getApiKeys, pruneUsageHistory } from "@/lib/localDb";
 import { getMitmStatus, startMitm, loadEncryptedPassword, initDbHooks, restoreToolDNS, removeAllDNSEntriesSync } from "@/mitm/manager";
 import { syncToJson as syncMitmAliasCache } from "@/lib/mitmAliasCache";
 import { killAllBridges } from "@/lib/mcp/stdioSseBridge";
@@ -50,9 +50,19 @@ export async function initializeApp() {
   }
 }
 
+const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 async function runHeavyStartup() {
   await cleanupProviderConnections();
   const settings = await getSettings();
+
+  // usageHistory has no other delete path, so a long-running gateway grows it
+  // without bound. Reclaim disk on the first pass only — VACUUM rewrites the
+  // whole file and the daily passes rarely free enough to be worth it.
+  pruneUsageHistory({ vacuum: true }).catch((error) => console.log("[InitApp] usage prune failed:", error.message));
+  setInterval(() => {
+    pruneUsageHistory().catch((error) => console.log("[InitApp] usage prune failed:", error.message));
+  }, PRUNE_INTERVAL_MS).unref?.();
 
   if (settings.mitmEnabled) {
     syncMitmAliasCache().catch(() => {});

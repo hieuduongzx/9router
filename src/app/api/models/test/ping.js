@@ -1,6 +1,13 @@
 import { getApiKeys } from "@/lib/localDb";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
+import { applyModelThinkingDefault } from "open-sse/translator/concerns/modelThinkingDefault.js";
+import {
+  REASONING_EVIDENCE,
+  REASONING_PROBE_MAX_TOKENS,
+  REASONING_PROBE_PROMPT,
+  detectReasoningEvidence,
+} from "@/lib/reasoningEvidence";
 
 const CLI_TOKEN_SALT = "9r-cli-auth";
 
@@ -168,6 +175,125 @@ export async function pingModelWebSearch(
     searchCallCount: Number(evidence.search_call_count) || 0,
     resultCount: Number(evidence.result_count) || 0,
     error: null,
+  };
+}
+
+/**
+ * Ask the model to reason and require wire-level evidence that it did.
+ *
+ * Streams, because the non-streaming path strips reasoning_content whenever
+ * content is non-empty — see the note in src/lib/reasoningEvidence.js.
+ *
+ * `thinking` is a model-route thinking default (auto | none | thinking | level).
+ * It is stamped onto the body with the same applyModelThinkingDefault() the
+ * router uses, so probing "none" reproduces exactly what an operator who turned
+ * thinking off would send — rather than the client-wins path a hardcoded
+ * reasoning_effort would take.
+ *
+ * The catalog's `reasoning` flag is documentation-based; this is runtime proof.
+ */
+export async function pingModelReasoning(
+  model,
+  baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`,
+  thinking = "high",
+) {
+  const headers = await getInternalHeaders();
+  const start = Date.now();
+
+  const body = applyModelThinkingDefault({
+    model,
+    stream: true,
+    // Not honoured by every upstream, but where it is we get the strongest signal.
+    stream_options: { include_usage: true },
+    max_tokens: REASONING_PROBE_MAX_TOKENS,
+    messages: [{ role: "user", content: REASONING_PROBE_PROMPT }],
+  }, thinking);
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      // High effort reasoning is slow — well above the 15s plain-chat probe.
+      signal: AbortSignal.timeout(60000),
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      supported: null,
+      verdict: "error",
+      latencyMs: Date.now() - start,
+      error: error?.name === "TimeoutError" ? "Timed out after 60s" : (error?.message || "Network error"),
+    };
+  }
+
+  const latencyMs = Date.now() - start;
+  const rawText = await res.text().catch(() => "");
+
+  if (!res.ok) {
+    let parsed = null;
+    try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+    const detail = parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
+    const detailText = String(detail || "").slice(0, 240);
+    // Credential / quota problems say nothing about reasoning support.
+    const credIssue = [401, 402, 403, 429].includes(res.status);
+    // The upstream naming the reasoning parameter in a 4xx is a real negative.
+    const explicitUnsupported = !credIssue
+      && res.status >= 400
+      && res.status < 500
+      && /(?:unsupported|not supported|unknown|invalid|unrecognized|does not support).*(?:reasoning|thinking|effort)|(?:reasoning|thinking|effort).*(?:unsupported|not supported|unknown|invalid|unrecognized|is not allowed)/i.test(detailText);
+    return {
+      ok: false,
+      supported: explicitUnsupported ? false : null,
+      verdict: explicitUnsupported ? "unsupported" : credIssue ? "unknown" : "error",
+      latencyMs,
+      status: res.status,
+      error: getResponseError(parsed, rawText, res.status),
+    };
+  }
+
+  if (!rawText) {
+    return {
+      ok: false,
+      supported: null,
+      verdict: "unknown",
+      latencyMs,
+      status: res.status,
+      error: "Provider returned an empty stream",
+    };
+  }
+
+  const { reasoned, evidence, reasoningTokens } = detectReasoningEvidence(rawText);
+  if (reasoned) {
+    return {
+      ok: true,
+      supported: true,
+      verdict: "verified",
+      latencyMs,
+      status: res.status,
+      reasoned: true,
+      evidence,
+      reasoningTokens,
+      error: null,
+    };
+  }
+
+  // reasoning_tokens:0 is the provider stating it did not reason. Anything else
+  // only means we saw no evidence — a model may hide its CoT and report no usage.
+  const hardNegative = evidence === REASONING_EVIDENCE.ZERO;
+  return {
+    ok: false,
+    supported: hardNegative ? false : null,
+    verdict: hardNegative ? "unsupported" : "unknown",
+    latencyMs,
+    status: res.status,
+    reasoned: false,
+    evidence,
+    reasoningTokens: 0,
+    error: hardNegative
+      ? "Provider reported reasoning_tokens=0"
+      : "No reasoning evidence was returned; assistant text was ignored",
   };
 }
 

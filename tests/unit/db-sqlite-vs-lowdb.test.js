@@ -201,16 +201,27 @@ describe("DB SQLite layer — public API parity", () => {
       models: ["m1", "m2"],
       kind: "llm",
       modelProvider: "Anthropic",
+      thinkingMode: "none",
+      capabilityOverrides: { vision: false, search: true, unknown: true },
     });
     expect(c.id).toBeDefined();
     expect(c.models).toEqual(["m1", "m2"]);
     expect(c.modelProvider).toBe("Anthropic");
+    expect(c.thinkingMode).toBe("none");
+    expect(c.capabilityOverrides).toEqual({ vision: false, search: true });
     const byName = await sqliteDb.getComboByName("combo1");
     expect(byName.id).toBe(c.id);
-    await sqliteDb.updateCombo(c.id, { models: ["m3"], modelProvider: "OpenAI" });
+    await sqliteDb.updateCombo(c.id, {
+      models: ["m3"],
+      modelProvider: "OpenAI",
+      thinkingMode: "high",
+      capabilityOverrides: { tools: false },
+    });
     const updated = await sqliteDb.getComboById(c.id);
     expect(updated.models).toEqual(["m3"]);
     expect(updated.modelProvider).toBe("OpenAI");
+    expect(updated.thinkingMode).toBe("high");
+    expect(updated.capabilityOverrides).toEqual({ tools: false });
     expect(await sqliteDb.addPublishedModel(c.id)).toBe(true);
     expect(await sqliteDb.addPublishedModel(c.id)).toBe(false);
     expect(await sqliteDb.getPublishedModels()).toEqual([

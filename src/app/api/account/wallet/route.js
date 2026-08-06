@@ -14,13 +14,15 @@ export async function GET(request) {
     const url = new URL(request.url);
     const limit = Number(url.searchParams.get("limit") || 50);
     const offset = Number(url.searchParams.get("offset") || 0);
+    // ?includeUsage=false gives a top-ups-only view; spend lines are on by default.
+    const includeUsage = url.searchParams.get("includeUsage") !== "false";
 
     const user = await getUserById(account.id);
     if (!user) {
       return NextResponse.json({ error: "Account not found" }, { status: 404, headers: NO_STORE });
     }
 
-    const ledger = await listCreditLedger(account.id, { limit, offset });
+    const ledger = await listCreditLedger(account.id, { limit, offset, includeUsage });
     return NextResponse.json(
       {
         balanceCents: user.creditCents || 0,

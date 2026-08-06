@@ -60,14 +60,14 @@ export default function ProviderLimitCard({
         <div className="flex items-center gap-3">
           {/* Provider Logo */}
           <div
-            className="size-10 rounded-lg flex items-center justify-center p-1.5"
+            className="size-10 rounded-sm flex items-center justify-center p-1.5"
             style={{ backgroundColor: `${providerColor}15` }}
           >
             <ProviderIcon
               src={`/providers/${provider}.png`}
               alt={provider || "Provider"}
               size={40}
-              className="object-contain rounded-lg"
+              className="object-contain rounded-sm"
               fallbackText={provider?.slice(0, 2).toUpperCase() || "PR"}
               fallbackColor={providerColor}
             />
@@ -92,7 +92,7 @@ export default function ProviderLimitCard({
         <button
           onClick={handleRefresh}
           disabled={refreshing || loading}
-          className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Refresh quota"
         >
           <span
@@ -121,7 +121,7 @@ export default function ProviderLimitCard({
 
       {/* Error State */}
       {!loading && error && (
-        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+        <div className="p-4 rounded-sm bg-red-500/10 border border-red-500/20">
           <div className="flex items-start gap-2">
             <span className="material-symbols-outlined text-red-500 text-[20px]">
               error
@@ -133,7 +133,7 @@ export default function ProviderLimitCard({
 
       {/* Info Message (for providers without API) */}
       {!loading && !error && message && (
-        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+        <div className="p-4 rounded-sm bg-blue-500/10 border border-blue-500/20">
           <div className="flex items-start gap-2">
             <span className="material-symbols-outlined text-blue-500 text-[20px]">
               info

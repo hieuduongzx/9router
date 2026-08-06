@@ -106,7 +106,7 @@ export default function SystemUsageTab({ period }) {
       <UsageOverTime period={period} scope="system" title="System usage over time" />
 
       <Card padding="none" className="min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h2 className="font-mono text-sm font-semibold text-text-main">Activity by account</h2>
             <p className="mt-0.5 text-xs text-text-muted">Operational traffic attributed through each account-owned API key.</p>
@@ -116,7 +116,7 @@ export default function SystemUsageTab({ period }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] text-left text-xs">
             <caption className="sr-only">System activity grouped by account for the selected period</caption>
-            <thead className="border-b border-border-subtle bg-bg-alt/60 text-text-muted">
+            <thead className="thead-data">
               <tr>
                 <th scope="col" className="px-5 py-3 font-mono font-medium">User</th>
                 <th scope="col" className="px-4 py-3 font-mono font-medium">API keys</th>
@@ -140,7 +140,7 @@ export default function SystemUsageTab({ period }) {
                   <td className="px-4 py-3.5 text-right">
                     {user.activeRequests > 0 ? (
                       <span className="inline-flex items-center gap-1.5 font-mono font-semibold tabular-nums text-success">
-                        <span className="size-1.5 rounded-full bg-success" />
+                        <span className="size-1.5 bg-success" />
                         {user.activeRequests}
                       </span>
                     ) : <span className="font-mono text-text-subtle">0</span>}

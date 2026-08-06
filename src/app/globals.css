@@ -401,6 +401,22 @@ input, textarea {
   background-color: var(--color-surface);
 }
 
+/* Data-table head: one rule so every table in the dashboard reads the same.
+   Column padding stays with each table — density is per-table, type is not. */
+.thead-data {
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-alt);
+}
+.thead-data th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .bg-hero-gradient {
   background: linear-gradient(180deg, var(--color-bg-alt) 0%, var(--color-bg) 100%);
 }
