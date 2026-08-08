@@ -10,6 +10,7 @@ import {
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboRoute } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
+import { maybeExecuteMediaGenTool } from "../services/mediaGenTool.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
 import { getTransform as getPxpipeTransform } from "@/lib/pxpipe/loader.js";
 import { appendPxpipeEvent } from "@/lib/pxpipe/events.js";
@@ -99,6 +100,18 @@ export async function handleChat(request, clientRawRequest = null) {
   }
 
   const requiredCapabilities = detectRequiredCapabilities(body);
+
+  // Server-side media_gen tool execution: when the request carries a pending
+  // `media_gen` tool call (ChatGPT desktop format with args_preview/image_urls),
+  // generate the image through the configured image providers and inject the
+  // tool result into the conversation before it is routed upstream.
+  if (Array.isArray(body.messages)) {
+    try {
+      body = await maybeExecuteMediaGenTool({ body, apiKey, settings, log });
+    } catch (e) {
+      log.warn("MEDIAGEN", `media_gen execution failed: ${e.message}`);
+    }
+  }
 
   // Check if model is a combo (has multiple models with fallback)
   const comboRoute = await getComboRoute(modelStr);

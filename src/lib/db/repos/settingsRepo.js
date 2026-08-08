@@ -54,6 +54,9 @@ const DEFAULT_SETTINGS = {
   pxpipeAutoInstall: true,
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,
+  // Default image model used when the gateway executes `media_gen` tool calls
+  // and the tool args don't name a model (e.g. "openai/gpt-image-1").
+  mediaGenModel: "",
 };
 
 const REMOVED_SETTING_KEYS = new Set([

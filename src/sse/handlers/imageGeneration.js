@@ -8,6 +8,7 @@ import {
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleImageGenerationCore } from "open-sse/handlers/imageGenerationCore.js";
+import { normalizeMediaGenBody } from "../services/mediaGenTool.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
@@ -29,6 +30,13 @@ export async function handleImageGeneration(request) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body");
   }
 
+  // Accept the ChatGPT `media_gen` body shape (args_preview / action / image_urls).
+  body = normalizeMediaGenBody(body);
+
+  const settings = await getSettings();
+  // Bare media_gen bodies may omit `model` — fall back to the mediaGenModel setting.
+  if (!body.model && settings.mediaGenModel) body.model = settings.mediaGenModel;
+
   const url = new URL(request.url);
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
   const wantsStream = (request.headers.get("accept") || "").includes("text/event-stream");
@@ -36,7 +44,6 @@ export async function handleImageGeneration(request) {
   const modelStr = body.model;
 
   const apiKey = extractApiKey(request);
-  const settings = await getSettings();
   if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
   const auth = await authorizeBillableApiKey(apiKey);
   if (!auth.ok) return errorResponse(auth.status, auth.message);
