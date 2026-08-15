@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   verifyUserCredentials: vi.fn(),
   createUser: vi.fn(),
+  isOidcConfigured: vi.fn(),
+  isSamlConfigured: vi.fn(),
   setDashboardAuthCookie: vi.fn(),
   checkLock: vi.fn(),
   recordFail: vi.fn(),
@@ -49,7 +51,11 @@ vi.mock("@/lib/auth/dashboardSession", () => ({
 }));
 
 vi.mock("@/lib/auth/oidc", () => ({
-  isOidcConfigured: vi.fn(() => false),
+  isOidcConfigured: mocks.isOidcConfigured,
+}));
+
+vi.mock("@/lib/auth/saml.js", () => ({
+  isSamlConfigured: mocks.isSamlConfigured,
 }));
 
 vi.mock("@/lib/auth/loginLimiter", () => ({
@@ -87,6 +93,8 @@ const admin = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getSettings.mockResolvedValue({ authMode: "password" });
+  mocks.isOidcConfigured.mockReturnValue(false);
+  mocks.isSamlConfigured.mockReturnValue(false);
   mocks.checkLock.mockReturnValue({ locked: false, retryAfter: 0 });
   mocks.recordFail.mockReturnValue({ remainingBeforeLock: 4 });
   mocks.getDashboardAccount.mockResolvedValue(admin);
@@ -148,6 +156,26 @@ describe("account registration", () => {
       expect.objectContaining({ userId: "user-id", role: "user", authType: "account" }),
       { remember: false }
     );
+  });
+
+  it.each([
+    ["oidc", "oidc"],
+    ["saml", "saml"],
+    ["sso", "oidc"],
+    ["sso", "saml"],
+  ])("rejects registration for configured %s/%s SSO-only mode", async (authMode, ssoType) => {
+    mocks.getSettings.mockResolvedValue({ authMode, ssoType });
+    mocks.isOidcConfigured.mockReturnValue(ssoType === "oidc");
+    mocks.isSamlConfigured.mockReturnValue(ssoType === "saml");
+
+    const response = await register(request({
+      username: "member",
+      email: "member@example.com",
+      password: "secret123",
+    }));
+
+    expect(response.status).toBe(403);
+    expect(mocks.createUser).not.toHaveBeenCalled();
   });
 });
 

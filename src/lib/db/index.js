@@ -18,6 +18,10 @@ export {
   hasSecureAdminAccount, resetRecoveryAdminCredentials,
 } from "./repos/usersRepo.js";
 
+export {
+  getUserByExternalIdentity, resolveOrProvisionExternalIdentity,
+} from "./repos/externalIdentitiesRepo.js";
+
 // Per-account preferences (token saver)
 export {
   DEFAULT_USER_TOKEN_SAVER_SETTINGS,
@@ -129,6 +133,7 @@ export async function exportDb() {
     userSettings: db.all(`SELECT userId, data FROM userSettings`).map((r) => ({
       userId: r.userId, data: parseJson(r.data, {}),
     })),
+    externalIdentities: db.all(`SELECT * FROM externalIdentities`),
     combos: db.all(`SELECT * FROM combos`).map((r) => ({
       id: r.id,
       name: r.name,
@@ -196,6 +201,7 @@ export async function importDb(payload) {
       // creditLedger and apiKeys.ownerUserId both FK to users — clear children first.
       db.run(`DELETE FROM creditLedger`);
       db.run(`DELETE FROM userSettings`);
+      db.run(`DELETE FROM externalIdentities`);
       db.run(`DELETE FROM users`);
     }
     db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'publishedModels', 'modelProviders', 'mitmAlias', 'pricing', 'disabledModels')`);
@@ -233,6 +239,14 @@ export async function importDb(payload) {
         db.run(
           `INSERT OR REPLACE INTO userSettings(userId, data) VALUES(?, ?)`,
           [s.userId, stringifyJson(s.data || {})],
+        );
+      }
+      for (const identity of payload.externalIdentities || []) {
+        if (!identity?.providerNamespace || !identity?.subject || !identity?.userId) continue;
+        if (!db.get("SELECT id FROM users WHERE id = ?", [identity.userId])) continue;
+        db.run(
+          `INSERT OR REPLACE INTO externalIdentities(providerNamespace, subject, userId, createdAt) VALUES(?, ?, ?, ?)`,
+          [identity.providerNamespace, identity.subject, identity.userId, identity.createdAt || new Date().toISOString()],
         );
       }
     }

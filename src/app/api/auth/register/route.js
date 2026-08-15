@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/localDb";
 import { createUser, USER_ROLES } from "@/lib/db/repos/usersRepo";
 import { setDashboardAuthCookie } from "@/lib/auth/dashboardSession";
 import { isOidcConfigured } from "@/lib/auth/oidc";
+import { isSamlConfigured } from "@/lib/auth/saml.js";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
@@ -11,8 +12,15 @@ const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 export async function POST(request) {
   try {
     const settings = await getSettings();
-    if (settings.authMode === "oidc" && isOidcConfigured(settings)) {
-      return NextResponse.json({ error: "Account registration is disabled while OIDC-only login is active." }, { status: 403 });
+    const authMode = settings.authMode || "password";
+    const ssoType = settings.ssoType || (authMode === "saml" ? "saml" : "oidc");
+    const ssoOnlyConfigured = (authMode === "oidc" && isOidcConfigured(settings))
+      || (authMode === "saml" && isSamlConfigured(settings))
+      || (authMode === "sso" && (
+        ssoType === "saml" ? isSamlConfigured(settings) : isOidcConfigured(settings)
+      ));
+    if (ssoOnlyConfigured) {
+      return NextResponse.json({ error: "Account registration is disabled while SSO-only login is active." }, { status: 403 });
     }
 
     const body = await request.json();

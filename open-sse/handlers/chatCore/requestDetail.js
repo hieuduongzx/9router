@@ -65,13 +65,14 @@ export function extractUsageFromResponse(responseBody) {
     };
   }
 
-  // Gemini format
-  if (responseBody.usageMetadata) {
+  // Gemini format. Antigravity / gemini-cli wrap the payload in { response: {...} }.
+  const usageMetadata = responseBody.usageMetadata || responseBody.response?.usageMetadata;
+  if (usageMetadata) {
     return {
-      prompt_tokens: responseBody.usageMetadata.promptTokenCount || 0,
-      completion_tokens: responseBody.usageMetadata.candidatesTokenCount || 0,
-      cached_tokens: responseBody.usageMetadata.cachedContentTokenCount || 0,
-      reasoning_tokens: responseBody.usageMetadata.thoughtsTokenCount || 0
+      prompt_tokens: usageMetadata.promptTokenCount || 0,
+      completion_tokens: usageMetadata.candidatesTokenCount || 0,
+      cached_tokens: usageMetadata.cachedContentTokenCount || 0,
+      reasoning_tokens: usageMetadata.thoughtsTokenCount || 0
     };
   }
 
@@ -84,7 +85,6 @@ export function buildRequestDetail(base, overrides = {}) {
     model: base.model || "unknown",
     publicModel: base.publicModel || undefined,
     connectionId: base.connectionId || undefined,
-    apiKey: base.apiKey || undefined,
     timestamp: new Date().toISOString(),
     latency: base.latency || { ttft: 0, total: 0 },
     tokens: base.tokens || { prompt_tokens: 0, completion_tokens: 0 },

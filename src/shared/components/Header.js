@@ -371,7 +371,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         ) : null}
       </div>
 
-      {/* Right actions — identity is not here; it lives at the foot of the rail */}
+      {/* Right actions; identity, role, and balance live in the account menu. */}
       <div className="flex shrink-0 items-center gap-1.5">
         <HeaderSearch />
         {!onApiKeysPage && (

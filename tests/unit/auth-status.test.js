@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
   getSettings: vi.fn(),
   isOidcConfigured: vi.fn(),
+  isSamlLoginEnabled: vi.fn(),
   getDashboardAuthSession: vi.fn(),
   getPrimaryAdmin: vi.fn(),
   getUserById: vi.fn(),
@@ -29,6 +30,10 @@ vi.mock("@/lib/localDb", () => ({
 
 vi.mock("@/lib/auth/oidc", () => ({
   isOidcConfigured: mocks.isOidcConfigured,
+}));
+
+vi.mock("@/lib/auth/saml.js", () => ({
+  isSamlLoginEnabled: mocks.isSamlLoginEnabled,
 }));
 
 vi.mock("@/lib/db/repos/usersRepo", () => ({
@@ -55,6 +60,7 @@ describe("GET /api/auth/status", () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: true, authMode: "password" });
     mocks.cookies.mockResolvedValue({ get: vi.fn(() => ({ value: "session-token" })) });
     mocks.isOidcConfigured.mockReturnValue(false);
+    mocks.isSamlLoginEnabled.mockReturnValue(false);
     mocks.getPrimaryAdmin.mockResolvedValue({});
     mocks.renewDashboardAuthCookie.mockResolvedValue();
   });
@@ -75,6 +81,21 @@ describe("GET /api/auth/status", () => {
     const response = await GET();
 
     expect(response.body.authenticated).toBe(false);
+  });
+
+  it.each(["oidc", "saml"])("does not authenticate an %s marker for a missing account", async (protocol) => {
+    mocks.getDashboardAuthSession.mockResolvedValue({
+      authenticated: true,
+      userId: "deleted-user",
+      [protocol]: true,
+    });
+    mocks.getUserById.mockResolvedValue(null);
+
+    const response = await GET();
+
+    expect(response.body.authenticated).toBe(false);
+    expect(response.body[`${protocol}Login`]).toBe(false);
+    expect(mocks.renewDashboardAuthCookie).not.toHaveBeenCalled();
   });
 
   it("fails closed when status dependencies throw", async () => {

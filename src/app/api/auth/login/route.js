@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/localDb";
 import { publicUser, verifyUserCredentials } from "@/lib/db/repos/usersRepo";
 import { setDashboardAuthCookie } from "@/lib/auth/dashboardSession";
 import { isOidcConfigured } from "@/lib/auth/oidc";
+import { isSamlConfigured } from "@/lib/auth/saml.js";
 import { checkLock, recordFail, recordSuccess, getClientIp } from "@/lib/auth/loginLimiter";
 
 const RESET_HINT = "Forgot your account password? Generate a one-time recovery password from the local Router2k CLI (9router) → Settings → Reset Admin Account.";
@@ -32,7 +33,12 @@ export async function POST(request) {
     }
 
     const settings = await getSettings();
-    if (settings.authMode === "oidc" && isOidcConfigured(settings)) {
+    const ssoOnly = ["sso", "saml", "oidc"].includes(settings.authMode);
+    const ssoType = settings.ssoType || (settings.authMode === "saml" ? "saml" : "oidc");
+    if (ssoOnly && ssoType === "saml" && isSamlConfigured(settings)) {
+      return NextResponse.json({ error: "Account login is disabled. Use SAML SSO sign in." }, { status: 403, headers: NO_STORE_HEADERS });
+    }
+    if (ssoOnly && ssoType === "oidc" && isOidcConfigured(settings)) {
       return NextResponse.json({ error: "Account login is disabled. Use OIDC sign in." }, { status: 403, headers: NO_STORE_HEADERS });
     }
 

@@ -29,7 +29,6 @@ import p26 from "./deepseek.js";
 import p27 from "./edge-tts.js";
 import p28 from "./elevenlabs.js";
 import p29 from "./exa.js";
-import p30 from "./fal-ai.js";
 import p31 from "./featherless.js";
 import p32 from "./firecrawl.js";
 import p33 from "./fireworks.js";
@@ -120,6 +119,8 @@ import p117 from "./tokenrouter.js";
 import p118 from "./selfhosted-stt.js";
 import p119 from "./selfhosted-tts.js";
 import p120 from "./selfhosted-embedding.js";
+import p121 from "./fish-audio.js";
+import p122 from "./alitp-intl.js";
 
 const registry = [
   p0,
@@ -152,7 +153,6 @@ const registry = [
   p27,
   p28,
   p29,
-  p30,
   p31,
   p32,
   p33,
@@ -241,6 +241,8 @@ const registry = [
   p118,
   p119,
   p120,
+  p121,
+  p122,
 ];
 
 export default registry;

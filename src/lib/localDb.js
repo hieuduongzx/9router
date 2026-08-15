@@ -7,6 +7,7 @@ export {
   usdCostToCents, debitUserCreditForUsage, listCreditLedger, deleteUserAccount,
   verifyUserCredentials, verifyUserPassword, updateUserPassword,
   hasSecureAdminAccount, resetRecoveryAdminCredentials,
+  getUserByExternalIdentity, resolveOrProvisionExternalIdentity,
   DEFAULT_USER_TOKEN_SAVER_SETTINGS, getUserSettings, getUserTokenSaverSettings, updateUserSettings,
   getProviderConnections, getProviderConnectionById,
   createProviderConnection, updateProviderConnection,

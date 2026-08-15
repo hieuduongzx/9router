@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS = {
     videoInput: { enabled: false, roundRobin: false, models: [] },
   },
   authMode: "password",
+  ssoType: "oidc",
   oidcIssuerUrl: "",
   oidcClientId: "",
   oidcClientSecret: "",
@@ -33,6 +34,12 @@ const DEFAULT_SETTINGS = {
   // Days of per-request usage rows to keep. usageHistory grows one row per
   // request forever otherwise; 0 disables pruning and accepts that.
   usageRetentionDays: 180,
+  samlEntryPoint: "",
+  samlIssuer: "urn:router2k:sp",
+  samlCert: "",
+  samlLoginLabel: "Sign in with SAML SSO",
+  samlAttributeEmail: "email",
+  samlAttributeName: "name",
   observabilityMaxRecords: 1000,
   observabilityBatchSize: 20,
   observabilityFlushIntervalMs: 5000,
@@ -81,7 +88,7 @@ async function readRaw() {
 }
 
 // Merge persisted settings with defaults while dropping retired feature keys.
-function mergeWithDefaults(raw) {
+export function mergeWithDefaults(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...sanitizeSettings(raw) };
   for (const [key, defVal] of Object.entries(DEFAULT_SETTINGS)) {
     if (merged[key] === undefined) {

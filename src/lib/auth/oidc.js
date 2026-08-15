@@ -50,7 +50,9 @@ export function isOidcConfigured(settings) {
 
 export async function getOidcRuntimeConfig() {
   const settings = await getSettings();
-  if (!["oidc", "both"].includes(settings.authMode) || !isOidcConfigured(settings)) return null;
+  const oidcEnabled = ["oidc", "both"].includes(settings.authMode)
+    || (settings.authMode === "sso" && settings.ssoType === "oidc");
+  if (!oidcEnabled || !isOidcConfigured(settings)) return null;
 
   const issuerUrl = trimTrailingSlashes(settings.oidcIssuerUrl);
   return {

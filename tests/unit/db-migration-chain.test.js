@@ -36,9 +36,43 @@ describe("Schema migrations", () => {
     expect(tables).toEqual(expect.arrayContaining([
       "_meta", "settings", "providerConnections", "providerNodes",
       "proxyPools", "apiKeys", "combos", "kv", "usageHistory", "usageDaily", "requestDetails",
+      "externalIdentities",
     ]));
     const userColumns = db.all("PRAGMA table_info(users)").map((column) => column.name);
     expect(userColumns).toContain("creditCents");
+  });
+
+  it("provisions and persistently binds external identities without bootstrapping an admin", async () => {
+    const {
+      createUser,
+      getUserByExternalIdentity,
+      resolveOrProvisionExternalIdentity,
+    } = await import("@/lib/db/index.js");
+
+    const [first, concurrent] = await Promise.all([
+      resolveOrProvisionExternalIdentity("saml:https://idp.example", "stable-subject"),
+      resolveOrProvisionExternalIdentity("saml:https://idp.example", "stable-subject"),
+    ]);
+
+    expect(first.id).toBe(concurrent.id);
+    expect(first.role).toBe("user");
+    expect(first.email).toMatch(/^saml-[0-9a-f]+@identity\.local$/);
+    expect((await getUserByExternalIdentity("saml:https://idp.example", "stable-subject")).id).toBe(first.id);
+
+    const assertedEmailAccount = await createUser({
+      username: "existing.admin",
+      email: "asserted@example.com",
+      password: "existing-password",
+      role: "admin",
+    });
+    expect(assertedEmailAccount.role).toBe("admin");
+    expect(assertedEmailAccount.id).not.toBe(first.id);
+
+    const otherProvider = await resolveOrProvisionExternalIdentity(
+      "saml:https://other-idp.example",
+      "stable-subject",
+    );
+    expect(otherProvider.id).not.toBe(first.id);
   });
 
   it("existing DB at older schemaVersion → re-applies pending migrations on restart", async () => {

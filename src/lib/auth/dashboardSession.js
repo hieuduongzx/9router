@@ -44,14 +44,20 @@ export async function createDashboardAuthToken(claims = {}, { remember = false }
 }
 
 function hasSessionIdentity(payload) {
-  return payload?.authenticated === true && (!!payload.userId || payload.oidc === true);
+  return payload?.authenticated === true && !!payload.userId;
+}
+
+async function hasActiveSessionAccount(payload) {
+  if (!hasSessionIdentity(payload)) return false;
+  const user = await getUserById(payload.userId);
+  return user?.isActive === true;
 }
 
 export async function verifyDashboardAuthToken(token) {
   if (!token) return false;
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return hasSessionIdentity(payload);
+    return await hasActiveSessionAccount(payload);
   } catch {
     return false;
   }
@@ -61,7 +67,7 @@ export async function getDashboardAuthSession(token) {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return hasSessionIdentity(payload) ? payload : null;
+    return await hasActiveSessionAccount(payload) ? payload : null;
   } catch {
     return null;
   }

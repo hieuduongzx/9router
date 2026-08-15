@@ -58,12 +58,16 @@ export default function LoginPage() {
   const [retryAfter, setRetryAfter] = useState(0);
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState("password");
+  const [ssoType, setSsoType] = useState("oidc");
   const [oidcConfigured, setOidcConfigured] = useState(false);
   const [oidcLoginLabel, setOidcLoginLabel] = useState("Sign in with OIDC");
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [samlConfigured, setSamlConfigured] = useState(false);
+  const [samlLoginLabel, setSamlLoginLabel] = useState("Sign in with SAML SSO");
   const [mustChange, setMustChange] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Initialize client-only URL and localStorage state after hydration. */
   useEffect(() => {
     if (retryAfter <= 0) return;
     const id = window.setInterval(() => setRetryAfter((seconds) => Math.max(0, seconds - 1)), 1000);
@@ -76,6 +80,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedMode = params.get("mode");
     if (requestedMode === "register") setMode("register");
+    if (params.get("error")) setError(params.get("error"));
 
     const remembered = readRememberedLogin();
     setRememberMe(remembered.remember);
@@ -91,8 +96,11 @@ export default function LoginPage() {
           return;
         }
         setAuthMode(data.authMode || "password");
+        setSsoType(data.ssoType || "oidc");
         setOidcConfigured(data.oidcConfigured === true);
         setOidcLoginLabel(data.oidcLoginLabel || "Sign in with OIDC");
+        setSamlConfigured(data.samlConfigured === true);
+        setSamlLoginLabel(data.samlLoginLabel || "Sign in with SAML SSO");
         setRegistrationEnabled(data.registrationEnabled !== false);
         setReady(true);
       })
@@ -106,6 +114,7 @@ export default function LoginPage() {
       controller.abort();
     };
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const clearFeedback = () => {
     setError("");
@@ -206,8 +215,13 @@ export default function LoginPage() {
     }
   };
 
-  const oidcAvailable = oidcConfigured && ["oidc", "both"].includes(authMode);
-  const accountAvailable = authMode !== "oidc" || !oidcConfigured;
+  const isSsoEnabled = ["sso", "oidc", "saml", "both"].includes(authMode);
+  const activeSsoType = ssoType || (authMode === "saml" ? "saml" : "oidc");
+
+  const samlAvailable = isSsoEnabled && activeSsoType === "saml" && samlConfigured;
+  const oidcAvailable = isSsoEnabled && activeSsoType === "oidc" && oidcConfigured;
+  const ssoAvailable = samlAvailable || oidcAvailable;
+  const accountAvailable = authMode === "password" || authMode === "both" || !ssoAvailable;
 
   if (!ready) {
     return (
@@ -279,7 +293,13 @@ export default function LoginPage() {
                     {mode === "login" ? "Welcome back" : "Create your account"}
                   </h2>
                   <p className="mt-2 text-sm text-text-muted">
-                    {mode === "login" ? "Sign in with your username or email." : "New accounts are created with the user role."}
+                    {mode === "login"
+                      ? samlAvailable
+                        ? "Continue with your organization’s SAML identity."
+                        : oidcAvailable
+                          ? "Continue with your identity provider or Router2k account."
+                          : "Sign in with your username or email."
+                      : "New accounts are created with the user role."}
                   </p>
                 </div>
 
@@ -304,6 +324,13 @@ export default function LoginPage() {
                   </form>
                 ) : (
                   <div className="mt-6 space-y-5">
+                    {samlAvailable && (
+                      <Button type="button" variant="primary" className="w-full" onClick={() => {
+                        window.location.href = "/api/auth/saml/start";
+                      }}>
+                        {samlLoginLabel}
+                      </Button>
+                    )}
                     {oidcAvailable && (
                       <div className="space-y-4">
                         <Button type="button" variant="primary" className="w-full" onClick={() => {
@@ -315,12 +342,12 @@ export default function LoginPage() {
                         {!accountAvailable && <RememberMeField id="oidc-remember" checked={rememberMe} onChange={setRememberMe} />}
                       </div>
                     )}
-                    {oidcAvailable && accountAvailable && (
+                    {ssoAvailable && accountAvailable && (
                       <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-wide text-text-subtle"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
                     )}
                     {accountAvailable && (
                       <form onSubmit={handleLogin} className="space-y-4">
-                        <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" autoComplete="username" required autoFocus={!oidcAvailable} />
+                        <Input id="login-username" label="Username or email" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your.username" autoComplete="username" required autoFocus={!ssoAvailable} />
                         <Input id="login-password" label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
                         <RememberMeField id="login-remember" checked={rememberMe} onChange={setRememberMe} />
                         {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
