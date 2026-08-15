@@ -7,7 +7,7 @@ import {
   extractApiKey,
   authorizeBillableApiKey,
 } from "../services/auth.js";
-import { getSettings } from "@/lib/localDb";
+import { getSettings, getUserTokenSaverSettings } from "@/lib/localDb";
 import { getModelInfo, getComboRoute } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { maybeExecuteMediaGenTool } from "../services/mediaGenTool.js";
@@ -75,6 +75,12 @@ export async function handleChat(request, clientRawRequest = null) {
     return errorResponse(auth.status, auth.message);
   }
 
+  // Token-saver preferences are per-account: each account's own settings apply
+  // to requests made with its API key, instead of one global admin config.
+  const accountTokenSaver = auth?.owner?.id
+    ? await getUserTokenSaverSettings(auth.owner.id)
+    : null;
+
   if (!modelStr) {
     log.warn("CHAT", "Missing model");
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing model");
@@ -135,7 +141,7 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, comboRoute.thinkingMode);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, comboRoute.thinkingMode, accountTokenSaver);
         },
         log,
         comboName: modelStr,
@@ -150,7 +156,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, comboRoute.thinkingMode),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, comboRoute.thinkingMode, accountTokenSaver),
         adapterAdded
       ),
       log,
@@ -170,7 +176,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: soloAugmented,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, "auto", accountTokenSaver),
         adapterAdded
       ),
       log,
@@ -179,13 +185,13 @@ export async function handleChat(request, clientRawRequest = null) {
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, "auto", accountTokenSaver);
 }
 
 /**
  * Handle single model chat request
  */
-async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, modelThinking = "auto") {
+async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, modelThinking = "auto", accountTokenSaver = null) {
   const modelInfo = await getModelInfo(modelStr);
 
   // If provider is null, this might be a combo name - check and handle
@@ -213,7 +219,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, comboRoute.thinkingMode);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, comboRoute.thinkingMode, accountTokenSaver);
           },
           log,
           comboName: modelStr,
@@ -228,7 +234,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, comboRoute.thinkingMode),
+          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, comboRoute.thinkingMode, accountTokenSaver),
           adapterAdded
         ),
         log,
@@ -287,6 +293,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     // Use shared chatCore
     const chatSettings = await getSettings();
+    // Token-saver flags are per-account; everything else stays global.
+    const ts = accountTokenSaver || chatSettings;
     const result = await handleChatCore({
       body: { ...body, model: `${provider}/${model}` },
       modelInfo: { provider, model },
@@ -297,19 +305,19 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       userAgent,
       apiKey,
       ccFilterNaming: !!chatSettings.ccFilterNaming,
-      rtkEnabled: !!chatSettings.rtkEnabled,
-      headroomEnabled: !!chatSettings.headroomEnabled,
-      headroomUrl: chatSettings.headroomUrl || DEFAULT_HEADROOM_URL,
-      headroomCompressUserMessages: !!chatSettings.headroomCompressUserMessages,
-      cavemanEnabled: !!chatSettings.cavemanEnabled,
-      cavemanLevel: chatSettings.cavemanLevel || "full",
-      ponytailEnabled: !!chatSettings.ponytailEnabled,
-      ponytailLevel: chatSettings.ponytailLevel || "full",
-      pxpipeEnabled: !!chatSettings.pxpipeEnabled,
-      pxpipeMinChars: chatSettings.pxpipeMinChars,
-      pxpipeTimeoutMs: chatSettings.pxpipeTimeoutMs,
+      rtkEnabled: !!ts.rtkEnabled,
+      headroomEnabled: !!ts.headroomEnabled,
+      headroomUrl: ts.headroomUrl || DEFAULT_HEADROOM_URL,
+      headroomCompressUserMessages: !!ts.headroomCompressUserMessages,
+      cavemanEnabled: !!ts.cavemanEnabled,
+      cavemanLevel: ts.cavemanLevel || "full",
+      ponytailEnabled: !!ts.ponytailEnabled,
+      ponytailLevel: ts.ponytailLevel || "full",
+      pxpipeEnabled: !!ts.pxpipeEnabled,
+      pxpipeMinChars: ts.pxpipeMinChars,
+      pxpipeTimeoutMs: ts.pxpipeTimeoutMs,
       // Lazily warms the in-process module on first use; null when not installed (fail-open)
-      pxpipeTransform: chatSettings.pxpipeEnabled ? await getPxpipeTransform() : null,
+      pxpipeTransform: ts.pxpipeEnabled ? await getPxpipeTransform() : null,
       onPxpipeEvent: appendPxpipeEvent,
       modelThinking,
       providerThinking: (chatSettings.providerThinking || {})[provider] || null,

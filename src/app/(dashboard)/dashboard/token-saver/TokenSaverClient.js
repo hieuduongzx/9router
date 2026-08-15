@@ -72,11 +72,24 @@ export default function TokenSaverClient() {
     const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
     if (current?.wenyan && !isWenyanLocale) {
       setCavemanLevel("ultra");
-      patchSetting({ cavemanLevel: "ultra" });
+      patchTokenSaver({ cavemanLevel: "ultra" });
     }
   }, [isWenyanLocale, cavemanLevel]);
 
-  const patchSetting = async (patch) => {
+  async function patchTokenSaver(patch) {
+    try {
+      await fetch("/api/token-saver", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch (error) {
+      console.log("Error updating token saver setting:", error);
+    }
+  }
+
+  // Machine-level settings (headroom extras activation) stay host-wide/admin.
+  async function patchSetting(patch) {
     try {
       await fetch("/api/settings", {
         method: "PATCH",
@@ -86,11 +99,11 @@ export default function TokenSaverClient() {
     } catch (error) {
       console.log("Error updating setting:", error);
     }
-  };
+  }
 
   const handleRtkEnabled = async (value) => {
     try {
-      const res = await fetch("/api/settings", {
+      const res = await fetch("/api/token-saver", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rtkEnabled: value }),
@@ -103,20 +116,20 @@ export default function TokenSaverClient() {
 
   const handleCavemanEnabled = (value) => {
     setCavemanEnabled(value);
-    patchSetting({ cavemanEnabled: value });
+    patchTokenSaver({ cavemanEnabled: value });
   };
 
   const handleHeadroomEnabled = (value) => {
     const nextUrl = headroomUrl.trim() || "http://localhost:8787";
     setHeadroomUrl(nextUrl);
     setHeadroomEnabled(value);
-    patchSetting({ headroomEnabled: value, headroomUrl: nextUrl });
+    patchTokenSaver({ headroomEnabled: value, headroomUrl: nextUrl });
   };
 
   const handleHeadroomUrlBlur = async () => {
     const next = headroomUrl.trim() || "http://localhost:8787";
     setHeadroomUrl(next);
-    await patchSetting({ headroomUrl: next });
+    await patchTokenSaver({ headroomUrl: next });
     refreshHeadroomStatus();
   };
 
@@ -337,17 +350,17 @@ export default function TokenSaverClient() {
 
   const handleCavemanLevel = (level) => {
     setCavemanLevel(level);
-    patchSetting({ cavemanLevel: level });
+    patchTokenSaver({ cavemanLevel: level });
   };
 
   const handlePonytailEnabled = (value) => {
     setPonytailEnabled(value);
-    patchSetting({ ponytailEnabled: value });
+    patchTokenSaver({ ponytailEnabled: value });
   };
 
   const handlePonytailLevel = (level) => {
     setPonytailLevel(level);
-    patchSetting({ ponytailLevel: level });
+    patchTokenSaver({ ponytailLevel: level });
   };
 
   const refreshPxpipeStatus = useCallback(async () => {
@@ -394,39 +407,48 @@ export default function TokenSaverClient() {
 
   const handlePxpipeEnabled = (value) => {
     setPxpipeEnabled(value);
-    patchSetting({ pxpipeEnabled: value });
+    patchTokenSaver({ pxpipeEnabled: value });
   };
 
   const handlePxpipeMinCharsBlur = () => {
     const next = Math.max(0, Number(pxpipeMinChars) || 25000);
     setPxpipeMinChars(next);
-    patchSetting({ pxpipeMinChars: next });
+    patchTokenSaver({ pxpipeMinChars: next });
   };
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadTokenSaver = async () => {
       try {
-        const res = await fetch("/api/settings");
+        const res = await fetch("/api/token-saver");
         if (res.ok) {
           const data = await res.json();
           setRtkEnabledState(data.rtkEnabled !== false);
           setHeadroomEnabled(!!data.headroomEnabled);
           setHeadroomUrl(data.headroomUrl || "http://localhost:8787");
-          setCodeAware(data.headroomCodeAware === true);
-          setKompress(data.headroomKompress !== false);
           setCavemanEnabled(!!data.cavemanEnabled);
           setCavemanLevel(data.cavemanLevel || "full");
           setPonytailEnabled(!!data.ponytailEnabled);
           setPonytailLevel(data.ponytailLevel || "full");
           setPxpipeEnabled(!!data.pxpipeEnabled);
           if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
-          refreshHeadroomStatus();
-          // PRD: run the PXPIPE health check automatically when the page opens
-          refreshPxpipeStatus().then(runPxpipeHealth);
         }
       } catch {}
     };
-    loadSettings();
+    const loadMachineExtras = async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const data = await res.json();
+          setCodeAware(data.headroomCodeAware === true);
+          setKompress(data.headroomKompress !== false);
+        }
+      } catch {}
+    };
+    loadTokenSaver();
+    loadMachineExtras();
+    refreshHeadroomStatus();
+    // PRD: run the PXPIPE health check automatically when the page opens
+    refreshPxpipeStatus().then(runPxpipeHealth);
   }, [refreshHeadroomStatus, refreshPxpipeStatus, runPxpipeHealth]);
 
   const headroomRunning = !!headroomStatus.running;

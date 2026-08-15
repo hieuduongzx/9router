@@ -8,12 +8,17 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
+import {
+  CHART_COLORS,
+  CHART_TICK,
+  CHART_TOOLTIP_LABEL,
+  CHART_TOOLTIP_STYLE,
+} from "@/shared/utils/chartTheme";
 
 const ProviderTopology = dynamic(() => import("./ProviderTopology"), { ssr: false });
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
-const CHART_TOOLTIP_STYLE = { background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 0, fontFamily: "var(--font-mono)", fontSize: 12 };
-const CHART_TICK = { fill: "var(--color-text-muted)", fontSize: 10 };
+
 
 function formatNumber(value) {
   return NUMBER_FORMAT.format(Number(value) || 0);
@@ -149,8 +154,9 @@ export default function ProviderActivityTab({ period }) {
                 <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeOpacity={0.65} />
                 <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
                 <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value) => [formatNumber(value), "Requests"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Bar dataKey="requests" fill="#4F7CAC" maxBarSize={24} isAnimationActive={false} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [formatNumber(value), "Requests"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Bar dataKey="requests" fill={CHART_COLORS.info} maxBarSize={24} isAnimationActive={false} />
+
               </BarChart>
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No provider traffic in this period.</div>}
           </div>
@@ -167,8 +173,9 @@ export default function ProviderActivityTab({ period }) {
                 <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeOpacity={0.65} />
                 <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
                 <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value) => [MONEY_FORMAT.format(Number(value) || 0), "Spend"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Bar dataKey="cost" fill="#C47A5A" maxBarSize={24} isAnimationActive={false} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [MONEY_FORMAT.format(Number(value) || 0), "Spend"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
+                <Bar dataKey="cost" fill={CHART_COLORS.cost} maxBarSize={24} isAnimationActive={false} />
+
               </BarChart>
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No provider spend in this period.</div>}
           </div>

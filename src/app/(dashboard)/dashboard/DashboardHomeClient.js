@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Bar,
+  Area,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -20,21 +20,27 @@ import StatTile from "@/shared/components/StatTile";
 import { USAGE_PERIODS } from "@/shared/constants/usagePeriods";
 import { cn } from "@/shared/utils/cn";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
+import {
+  CHART_COLORS,
+  CHART_GRID,
+  CHART_RAMP,
+  CHART_TICK,
+  CHART_TOOLTIP_LABEL,
+  CHART_TOOLTIP_STYLE,
+} from "@/shared/utils/chartTheme";
 import QuickStartPanel from "./components/QuickStartPanel";
 
-const COLOR_INPUT = "#7C3AED";
-const COLOR_OUTPUT = "#2563EB";
-const COLOR_COST = "#16A34A";
+const COLOR_INPUT = CHART_COLORS.input;
+const COLOR_OUTPUT = CHART_COLORS.output;
+const COLOR_COST = CHART_COLORS.cost;
 
 const STATUS_META = {
-  success: { label: "Successful", color: "#16A34A" },
-  error: { label: "Failed", color: "#DC2626" },
-  rate_limited: { label: "Rate limited", color: "#F59E0B" },
-  other: { label: "Other", color: "#2563EB" },
+  success: { label: "Successful", color: CHART_COLORS.cost },
+  error: { label: "Failed", color: CHART_COLORS.danger },
+  rate_limited: { label: "Rate limited", color: CHART_COLORS.requests },
+  other: { label: "Other", color: CHART_COLORS.info },
 };
 
-const MODEL_COLORS = ["#7C3AED", "#2563EB", "#16A34A", "#F59E0B"];
-const OTHER_COLOR = "#A1A1AA";
 
 const DEFAULT_PERIOD = "24h";
 
@@ -407,13 +413,13 @@ export default function DashboardHomeClient() {
         >
           {chartHasData ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }} barCategoryGap="34%">
-                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
+              <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+                <CartesianGrid vertical={false} {...CHART_GRID} />
                 <XAxis
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "var(--color-text-muted)", fontSize: 10 }}
+                  tick={CHART_TICK}
                   tickMargin={10}
                   minTickGap={16}
                 />
@@ -421,46 +427,47 @@ export default function DashboardHomeClient() {
                   yAxisId="tokens"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "var(--color-text-muted)", fontSize: 10 }}
+                  tick={CHART_TICK}
                   tickFormatter={formatNumber}
                   width={54}
                 />
                 <YAxis yAxisId="cost" orientation="right" hide />
                 <Tooltip
-                  cursor={{ fill: "var(--color-surface-2)", opacity: 0.6 }}
-                  contentStyle={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    color: "var(--color-text-main)",
-                    fontSize: 12,
-                  }}
+                  cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={CHART_TOOLTIP_LABEL}
                   formatter={(value, name) => [
                     name === "Cost" ? formatCurrency(value) : formatNumber(value),
                     name,
                   ]}
                 />
-                <Bar
+                <Area
                   yAxisId="tokens"
+                  type="monotone"
                   dataKey="promptTokens"
                   name="Input"
                   stackId="tokens"
+                  stroke={COLOR_INPUT}
                   fill={COLOR_INPUT}
-                  maxBarSize={34}
+                  fillOpacity={0.28}
+                  strokeWidth={1.5}
                   isAnimationActive={false}
                 />
-                <Bar
+                <Area
                   yAxisId="tokens"
+                  type="monotone"
                   dataKey="completionTokens"
                   name="Output"
                   stackId="tokens"
+                  stroke={COLOR_OUTPUT}
                   fill={COLOR_OUTPUT}
-                  maxBarSize={34}
+                  fillOpacity={0.28}
+                  strokeWidth={1.5}
                   isAnimationActive={false}
                 />
                 <Line
                   yAxisId="cost"
-                  type="linear"
+                  type="monotone"
                   dataKey="cost"
                   name="Cost"
                   stroke={COLOR_COST}
@@ -470,6 +477,7 @@ export default function DashboardHomeClient() {
                   isAnimationActive={false}
                 />
               </ComposedChart>
+
             </ResponsiveContainer>
           ) : (
             <EmptyState
@@ -553,7 +561,10 @@ export default function DashboardHomeClient() {
               <div className="flex flex-col gap-3.5 px-5 py-4">
                 {modelData.map((model, index) => {
                   const share = modelTotal ? (model.value / modelTotal) * 100 : 0;
-                  const color = model.isOther ? OTHER_COLOR : MODEL_COLORS[index % MODEL_COLORS.length];
+                  const color = model.isOther
+                    ? "var(--color-text-subtle)"
+                    : CHART_RAMP[index % CHART_RAMP.length];
+
                   return (
                     <div key={model.name} className="min-w-0">
                       <div className="flex items-baseline justify-between gap-3">

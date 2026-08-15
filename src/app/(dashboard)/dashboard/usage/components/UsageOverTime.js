@@ -3,19 +3,23 @@
 import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import { SectionLabel, PeriodDropdown } from "@/shared/components";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
-
-const INPUT_COLOR = "#7C3AED";
-const OUTPUT_COLOR = "#2563EB";
+import {
+  CHART_COLORS,
+  CHART_GRID,
+  CHART_TICK,
+  CHART_TOOLTIP_LABEL,
+  CHART_TOOLTIP_STYLE,
+} from "@/shared/utils/chartTheme";
 
 const fmtNum = (v) => {
   const n = Number(v) || 0;
@@ -25,16 +29,7 @@ const fmtNum = (v) => {
 };
 const fmtCost = (v) => `$${(Number(v) || 0).toFixed(2)}`;
 
-const tooltipStyle = {
-  backgroundColor: "var(--color-surface)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "0px",
-  color: "var(--color-text-main)",
-  fontSize: "11px",
-  fontFamily: "var(--font-mono)",
-};
-const tooltipCursor = { fill: "var(--color-surface-2)", opacity: 0.7 };
-const axisTick = { fill: "var(--color-text-muted)", fontSize: 10 };
+const tooltipCursor = { stroke: "var(--color-border)", strokeWidth: 1 };
 
 function MiniChart({ label, total, children }) {
   return (
@@ -50,9 +45,23 @@ function MiniChart({ label, total, children }) {
 
 MiniChart.propTypes = { label: PropTypes.string.isRequired, total: PropTypes.node, children: PropTypes.node };
 
+const CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 };
+
+function XAxisShared() {
+  return (
+    <XAxis
+      dataKey="label"
+      tickLine={false}
+      axisLine={false}
+      tick={CHART_TICK}
+      tickMargin={8}
+      interval="preserveStartEnd"
+    />
+  );
+}
+
 export default function UsageOverTime({ period, onPeriodChange, apiKeyId = "all", scope = "account", title = "Usage Over Time" }) {
   const [points, setPoints] = useState([]);
-  const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -65,10 +74,8 @@ export default function UsageOverTime({ period, onPeriodChange, apiKeyId = "all"
       if (!response.ok) throw new Error("Unable to load usage over time");
       const data = await response.json();
       setPoints(normalizeUsageChartPoints(data));
-      setSeries(Array.isArray(data?.series) ? data.series : []);
     } catch {
       setPoints([]);
-      setSeries([]);
     } finally {
       setLoading(false);
     }
@@ -97,74 +104,93 @@ export default function UsageOverTime({ period, onPeriodChange, apiKeyId = "all"
         <div className="flex h-[260px] items-center justify-center text-sm text-text-muted">No usage in this period.</div>
       ) : (
         <div className="tile-grid grid-cols-1 md:grid-cols-3">
-          <MiniChart label="Requests by model" total={fmtNum(totalRequests)}>
+          <MiniChart label="Requests" total={fmtNum(totalRequests)}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="22%">
-                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} tickMargin={8} interval="preserveStartEnd" />
-                <YAxis tickLine={false} axisLine={false} tick={axisTick} tickFormatter={fmtNum} width={40} />
-                <Tooltip cursor={tooltipCursor} contentStyle={tooltipStyle} formatter={(value, name) => [fmtNum(value), name]} />
-                {series.map((s) => (
-                  <Bar
-                    key={s.id}
-                    dataKey={`r_${s.id}`}
-                    name={s.name}
-                    stackId="requests"
-                    fill={s.color}
-                    maxBarSize={28}
-                    isAnimationActive={false}
-                  />
-                ))}
-              </BarChart>
+              <AreaChart data={points} margin={CHART_MARGIN}>
+                <CartesianGrid vertical={false} {...CHART_GRID} />
+                <XAxisShared />
+                <YAxis tickLine={false} axisLine={false} tick={CHART_TICK} tickFormatter={fmtNum} width={40} />
+                <Tooltip
+                  cursor={tooltipCursor}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={CHART_TOOLTIP_LABEL}
+                  formatter={(value) => [fmtNum(value), "Requests"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="requests"
+                  name="Requests"
+                  stroke={CHART_COLORS.requests}
+                  fill={CHART_COLORS.requests}
+                  fillOpacity={0.22}
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </MiniChart>
 
-          <MiniChart label="Spend by model" total={fmtCost(totalCost)}>
+          <MiniChart label="Spend" total={fmtCost(totalCost)}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="22%">
-                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} tickMargin={8} interval="preserveStartEnd" />
-                <YAxis tickLine={false} axisLine={false} tick={axisTick} tickFormatter={(v) => `$${(v || 0).toFixed(2)}`} width={48} />
-                <Tooltip cursor={tooltipCursor} contentStyle={tooltipStyle} formatter={(value, name) => [fmtCost(value), name]} />
-                {series.map((s) => (
-                  <Bar
-                    key={s.id}
-                    dataKey={`c_${s.id}`}
-                    name={s.name}
-                    stackId="spend"
-                    fill={s.color}
-                    maxBarSize={28}
-                    isAnimationActive={false}
-                  />
-                ))}
-              </BarChart>
+              <AreaChart data={points} margin={CHART_MARGIN}>
+                <CartesianGrid vertical={false} {...CHART_GRID} />
+                <XAxisShared />
+                <YAxis tickLine={false} axisLine={false} tick={CHART_TICK} tickFormatter={(v) => `$${(v || 0).toFixed(2)}`} width={48} />
+                <Tooltip
+                  cursor={tooltipCursor}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={CHART_TOOLTIP_LABEL}
+                  formatter={(value) => [fmtCost(value), "Spend"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cost"
+                  name="Spend"
+                  stroke={CHART_COLORS.cost}
+                  fill={CHART_COLORS.cost}
+                  fillOpacity={0.22}
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </MiniChart>
 
-          <MiniChart label="Input + output tokens" total={fmtNum(totalTokens)}>
+          <MiniChart label="Tokens (in · out)" total={fmtNum(totalTokens)}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="22%">
-                <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.65} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} tickMargin={8} interval="preserveStartEnd" />
-                <YAxis tickLine={false} axisLine={false} tick={axisTick} tickFormatter={fmtNum} width={40} />
-                <Tooltip cursor={tooltipCursor} contentStyle={tooltipStyle} formatter={(value, name) => [fmtNum(value), name]} />
-                <Bar
+              <AreaChart data={points} margin={CHART_MARGIN}>
+                <CartesianGrid vertical={false} {...CHART_GRID} />
+                <XAxisShared />
+                <YAxis tickLine={false} axisLine={false} tick={CHART_TICK} tickFormatter={fmtNum} width={40} />
+                <Tooltip
+                  cursor={tooltipCursor}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={CHART_TOOLTIP_LABEL}
+                  formatter={(value, name) => [fmtNum(value), name]}
+                />
+                <Area
+                  type="monotone"
                   dataKey="promptTokens"
                   name="Input"
                   stackId="tokens"
-                  fill={INPUT_COLOR}
-                  maxBarSize={28}
+                  stroke={CHART_COLORS.input}
+                  fill={CHART_COLORS.input}
+                  fillOpacity={0.26}
+                  strokeWidth={1.5}
                   isAnimationActive={false}
                 />
-                <Bar
+                <Area
+                  type="monotone"
                   dataKey="completionTokens"
                   name="Output"
                   stackId="tokens"
-                  fill={OUTPUT_COLOR}
-                  maxBarSize={28}
+                  stroke={CHART_COLORS.output}
+                  fill={CHART_COLORS.output}
+                  fillOpacity={0.26}
+                  strokeWidth={1.5}
                   isAnimationActive={false}
                 />
-              </BarChart>
+              </AreaChart>
             </ResponsiveContainer>
           </MiniChart>
         </div>

@@ -77,11 +77,11 @@ function isPathActive(pathname, href, exact = false) {
  * mono, but at 14px in a narrow rail mono is measurably harder to scan, so the
  * rule is waived here by user decision. Mono stays on identifiers (version) and
  * the structural eyebrows.
- */
-/**
+ *
  * Marks a row the member view never renders. Only administrators ever see this
  * tag, so it reads as "hidden from your users" rather than as a lock.
  */
+
 function AdminTag() {
   return (
     <span
@@ -405,7 +405,13 @@ export default function Sidebar({ onClose }) {
         </div>
 
         {/* ⌘K navigator trigger */}
-        <div className={cn("shrink-0", collapsed ? "flex justify-center py-2" : "px-2 py-2")}>
+        <div
+          className={cn(
+            "shrink-0 border-b border-border",
+            collapsed ? "flex justify-center py-2.5" : "px-2.5 py-2.5"
+          )}
+        >
+
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
@@ -415,20 +421,21 @@ export default function Sidebar({ onClose }) {
             className={cn(
               "flex items-center rounded-sm border border-border bg-surface text-text-muted transition-colors",
               "hover:border-text-subtle hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
-              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2"
+              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2.5"
             )}
           >
-            <Search aria-hidden size={14} strokeWidth={STROKE_IDLE} className="shrink-0" />
+            <Search aria-hidden size={13} strokeWidth={STROKE_IDLE} className="shrink-0" />
             {collapsed ? null : (
               <>
-                <span className="min-w-0 flex-1 truncate text-left text-sm">Jump to...</span>
-                <kbd className="shrink-0 font-mono text-[10px] font-semibold tracking-[0.06em] text-text-subtle">
+                <span className="min-w-0 flex-1 truncate text-left text-[13px]">Jump to...</span>
+                <kbd className="shrink-0 rounded-sm border border-border bg-surface-2 px-1 font-mono text-[9px] font-semibold tracking-[0.06em] text-text-subtle">
                   ⌘K
                 </kbd>
               </>
             )}
           </button>
         </div>
+
 
         {/* Update strip — collapses to a single affordance so the notice survives */}
         {isAdmin && updateInfo && collapsed ? (
@@ -446,17 +453,18 @@ export default function Sidebar({ onClose }) {
         ) : null}
 
         {isAdmin && updateInfo && !collapsed ? (
-          <div className="shrink-0 border-b border-border bg-surface-2/40 px-3 py-2.5">
+          <div className="shrink-0 border-b border-border bg-surface-2/40 px-2.5 py-2.5">
             <div className="flex items-center gap-2">
               <span className="whitespace-nowrap font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
                 Update
               </span>
               <span className="h-px flex-1 bg-border" aria-hidden />
             </div>
-            <p className="mt-1.5 truncate font-mono text-xs font-medium text-text-main">
+            <p className="mt-1.5 truncate text-[13px] font-medium text-text-main">
               A newer release is available
             </p>
             <div className="mt-2 flex items-center gap-1.5">
+
               <button
                 type="button"
                 onClick={() => setShowUpdateModal(true)}
@@ -610,10 +618,11 @@ export default function Sidebar({ onClose }) {
             not in the page header. */}
         <div
           className={cn(
-            "shrink-0 border-t border-border",
-            collapsed ? "flex flex-col items-center gap-2 py-2.5" : "flex items-center gap-1 px-2 py-2"
+            "h-12 shrink-0 border-t border-border",
+            collapsed ? "flex flex-col items-center justify-center gap-2" : "flex items-center gap-1 px-2"
           )}
         >
+
           <AccountMenu
             displayName={account?.displayName}
             role={account?.role}

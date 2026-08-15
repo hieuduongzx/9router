@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
-import { Plus } from "lucide-react";
+import { Menu, Plus, Search, X } from "lucide-react";
+
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import HeaderLanguage from "@/shared/components/HeaderLanguage";
 import ThemeToggle from "@/shared/components/ThemeToggle";
@@ -303,66 +304,66 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   };
 
   return (
-    <header className="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 lg:px-8">
+    <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface pl-3 pr-2 lg:pl-8 lg:pr-3">
       {/* Mobile menu button */}
-      <div className="flex items-center gap-3 lg:hidden shrink-0">
-        {showMenuButton && (
-          <button
-            onClick={onMenuClick}
-            className="text-text-main hover:text-primary transition-colors"
-          >
-            <span className="material-symbols-outlined">menu</span>
-          </button>
-        )}
-      </div>
+      {showMenuButton && (
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open sidebar"
+          className="flex size-9 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 lg:hidden"
+        >
+          <Menu aria-hidden size={16} strokeWidth={2.25} />
+        </button>
+      )}
 
       {/* Page title with breadcrumbs */}
-      <div className="flex flex-col min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
         {breadcrumbs.length > 0 ? (
-          <div className="flex items-center gap-2">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
             {breadcrumbs.map((crumb, index) => (
-              <div
+              <span
                 key={`${crumb.label}-${crumb.href || "current"}`}
-                className="flex items-center gap-2"
+                className="flex min-w-0 items-center gap-1.5"
               >
                 {index > 0 && (
-                  <span className="material-symbols-outlined text-text-muted text-base">
-                    chevron_right
+                  <span aria-hidden className="font-mono text-xs text-text-subtle">
+                    /
                   </span>
                 )}
                 {crumb.href ? (
                   <Link
                     href={crumb.href}
-                    className="text-text-muted hover:text-primary transition-colors"
+                    className="shrink-0 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text-main"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     {crumb.image && (
                       <ProviderIcon
                         src={crumb.image}
                         alt={crumb.label}
-                        size={28}
-                        className="object-contain rounded-sm max-w-[28px] max-h-[28px]"
+                        size={18}
+                        className="max-w-[18px] max-h-[18px] rounded-sm object-contain"
                         fallbackText={crumb.label.slice(0, 2).toUpperCase()}
                       />
                     )}
-                    <h1 className="font-mono text-base lg:text-xl font-semibold text-text-main tracking-tight truncate">
+                    <h1 className="truncate font-mono text-base font-semibold tracking-tight text-text-main lg:text-lg">
                       {translate(crumb.label)}
                     </h1>
-                  </div>
+                  </span>
                 )}
-              </div>
+              </span>
             ))}
-          </div>
+          </nav>
         ) : title ? (
-          <div className="min-w-0">
-            <h1 className="truncate font-mono text-base font-semibold tracking-tight lg:text-xl">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <h1 className="shrink-0 truncate font-mono text-base font-semibold tracking-tight text-text-main lg:text-lg">
               {translate(title)}
             </h1>
             {description && (
-              <p className="hidden lg:block text-sm text-text-muted truncate">
+              <p className="hidden truncate text-[13px] text-text-muted lg:block">
                 {translate(description)}
               </p>
             )}
@@ -371,12 +372,12 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       </div>
 
       {/* Right actions — identity is not here; it lives at the foot of the rail */}
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1.5">
         <HeaderSearch />
         {!onApiKeysPage && (
           <Link
             href="/dashboard/api-keys"
-            className="ml-1 hidden h-9 shrink-0 items-center gap-1.5 rounded-sm bg-primary px-3 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 md:inline-flex"
+            className="hidden h-8 shrink-0 items-center gap-1.5 rounded-sm bg-primary px-3 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 md:inline-flex"
           >
             <Plus aria-hidden size={14} strokeWidth={2.75} />
             New key
@@ -385,7 +386,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         <div className="hidden sm:block"><ThemeToggle /></div>
         <HeaderLanguage />
         {canSwitchDashboardView && (
-          <div className="sm:ml-1 sm:border-l sm:border-border sm:pl-2">
+          <div className="ml-0.5 border-l border-border pl-1.5 sm:ml-1 sm:pl-2">
             <DashboardViewToggle
               mode={viewMode}
               pending={switchingView}
@@ -394,14 +395,16 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
           </div>
         )}
       </div>
+
       {viewModeError && (
         <div
           role="alert"
-          className="fixed right-4 top-16 z-50 max-w-sm rounded-sm border border-danger/25 bg-surface px-4 py-3 text-sm font-medium text-danger"
+          className="fixed right-4 top-[4.5rem] z-50 max-w-sm rounded-sm border border-danger/25 bg-surface px-4 py-3 text-sm font-medium text-danger"
         >
           {viewModeError}
         </div>
       )}
+
     </header>
   );
 }
@@ -420,9 +423,9 @@ function DashboardViewToggle({ mode, pending, onToggle }) {
       aria-busy={pending}
       disabled={pending}
       onClick={onToggle}
-      className="inline-flex h-11 items-center gap-2 rounded-sm border border-border bg-surface px-2 font-mono text-xs font-medium text-text-main transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60 sm:h-9 xl:px-2.5"
+      className="inline-flex h-8 items-center gap-2 rounded-sm border border-border bg-surface px-2 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-text-main transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60 xl:px-2.5"
     >
-      <span className={`material-symbols-outlined text-[18px] ${pending ? "animate-spin text-text-main" : adminView ? "text-text-main" : "text-text-muted"}`}>
+      <span className={`material-symbols-outlined text-[16px] ${pending ? "animate-spin text-text-main" : adminView ? "text-text-main" : "text-text-muted"}`}>
         {pending ? "progress_activity" : adminView ? "admin_panel_settings" : "person"}
       </span>
       <span>{adminView ? "Admin" : "User"}<span className="hidden xl:inline"> view</span></span>
@@ -435,6 +438,7 @@ function DashboardViewToggle({ mode, pending, onToggle }) {
     </button>
   );
 }
+
 
 DashboardViewToggle.propTypes = {
   mode: PropTypes.oneOf([DASHBOARD_VIEW_ADMIN, DASHBOARD_VIEW_USER]).isRequired,
@@ -451,30 +455,34 @@ function HeaderSearch() {
   if (!visible) return null;
 
   return (
-    <div className="relative w-[160px] sm:w-[240px] xl:w-[300px]">
-      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px] pointer-events-none">
-        search
-      </span>
+    <div className="relative w-[160px] sm:w-[220px] xl:w-[280px]">
+      <Search
+        aria-hidden
+        size={13}
+        strokeWidth={2.25}
+        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+      />
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-sm border border-border bg-surface/60 pl-8 pr-7 font-mono text-xs transition-colors focus:border-primary focus:outline-none"
+        className="h-8 w-full rounded-sm border border-border bg-surface pl-8 pr-7 font-mono text-xs transition-colors placeholder:text-text-subtle focus:border-primary focus:outline-none"
       />
       {query && (
         <button
           type="button"
           onClick={() => setQuery("")}
-          className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-0.5 rounded"
+          className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-text-muted transition-colors hover:text-text-main"
           aria-label="Clear search"
         >
-          <span className="material-symbols-outlined text-[16px]">close</span>
+          <X aria-hidden size={13} strokeWidth={2.25} />
         </button>
       )}
     </div>
   );
 }
+
 
 Header.propTypes = {
   onMenuClick: PropTypes.func,

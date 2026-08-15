@@ -110,6 +110,18 @@ const ACCOUNT_DASHBOARD_PATHS = [
   "/dashboard/usage",
   "/dashboard/models",
   "/dashboard/account",
+  "/dashboard/token-saver",
+];
+
+// Read-only status/health probes under admin-only API prefixes that any signed-in
+// account may read (token-saver page). They never mutate host state.
+const ACCOUNT_SAFE_READ_API_PATHS = [
+  "/api/headroom/status",
+  "/api/headroom/extras",
+  "/api/pxpipe/status",
+  "/api/pxpipe/health",
+  "/api/pxpipe/logs",
+  "/api/pxpipe/stats",
 ];
 
 // Routes that spawn child processes or read host secrets — restrict to localhost.
@@ -210,10 +222,22 @@ function matchesPathPrefix(pathname, prefix) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function requiresAdminApi(pathname) {
+function requiresAdminApi(request) {
+  const { pathname, method } = request.nextUrl;
+  // Read-only status probes stay readable by any authenticated account.
+  // /api/pxpipe/health is a pure read (the client probes it via GET or POST);
+  // everything else in the set is GET-only — the mutating POST/DELETE variants
+  // (extras install/uninstall, start/stop/restart) remain administrator-only.
+  if (ACCOUNT_SAFE_READ_API_PATHS.some((prefix) => pathname === prefix)) {
+    if (method === "GET" || prefixSafeForAnyMethod(pathname)) return false;
+  }
   return ADMIN_API_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix))
     || ADMIN_USAGE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix))
     || /^\/api\/usage\/[^/]+\/codex-reset-credits(?:\/|$)/.test(pathname);
+}
+
+function prefixSafeForAnyMethod(pathname) {
+  return pathname === "/api/pxpipe/health";
 }
 
 function isAccountDashboardPath(pathname) {
@@ -251,7 +275,7 @@ export async function proxy(request) {
   }
 
   // Control-plane and cross-account observability endpoints are administrator-only.
-  if (pathname.startsWith("/api/") && requiresAdminApi(pathname)) {
+  if (pathname.startsWith("/api/") && requiresAdminApi(request)) {
     if (await isAdminRequest(request)) return NextResponse.next();
     return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
   }

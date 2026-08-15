@@ -18,6 +18,12 @@ export {
   hasSecureAdminAccount, resetRecoveryAdminCredentials,
 } from "./repos/usersRepo.js";
 
+// Per-account preferences (token saver)
+export {
+  DEFAULT_USER_TOKEN_SAVER_SETTINGS,
+  getUserSettings, getUserTokenSaverSettings, updateUserSettings,
+} from "./repos/userSettingsRepo.js";
+
 export {
   listCreditLedger,
 } from "./repos/creditLedgerRepo.js";
@@ -120,6 +126,9 @@ export async function exportDb() {
       balanceAfterCents: Number(r.balanceAfterCents) || 0, type: r.type, source: r.source,
       note: r.note, actorUserId: r.actorUserId, meta: r.meta, createdAt: r.createdAt,
     })),
+    userSettings: db.all(`SELECT userId, data FROM userSettings`).map((r) => ({
+      userId: r.userId, data: parseJson(r.data, {}),
+    })),
     combos: db.all(`SELECT * FROM combos`).map((r) => ({
       id: r.id,
       name: r.name,
@@ -186,6 +195,7 @@ export async function importDb(payload) {
     if (restoreAccounts) {
       // creditLedger and apiKeys.ownerUserId both FK to users — clear children first.
       db.run(`DELETE FROM creditLedger`);
+      db.run(`DELETE FROM userSettings`);
       db.run(`DELETE FROM users`);
     }
     db.run(`DELETE FROM kv WHERE scope IN ('modelAliases', 'customModels', 'publishedModels', 'modelProviders', 'mitmAlias', 'pricing', 'disabledModels')`);
@@ -216,6 +226,13 @@ export async function importDb(payload) {
             typeof e.meta === "string" ? e.meta : (e.meta == null ? null : stringifyJson(e.meta)),
             e.createdAt || new Date().toISOString(),
           ]
+        );
+      }
+      for (const s of payload.userSettings || []) {
+        if (!s?.userId) continue;
+        db.run(
+          `INSERT OR REPLACE INTO userSettings(userId, data) VALUES(?, ?)`,
+          [s.userId, stringifyJson(s.data || {})],
         );
       }
     }

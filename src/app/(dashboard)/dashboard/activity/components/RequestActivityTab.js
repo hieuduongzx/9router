@@ -6,6 +6,13 @@ import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis
 import { RequestLogger } from "@/shared/components";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
+import {
+  CHART_COLORS,
+  CHART_TICK,
+  CHART_TOOLTIP_LABEL,
+  CHART_TOOLTIP_STYLE,
+} from "@/shared/utils/chartTheme";
+
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -52,17 +59,17 @@ export default function RequestActivityTab({ period }) {
   const totalRequests = Number(stats?.totalRequests) || 0;
   const latency = stats?.latency?.all || {};
   const outcomeData = [
-    { name: "Successful", value: success, color: "#16A34A" },
-    { name: "Errors", value: errors, color: "#DC2626" },
-    { name: "Rate limited", value: rateLimited, color: "#F59E0B" },
-    { name: "Other", value: Number(byStatus.other) || 0, color: "#2563EB" },
+    { name: "Successful", value: success, color: CHART_COLORS.cost },
+    { name: "Errors", value: errors, color: CHART_COLORS.danger },
+    { name: "Rate limited", value: rateLimited, color: CHART_COLORS.requests },
+    { name: "Other", value: Number(byStatus.other) || 0, color: CHART_COLORS.info },
   ].filter((item) => item.value > 0);
   const latencyData = [
     { name: "Average", value: latency.avg },
     { name: "p50", value: latency.p50 },
     { name: "p95", value: latency.p95 },
   ].filter((item) => Number.isFinite(Number(item.value)));
-  const tooltipStyle = { background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 0, fontFamily: "var(--font-mono)", fontSize: 12 };
+
 
   if (loading && !stats) {
     return (
@@ -97,7 +104,8 @@ export default function RequestActivityTab({ period }) {
                   <Pie data={outcomeData} dataKey="value" nameKey="name" innerRadius={65} outerRadius={95} paddingAngle={3} stroke="none" isAnimationActive={false}>
                     {outcomeData.map((item) => <Cell key={item.name} fill={item.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [formatNumber(value), "Requests"]} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value, name) => [formatNumber(value), name]} />
+
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -116,11 +124,12 @@ export default function RequestActivityTab({ period }) {
           <div className="h-72 p-4">
             {latencyData.length ? <ResponsiveContainer width="100%" height="100%">
               <BarChart data={latencyData} margin={{ top: 10, right: 16, left: 8 }}>
-                <XAxis dataKey="name" tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--color-text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatLatency} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value) => [formatLatency(value), "Latency"]} />
-                <Bar dataKey="value" fill="#7C3AED" maxBarSize={56} isAnimationActive={false} />
+                <XAxis dataKey="name" tick={CHART_TICK} axisLine={false} tickLine={false} />
+                <YAxis tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={formatLatency} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [formatLatency(value), "Latency"]} />
+                <Bar dataKey="value" fill={CHART_COLORS.info} maxBarSize={56} isAnimationActive={false} />
               </BarChart>
+
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No latency samples in this period.</div>}
           </div>
         </Card>

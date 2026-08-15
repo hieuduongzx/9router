@@ -57,7 +57,7 @@ export const DASHBOARD_NAV_GROUPS = [
     items: [
       { href: "/dashboard/skills", label: "Skills", icon: Puzzle, admin: true },
       { href: "/dashboard/cli-tools", label: "CLI Tools", icon: Terminal, admin: true },
-      { href: "/dashboard/token-saver", label: "Token Saver", icon: Coins, admin: true },
+      { href: "/dashboard/token-saver", label: "Token Saver", icon: Coins },
       {
         href: "/dashboard/translator",
         label: "Translator",
