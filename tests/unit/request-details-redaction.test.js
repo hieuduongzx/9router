@@ -7,7 +7,9 @@ function redactDetails(details) {
     const redacted = { ...d };
     for (const key of ["request", "providerRequest", "providerResponse", "response"]) {
       if (redacted[key] !== undefined) {
-        redacted[key] = { redacted: true };
+        redacted[key] = key === "request" && typeof d.request?.stream === "boolean"
+          ? { redacted: true, stream: d.request.stream }
+          : { redacted: true };
       }
     }
     return redacted;
@@ -23,7 +25,7 @@ describe("request-details redaction", () => {
       timestamp: "2026-08-05T00:00:00Z",
       status: "success",
       tokens: { prompt_tokens: 10, completion_tokens: 5 },
-      request: { messages: [{ role: "user", content: "secret prompt" }] },
+      request: { stream: true, messages: [{ role: "user", content: "secret prompt" }], tools: [{ name: "secret_tool" }] },
       providerRequest: { messages: [{ role: "user", content: "secret prompt" }] },
       providerResponse: { choices: [{ message: { content: "secret answer" } }] },
       response: { content: "secret answer" },
@@ -33,7 +35,9 @@ describe("request-details redaction", () => {
     expect(out.provider).toBe("opencode");
     expect(out.model).toBe("deepseek-v4-flash-free");
     expect(out.tokens).toEqual({ prompt_tokens: 10, completion_tokens: 5 });
-    expect(out.request).toEqual({ redacted: true });
+    expect(out.request).toEqual({ redacted: true, stream: true });
+    expect(out.request.messages).toBeUndefined();
+    expect(out.request.tools).toBeUndefined();
     expect(out.providerRequest).toEqual({ redacted: true });
     expect(out.providerResponse).toEqual({ redacted: true });
     expect(out.response).toEqual({ redacted: true });
@@ -42,6 +46,11 @@ describe("request-details redaction", () => {
   it("handles empty details", () => {
     expect(redactDetails([])).toEqual([]);
     expect(redactDetails(null)).toEqual([]);
+  });
+
+  it("does not invent mode metadata when stream is absent", () => {
+    const [out] = redactDetails([{ request: { messages: ["secret"] } }]);
+    expect(out.request).toEqual({ redacted: true });
   });
 
   it("keeps non-sensitive fields untouched", () => {

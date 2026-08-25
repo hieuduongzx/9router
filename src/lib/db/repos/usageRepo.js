@@ -816,7 +816,7 @@ function addChartSample(bucket, groupKey, promptTokens, completionTokens, cost) 
   bucket.byModel[key].requests += 1;
 }
 
-function finalizeChartBuckets(buckets, topN = 6) {
+function finalizeChartBuckets(buckets, topN = 5) {
   const totals = {};
   for (const b of buckets) {
     for (const [id, vals] of Object.entries(b.byModel || {})) {
@@ -1208,6 +1208,157 @@ export async function getUsageStats(period = "all", options = {}) {
 
   attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap);
   return stats;
+}
+
+/**
+ * Public model leaderboard: aggregate per-model usage across the whole system
+ * inside one period window, ranked by requests (or total tokens).
+ *
+ * Same dual-source strategy as getUsageStats: whole-day windows (7d/30d/all)
+ * read the forever-kept `usageDaily` rollups (`usageHistory` is pruned by
+ * retention, so rollups are the only complete long-range source), while
+ * sub-day windows scan the timestamp-indexed live history. For whole-day
+ * windows the history query runs only as a lastUsed overlay — every insert
+ * lands in both stores, so adding counts from both would double them.
+ *
+ * Deliberately excludes every user-identifying dimension (API key, owner,
+ * connection/account) — this feeds an unauthenticated endpoint. Cost stays in
+ * the repo-level rows; the public route strips it before responding.
+ *
+ * @param {string} [period="7d"]
+ * @param {{ sort?: "requests"|"tokens" }} [options]
+ */
+export async function getModelRanking(period = "7d", options = {}) {
+  const db = await getAdapter();
+  const sort = options.sort === "tokens" ? "tokens" : "requests";
+
+  let providerNodeNameMap = {};
+  try {
+    const { getProviderNodes } = await import("./nodesRepo.js");
+    for (const n of await getProviderNodes()) {
+      if (n.id && n.name) providerNodeNameMap[n.id] = n.name;
+    }
+  } catch {}
+
+  const acc = new Map();
+  const bucketFor = (rawModel, providerId) => {
+    const key = `${rawModel}|${providerId}`;
+    let entry = acc.get(key);
+    if (!entry) {
+      entry = {
+        rawModel,
+        providerId,
+        requests: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        cachedTokens: 0,
+        cost: 0,
+        lastUsed: "",
+      };
+      acc.set(key, entry);
+    }
+    return entry;
+  };
+
+  const DAILY_SUMMARY_PERIODS = new Set(["7d", "30d", "all"]);
+  if (DAILY_SUMMARY_PERIODS.has(period)) {
+    const periodDays = { "7d": 7, "30d": 30 };
+    const maxDays = period === "all" ? null : (periodDays[period] || null);
+    for (const dr of loadDaysInRange(db, maxDays)) {
+      const day = parseJson(dr.data, {});
+      for (const [mk, m] of Object.entries(day.byModel || {})) {
+        const rawModel = m.rawModel || mk.split("|")[0];
+        const providerId = m.provider || mk.split("|")[1] || "";
+        const entry = bucketFor(rawModel, providerId);
+        entry.requests += m.requests || 0;
+        entry.promptTokens += m.promptTokens || 0;
+        entry.completionTokens += m.completionTokens || 0;
+        entry.cachedTokens += m.cachedTokens || 0;
+        entry.cost += m.cost || 0;
+        if (dr.dateKey > entry.lastUsed) entry.lastUsed = dr.dateKey;
+      }
+    }
+  }
+
+  // Live history contributes differently per source path:
+  //  - sub-day windows: history IS the dataset (rollups are whole-day only);
+  //  - whole-day windows: rollups are authoritative — history must NOT add
+  //    counts again (every insert lands in both stores), it only refines
+  //    lastUsed to precise timestamps.
+  const cutoff = getPeriodCutoffIso(period);
+  const histConds = [];
+  const histParams = [];
+  if (cutoff) {
+    histConds.push("timestamp >= ?");
+    histParams.push(cutoff);
+  }
+  const histWhere = histConds.length ? `WHERE ${histConds.join(" AND ")}` : "";
+  const histRows = db.all(
+    `SELECT timestamp, provider, model, promptTokens, completionTokens, cost, tokens
+       FROM usageHistory ${histWhere}`,
+    histParams,
+  );
+  for (const r of histRows) {
+    const entry = bucketFor(r.model || "unknown", r.provider || "");
+
+    if (!DAILY_SUMMARY_PERIODS.has(period)) {
+      const tokens = parseJson(r.tokens, {}) || {};
+      // Canonical columns are always written on insert; the JSON blob only
+      // matters as a fallback (cached tokens never get a column).
+      const promptTokens = Number(r.promptTokens) || tokens.prompt_tokens || tokens.input_tokens || 0;
+      const completionTokens = Number(r.completionTokens) || tokens.completion_tokens || tokens.output_tokens || 0;
+      const cachedTokens = tokens.cached_tokens || tokens.cache_read_input_tokens || 0;
+
+      entry.requests += 1;
+      entry.promptTokens += promptTokens;
+      entry.completionTokens += completionTokens;
+      entry.cachedTokens += cachedTokens;
+      entry.cost += r.cost || 0;
+    }
+
+    if (r.timestamp > entry.lastUsed) entry.lastUsed = r.timestamp;
+  }
+
+  const models = [...acc.values()]
+    .filter((e) => e.requests > 0)
+    .map((e) => ({
+      rank: 0,
+      model: e.rawModel,
+      provider: providerNodeNameMap[e.providerId] || e.providerId,
+      requests: e.requests,
+      promptTokens: e.promptTokens,
+      completionTokens: e.completionTokens,
+      totalTokens: e.promptTokens + e.completionTokens,
+      cachedTokens: e.cachedTokens,
+      cost: e.cost,
+      lastUsed: e.lastUsed || null,
+    }));
+
+  const scoreOf = sort === "tokens"
+    ? (m) => m.totalTokens
+    : (m) => m.requests;
+  models.sort((a, b) => scoreOf(b) - scoreOf(a) || String(a.model).localeCompare(String(b.model)));
+  models.forEach((m, i) => { m.rank = i + 1; });
+
+  const totals = models.reduce(
+    (sums, m) => ({
+      requests: sums.requests + m.requests,
+      promptTokens: sums.promptTokens + m.promptTokens,
+      completionTokens: sums.completionTokens + m.completionTokens,
+    }),
+    { requests: 0, promptTokens: 0, completionTokens: 0 },
+  );
+
+  return {
+    period,
+    sort,
+    generatedAt: new Date().toISOString(),
+    totalRequests: totals.requests,
+    totalPromptTokens: totals.promptTokens,
+    totalCompletionTokens: totals.completionTokens,
+    totalTokens: totals.promptTokens + totals.completionTokens,
+    models,
+  };
 }
 
 /**

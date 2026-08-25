@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { buildRequestDetail } from "../../open-sse/handlers/chatCore/requestDetail.js";
 
 const authMocks = vi.hoisted(() => ({
   getDashboardAccount: vi.fn(async () => ({ id: "test-admin", role: "admin", isActive: true })),
@@ -115,6 +116,23 @@ describe("request details — tab crash-risk cases", () => {
     expect(got.tokens).toBeUndefined();
     // Drawer reads tokens?.prompt_tokens — optional chaining tolerates undefined
     expect(got.tokens?.prompt_tokens || 0).toBe(0);
+  });
+
+  it("production detail builder preserves the API key used for scoped history", async () => {
+    const built = buildRequestDetail({
+      provider: "openai",
+      model: "gpt-built",
+      apiKey: "sk-built-owner",
+      request: { stream: true },
+      response: {},
+    }, { id: "built-owned-detail" });
+
+    expect(built.apiKey).toBe("sk-built-owner");
+    await saveDetail(built);
+
+    const result = await db.getRequestDetails({ apiKeys: ["sk-built-owner"], pageSize: 100 });
+    expect(result.details.map((detail) => detail.id)).toContain("built-owned-detail");
+    expect(result.details.find((detail) => detail.id === "built-owned-detail")?.apiKey).toBeUndefined();
   });
 
   it("API-key filter returns only details owned by the selected account", async () => {
@@ -418,6 +436,20 @@ describe("API route contract — validation boundary", () => {
     expect(body.pagination).toMatchObject({ page: 1, pageSize: 20 });
   });
 
+  it("administrator history includes legacy details without API-key attribution", async () => {
+    await saveDetail({
+      id: "route-legacy-null", provider: "openai", model: "legacy-model",
+      status: "ok", tokens: {}, request: { stream: false }, response: {},
+    });
+
+    const res = await GET(makeReq("page=1&pageSize=100"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const detail = body.details.find((item) => item.id === "route-legacy-null");
+    expect(detail).toBeDefined();
+    expect(detail.request).toEqual({ redacted: true, stream: false });
+  });
+
   it("account route returns only details for API keys owned by the signed-in user", async () => {
     const owner = await db.createUser({
       username: "details.owner",
@@ -440,7 +472,29 @@ describe("API route contract — validation boundary", () => {
     const body = await res.json();
     expect(body.details.map((detail) => detail.id)).toContain("route-owned");
     expect(body.details.map((detail) => detail.id)).not.toContain("route-foreign");
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
   });
+
+  it("administrator userId narrowing remains restricted to that user's keys", async () => {
+    const target = await db.createUser({
+      username: "details.target",
+      email: "details.target@example.com",
+      password: "password-target",
+    });
+    const targetKey = await db.createApiKey("Target details", "machine-target", target.id);
+    await saveDetail({
+      id: "route-target-user", apiKey: targetKey.key, provider: "openai", model: "target-model",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+
+    const res = await GET(makeReq(`page=1&pageSize=100&userId=${encodeURIComponent(target.id)}`));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.details.map((detail) => detail.id)).toContain("route-target-user");
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-foreign");
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
+  });
+
   it("administrator can load one request detail while users cannot", async () => {
     const { GET: getDetail } = await import("@/app/api/usage/request-details/[id]/route.js");
     const context = { params: Promise.resolve({ id: "activity-log-detail" }) };

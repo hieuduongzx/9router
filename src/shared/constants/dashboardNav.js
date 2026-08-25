@@ -15,6 +15,7 @@ import {
   Server,
   Settings,
   Terminal,
+  Trophy,
   User,
   Users,
   Wallet,
@@ -45,6 +46,8 @@ export const DASHBOARD_NAV_GROUPS = [
     items: [
       { href: "/dashboard/usage", label: "Usage", icon: ChartColumn },
       { href: "/dashboard/activity", label: "Activity", icon: Activity, admin: true },
+      // Public page (outside the dashboard shell) — opens in the same tab.
+      { href: "/ranking", label: "Model Ranking", icon: Trophy },
       { href: "/dashboard/combos", label: "Model Routes", icon: GitFork, admin: true },
       { href: "/dashboard/models", label: "Models", icon: Boxes },
     ],

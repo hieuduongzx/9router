@@ -35,6 +35,30 @@ function formatTiming(ms) {
   return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
 }
 
+function formatRequestTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatTraceId(value) {
+  const traceId = String(value || "");
+  if (!traceId) return "—";
+  return traceId.length > 12 ? `${traceId.slice(0, 8)}…${traceId.slice(-4)}` : traceId;
+}
+
+function getEmptyMessage(period) {
+  return period === "all"
+    ? "No model requests have been recorded yet."
+    : "No model requests were recorded in this period.";
+}
+
 export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
   const [details, setDetails] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
@@ -71,6 +95,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
       setPagination((previous) => ({ ...previous, ...data.pagination }));
       setError("");
     } catch (reason) {
+      setDetails([]);
       setError(reason.message || "Unable to load model request history");
     } finally {
       setLoading(false);
@@ -97,8 +122,6 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      {error && <div role="alert" className="rounded-sm border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
-
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
@@ -108,39 +131,74 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
           <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{pagination.totalItems || 0} requests</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-xs leading-tight">
+          <table className="w-full min-w-[1180px] text-xs leading-tight">
             <caption className="sr-only">Model request history for the current account and date filters</caption>
             <thead className="thead-data">
               <tr>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Time</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Total Cost</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Input Tokens</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Output Tokens</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Timing</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Model</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Mode</th>
-                <th scope="col" className="whitespace-nowrap px-4 py-2.5 text-left font-semibold uppercase tracking-wide">Status</th>
+                <th scope="col" className="px-4 py-2.5 text-left">Time</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Input Tokens</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Output Tokens</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Timing</th>
+                <th scope="col" className="px-4 py-2.5 text-left">Model</th>
+                <th scope="col" className="px-4 py-2.5 text-left">Mode</th>
+                <th scope="col" className="px-4 py-2.5 text-left">Status</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Credits</th>
+                <th scope="col" className="px-4 py-2.5 text-left">Trace ID</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border-subtle">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-text-muted">Loading model requests…</td></tr>
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <span className="inline-flex items-center gap-2 text-sm text-text-muted">
+                      <span className="material-symbols-outlined animate-spin text-[18px]" aria-hidden>progress_activity</span>
+                      Loading model requests…
+                    </span>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <div role="alert" className="inline-flex max-w-lg flex-col items-center gap-2">
+                      <span className="material-symbols-outlined text-[22px] text-danger" aria-hidden>error</span>
+                      <span className="text-sm text-text-main">Model request history could not be loaded.</span>
+                      <span className="font-mono text-xs text-danger">{error}</span>
+                    </div>
+                  </td>
+                </tr>
               ) : details.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-text-muted">No model requests found.</td></tr>
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <div className="inline-flex flex-col items-center gap-2">
+                      <span className="material-symbols-outlined text-[22px] text-text-subtle" aria-hidden>history</span>
+                      <span className="text-sm text-text-main">{getEmptyMessage(period)}</span>
+                      <span className="text-xs text-text-muted">Try a wider period or another API key.</span>
+                    </div>
+                  </td>
+                </tr>
               ) : details.map((detail, index) => (
                 <tr
                   key={`${detail.id}-${index}`}
                   onClick={() => openDetail(detail)}
-                  className={`cursor-pointer transition-colors hover:bg-surface-2/70 ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openDetail(detail);
+                    }
+                  }}
+                  aria-label={`Open request ${detail.id || index + 1}`}
+                  className="cursor-pointer transition-colors hover:bg-surface-2/70 focus-visible:bg-surface-2/70 focus-visible:outline-none"
                 >
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted tabular-nums">{new Date(detail.timestamp).toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main">{formatCost(detail.cost)}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{(detail.tokens?.completion_tokens || 0).toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted">{formatTiming(detail.latency?.total)}</td>
-                  <td className="max-w-[240px] truncate px-4 py-2.5 font-mono text-text-main" title={detail.model}>{detail.model}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted">{detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5"><StatusPill status={detail.status} /></td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-text-muted tabular-nums">{formatRequestTime(detail.timestamp)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-main">{(detail.tokens?.completion_tokens || 0).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-muted">{formatTiming(detail.latency?.total)}</td>
+                  <td className="max-w-[260px] truncate px-4 py-3 font-mono text-text-main" title={detail.model || "Unknown model"}>{detail.model || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-text-muted">{detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3"><StatusPill status={detail.status} /></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums text-text-main">{formatCost(detail.cost)}</td>
+                  <td className="max-w-[180px] truncate px-4 py-3 font-mono text-text-muted" title={String(detail.id || "")}>{formatTraceId(detail.id)}</td>
                 </tr>
               ))}
             </tbody>

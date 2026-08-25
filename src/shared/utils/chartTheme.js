@@ -20,11 +20,11 @@ export const CHART_COLORS = {
 
 /** Categorical ramp for by-model / by-provider breakdowns (max 5 + Other). */
 export const CHART_RAMP = [
-  "var(--color-chip-tokens)",
-  "var(--color-chip-info)",
-  "var(--color-chip-cost)",
-  "var(--color-chip-requests)",
-  "var(--color-chip-danger)",
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
 ];
 
 export const CHART_OTHER = "var(--color-text-subtle)";
@@ -41,7 +41,6 @@ export const CHART_TICK = {
 export const CHART_GRID = {
   stroke: "var(--color-border)",
   strokeOpacity: 0.6,
-  strokeDasharray: "2 4",
 };
 
 export const CHART_TOOLTIP_STYLE = {

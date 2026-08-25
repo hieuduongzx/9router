@@ -1,3 +1,16 @@
+# Unreleased
+
+## Features
+- **Ranking**: public model leaderboard at `/ranking` (no sign-in) — most-used
+  models across the whole system ranked by requests or tokens over 1h / 24h /
+  7d / 30d / all-time windows, with share bars, medal ranks, auto-refresh, and
+  a summary tile row. Backed by `GET /api/ranking/models` (aggregate-only:
+  per-user, per-key, account, and cost dimensions never leave the server).
+  Aggregation reuses the usage stats dual-source strategy — `usageDaily`
+  rollups for whole-day windows (survives history retention pruning), indexed
+  live `usageHistory` scans for sub-day windows plus a lastUsed overlay. Linked
+  from the landing nav and the dashboard Traffic sidebar.
+
 # v0.5.55 (2026-08-14)
 
 ## Features

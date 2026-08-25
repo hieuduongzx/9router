@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: "/#overview", label: "Overview" },
   { href: "/#models", label: "Models" },
   { href: "/#endpoint", label: "Endpoint" },
+  { href: "/ranking", label: "Ranking" },
 ];
 
 export default function Navigation() {

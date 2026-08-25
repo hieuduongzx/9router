@@ -59,15 +59,21 @@ export async function GET(request) {
     if (userId && !(await getUserById(userId))) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    // Scope is always derived from the keys this account owns, so narrowing by
-    // apiKeyId can only ever select a subset — an id from another account
-    // matches nothing rather than widening access.
-    const keys = await getApiKeys(userId || owner.id);
-    const scopedKeys = apiKeyId ? keys.filter((key) => key.id === apiKeyId) : keys;
-    if (apiKeyId && scopedKeys.length === 0) {
-      return NextResponse.json({ error: "API key not found" }, { status: 404 });
+    // Members are always restricted to their own keys. Administrators may inspect
+    // the system-wide history (including local/legacy rows with no key), or narrow
+    // that view to one account/key without widening a member's access.
+    if (owner.role === "admin" && !userId && !apiKeyId) {
+      // No key filter: administrators see the complete redacted metadata feed.
+    } else {
+      const keys = owner.role === "admin" && apiKeyId && !userId
+        ? await getApiKeys()
+        : await getApiKeys(userId || owner.id);
+      const scopedKeys = apiKeyId ? keys.filter((key) => key.id === apiKeyId) : keys;
+      if (apiKeyId && scopedKeys.length === 0) {
+        return NextResponse.json({ error: "API key not found" }, { status: 404 });
+      }
+      filter.apiKeys = scopedKeys.map((key) => key.key);
     }
-    filter.apiKeys = scopedKeys.map((key) => key.key);
     
     const result = await getRequestDetails(filter);
 
@@ -80,7 +86,9 @@ export async function GET(request) {
       const redacted = { ...d };
       for (const key of ["request", "providerRequest", "providerResponse", "response"]) {
         if (redacted[key] !== undefined) {
-          redacted[key] = { redacted: true };
+          redacted[key] = key === "request" && typeof d.request?.stream === "boolean"
+            ? { redacted: true, stream: d.request.stream }
+            : { redacted: true };
         }
       }
       return redacted;

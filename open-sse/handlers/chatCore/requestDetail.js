@@ -85,6 +85,7 @@ export function buildRequestDetail(base, overrides = {}) {
     model: base.model || "unknown",
     publicModel: base.publicModel || undefined,
     connectionId: base.connectionId || undefined,
+    apiKey: base.apiKey || undefined,
     timestamp: new Date().toISOString(),
     latency: base.latency || { ttft: 0, total: 0 },
     tokens: base.tokens || { prompt_tokens: 0, completion_tokens: 0 },

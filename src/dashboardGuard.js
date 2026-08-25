@@ -38,6 +38,8 @@ const PUBLIC_API_PATHS = [
   "/api/version",
   "/api/settings/require-login",
   "/api/catalog/models",
+  // Aggregate model leaderboard — no user-identifying data leaves the server.
+  "/api/ranking/models",
 ];
 
 // Public top-level prefixes (LLM API endpoints with their own API key auth).
