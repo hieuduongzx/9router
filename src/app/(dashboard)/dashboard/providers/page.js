@@ -105,6 +105,7 @@ export default function ProvidersPage() {
   const [testingMode, setTestingMode] = useState(null);
   const [testResults, setTestResults] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeOnly, setActiveOnly] = useState(false);
   const notify = useNotificationStore();
 
   const matchSearch = (name) =>
@@ -202,6 +203,17 @@ export default function ProvidersPage() {
     return { connected, error, total, errorCode, errorTime, allDisabled };
   };
 
+  const isProviderActive = (providerId, authType, provider) => {
+    if (provider?.noAuth) return true;
+    const authTypes = Array.isArray(authType) ? authType : [authType];
+    return connections.some(
+      (connection) =>
+        connection.provider === providerId &&
+        authTypes.includes(connection.authType) &&
+        connection.isActive !== false,
+    );
+  };
+
   // Toggle all connections for a provider on/off. authType may be a single
   // string or an array (kiro counts oauth + api_key/apikey together).
   const handleToggleProvider = async (providerId, authType, newActive) => {
@@ -257,7 +269,11 @@ export default function ProvidersPage() {
       textIcon: "OC",
       apiType: node.apiType,
     }))
-    .filter((p) => matchSearch(p.name));
+    .filter(
+      (provider) =>
+        matchSearch(provider.name) &&
+        (!activeOnly || isProviderActive(provider.id, "apikey", provider)),
+    );
 
   const anthropicCompatibleProviders = providerNodes
     .filter((node) => node.type === "anthropic-compatible")
@@ -267,7 +283,11 @@ export default function ProvidersPage() {
       color: "#D97757",
       textIcon: "AC",
     }))
-    .filter((p) => matchSearch(p.name));
+    .filter(
+      (provider) =>
+        matchSearch(provider.name) &&
+        (!activeOnly || isProviderActive(provider.id, "apikey", provider)),
+    );
 
   // Dual-auth providers (oauth + apikey) store API keys as authType "apikey"
   // (and sometimes "api_key"). Card stats must count both so totals match detail.
@@ -288,20 +308,31 @@ export default function ProvidersPage() {
   };
 
   const oauthEntries = sortByPriority(
-    Object.entries(OAUTH_PROVIDERS).filter(([, info]) => !info.hidden && matchSearch(info.name)),
+    Object.entries(OAUTH_PROVIDERS).filter(
+      ([key, info]) =>
+        !info.hidden &&
+        matchSearch(info.name) &&
+        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)),
+    ),
     "oauth",
   );
   const freeEntries = Object.entries(FREE_PROVIDERS)
-    .filter(([, info]) => !info.hidden && matchSearch(info.name))
+    .filter(
+      ([key, info]) =>
+        !info.hidden &&
+        matchSearch(info.name) &&
+        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)),
+    )
     .sort(([, a], [, b]) => (b.noAuth ? 1 : 0) - (a.noAuth ? 1 : 0));
   // Free Tier cards may be oauth-only (e.g. kimchi) or dual-auth, so count via
   // dualAuthTypes per provider instead of a fixed "apikey" — otherwise oauth
   // connections are invisible here (mismatch with the detail page).
   const freeTierEntries = Object.entries(FREE_TIER_PROVIDERS)
     .filter(
-      ([, info]) =>
+      ([key, info]) =>
         !info.hidden &&
         matchSearch(info.name) &&
+        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)) &&
         (info.serviceKinds ?? ["llm"]).includes("llm"),
     )
     .sort(([ka, a], [kb, b]) => {
@@ -318,10 +349,11 @@ export default function ProvidersPage() {
   // API Key: connected providers first, then alphabetical by name
   const apikeyEntries = Object.entries(APIKEY_PROVIDERS)
     .filter(
-      ([, info]) =>
+      ([key, info]) =>
         !info.hidden &&
         (info.serviceKinds ?? ["llm"]).includes("llm") &&
-        matchSearch(info.name),
+        matchSearch(info.name) &&
+        (!activeOnly || isProviderActive(key, "apikey", info)),
     )
     .sort(([ka, a], [kb, b]) => {
       const ca = getProviderStats(ka, "apikey").total > 0 ? 0 : 1;
@@ -329,7 +361,7 @@ export default function ProvidersPage() {
       if (ca !== cb) return ca - cb;
       return (a.name || "").localeCompare(b.name || "");
     });
-  const isApikeySearching = !!searchQuery.trim();
+  const isApikeySearching = !!searchQuery.trim() || activeOnly;
   const visibleApikeyEntries =
     isApikeySearching || showAllApikey
       ? apikeyEntries
@@ -367,7 +399,7 @@ export default function ProvidersPage() {
         className="border border-border bg-surface/35 p-2.5 sm:p-3"
         aria-label="Provider search"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <label className="group relative min-w-0 flex-1">
             <span className="sr-only">Search providers</span>
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted transition-colors group-focus-within:text-primary">
@@ -393,12 +425,24 @@ export default function ProvidersPage() {
               </button>
             )}
           </label>
+          <div className="flex h-10 shrink-0 items-center justify-between gap-3 border border-border bg-bg px-3 sm:justify-start">
+            <span className="font-mono text-xs font-medium text-text-muted">
+              Active only
+            </span>
+            <Toggle
+              size="sm"
+              checked={activeOnly}
+              onChange={setActiveOnly}
+              ariaLabel="Show active providers only"
+              title={activeOnly ? "Show all providers" : "Show active providers only"}
+            />
+          </div>
           <div
             className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
             aria-live="polite"
           >
             <span className="font-mono text-xs tabular-nums text-text-muted">
-              {matchingProviderCount} {hasSearchQuery ? "matches" : "providers"}
+              {matchingProviderCount} {hasSearchQuery || activeOnly ? "matches" : "providers"}
             </span>
           </div>
         </div>
@@ -409,7 +453,9 @@ export default function ProvidersPage() {
           <span className="material-symbols-outlined text-[32px] text-text-muted mb-2">
             search_off
           </span>
-          <p className="text-text-muted text-sm">No providers match your search</p>
+          <p className="text-text-muted text-sm">
+            {activeOnly ? "No active providers match the current filter" : "No providers match your search"}
+          </p>
         </div>
       )}
 
@@ -443,7 +489,11 @@ export default function ProvidersPage() {
         anthropicCompatibleProviders.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-2 border border-dashed border-border text-text-muted text-sm">
             <span className="material-symbols-outlined text-[18px]">extension</span>
-            <span>No custom providers — use buttons above to add OpenAI/Anthropic compatible endpoints</span>
+            <span>
+              {activeOnly
+                ? "No active custom providers"
+                : "No custom providers — use buttons above to add OpenAI/Anthropic compatible endpoints"}
+            </span>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">

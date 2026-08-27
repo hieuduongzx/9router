@@ -1,64 +1,6 @@
 import PropTypes from "prop-types";
 import { CapacityBadges } from "@/shared/components";
 
-const WEB_SEARCH_TEST_META = {
-  verified: {
-    title: "Native web search verified — test again",
-    icon: "task_alt",
-    color: "text-emerald-600 dark:text-emerald-400",
-  },
-  unsupported: {
-    title: "Native web search rejected — test again",
-    icon: "search_off",
-    color: "text-red-600 dark:text-red-400",
-  },
-  unknown: {
-    title: "No structured search evidence — test again",
-    icon: "help",
-    color: "text-amber-600 dark:text-amber-400",
-  },
-  error: {
-    title: "Web search verification failed — test again",
-    icon: "warning",
-    color: "text-red-600 dark:text-red-400",
-  },
-};
-
-const DEFAULT_WEB_SEARCH_TEST_META = {
-  title: "Verify native web search (may incur search charges)",
-  icon: "travel_explore",
-  color: "text-text-muted",
-};
-
-const REASONING_TEST_META = {
-  verified: {
-    title: "Reasoning verified — test again",
-    icon: "task_alt",
-    color: "text-emerald-600 dark:text-emerald-400",
-  },
-  unsupported: {
-    title: "Model did not reason — test again",
-    icon: "psychology_alt",
-    color: "text-red-600 dark:text-red-400",
-  },
-  unknown: {
-    title: "No reasoning evidence (the model may hide its thinking) — test again",
-    icon: "help",
-    color: "text-amber-600 dark:text-amber-400",
-  },
-  error: {
-    title: "Reasoning verification failed — test again",
-    icon: "warning",
-    color: "text-red-600 dark:text-red-400",
-  },
-};
-
-const DEFAULT_REASONING_TEST_META = {
-  title: "Verify reasoning (sends a thinking request)",
-  icon: "psychology",
-  color: "text-text-muted",
-};
-
 export default function ModelRow({
   model,
   fullModel,
@@ -66,17 +8,11 @@ export default function ModelRow({
   copied,
   onCopy,
   testStatus,
-  webSearchTestStatus,
-  reasoningTestStatus,
   isCustom,
   isFree,
   onDeleteAlias,
   onTest,
-  onTestWebSearch,
-  onTestReasoning,
   isTesting,
-  isTestingWebSearch,
-  isTestingReasoning,
   onDisable,
   caps,
 }) {
@@ -91,15 +27,7 @@ export default function ModelRow({
   // The catalog's `search` flag is documentation-based, not runtime proof.
   // This page renders search state only from the dedicated evidence probe below.
   const runtimeSafeCaps = caps ? { ...caps, search: false } : caps;
-  const isAnyTestRunning = isTesting || isTestingWebSearch || isTestingReasoning;
-  const webSearchMeta = WEB_SEARCH_TEST_META[webSearchTestStatus] || DEFAULT_WEB_SEARCH_TEST_META;
-  const webSearchTestTitle = isTestingWebSearch ? "Verifying native web search" : webSearchMeta.title;
-  const webSearchTestIcon = isTestingWebSearch ? "progress_activity" : webSearchMeta.icon;
-  const webSearchTestColor = webSearchMeta.color;
-  const reasoningMeta = REASONING_TEST_META[reasoningTestStatus] || DEFAULT_REASONING_TEST_META;
-  const reasoningTestTitle = isTestingReasoning ? "Verifying reasoning" : reasoningMeta.title;
-  const reasoningTestIcon = isTestingReasoning ? "progress_activity" : reasoningMeta.icon;
-  const reasoningTestColor = reasoningMeta.color;
+  const isAnyTestRunning = isTesting;
 
   return (
     <div
@@ -135,41 +63,11 @@ export default function ModelRow({
             onClick={onTest}
             disabled={isAnyTestRunning}
             className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60"
-            title={isTesting ? "Testing model" : isTestingWebSearch ? "Web search verification in progress" : "Test model"}
+            title={isTesting ? "Testing model" : "Test model"}
             aria-label={isTesting ? `Testing ${displayModel}` : `Test ${displayModel}`}
           >
             <span className={`material-symbols-outlined text-base ${isTesting ? "animate-spin motion-reduce:animate-none" : ""}`}>
               {isTesting ? "progress_activity" : "science"}
-            </span>
-          </button>
-        )}
-
-        {onTestWebSearch && (
-          <button
-            type="button"
-            onClick={onTestWebSearch}
-            disabled={isAnyTestRunning}
-            className={`inline-flex size-11 items-center justify-center rounded-sm transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60 ${webSearchTestColor}`}
-            title={webSearchTestTitle}
-            aria-label={`${webSearchTestTitle} with ${displayModel}`}
-          >
-            <span className={`material-symbols-outlined text-base ${isTestingWebSearch ? "animate-spin motion-reduce:animate-none" : ""}`}>
-              {webSearchTestIcon}
-            </span>
-          </button>
-        )}
-
-        {onTestReasoning && (
-          <button
-            type="button"
-            onClick={onTestReasoning}
-            disabled={isAnyTestRunning}
-            className={`inline-flex size-11 items-center justify-center rounded-sm transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60 ${reasoningTestColor}`}
-            title={reasoningTestTitle}
-            aria-label={`${reasoningTestTitle} with ${displayModel}`}
-          >
-            <span className={`material-symbols-outlined text-base ${isTestingReasoning ? "animate-spin motion-reduce:animate-none" : ""}`}>
-              {reasoningTestIcon}
             </span>
           </button>
         )}
@@ -221,17 +119,11 @@ ModelRow.propTypes = {
   copied: PropTypes.string,
   onCopy: PropTypes.func.isRequired,
   testStatus: PropTypes.oneOf(["ok", "error"]),
-  webSearchTestStatus: PropTypes.oneOf(["verified", "unsupported", "unknown", "error"]),
-  reasoningTestStatus: PropTypes.oneOf(["verified", "unsupported", "unknown", "error"]),
   isCustom: PropTypes.bool,
   isFree: PropTypes.bool,
   onDeleteAlias: PropTypes.func,
   onTest: PropTypes.func,
-  onTestWebSearch: PropTypes.func,
-  onTestReasoning: PropTypes.func,
   isTesting: PropTypes.bool,
-  isTestingWebSearch: PropTypes.bool,
-  isTestingReasoning: PropTypes.bool,
   onDisable: PropTypes.func,
   caps: PropTypes.object,
 };

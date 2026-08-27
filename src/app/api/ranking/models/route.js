@@ -5,7 +5,8 @@ import { getModelRanking } from "@/lib/db";
 // whole system. Mirrors /api/catalog/models: no getDashboardAccount gate —
 // anyone may read aggregate model rankings. Only model-level aggregates ever
 // leave this route; per-user / per-key / per-account dimensions are stripped
-// (and never enter the repo result in the first place), and so is cost.
+// (and never enter the repo result in the first place). Usage for the same
+// model is already merged across every upstream provider by the repository.
 const VALID_PERIODS = new Set(["1h", "6h", "12h", "24h", "today", "3d", "7d", "14d", "30d", "all"]);
 const VALID_SORTS = new Set(["requests", "tokens"]);
 const DEFAULT_LIMIT = 50;
@@ -41,7 +42,7 @@ export async function GET(request) {
         totalPromptTokens: ranking.totalPromptTokens,
         totalCompletionTokens: ranking.totalCompletionTokens,
         totalTokens: ranking.totalTokens,
-        models: ranking.models.slice(0, limit).map(({ cost, ...publicEntry }) => publicEntry),
+        models: ranking.models.slice(0, limit),
       },
       // Aggregate data changes slowly — let a CDN hold it briefly without
       // letting browsers serve stale content on back-navigation.

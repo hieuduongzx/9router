@@ -30,10 +30,10 @@ export default function RequestLogger({ period = "all" }) {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 10,
+    pageSize: 50,
     totalItems: 0,
     totalPages: 0,
   });

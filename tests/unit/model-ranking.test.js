@@ -12,7 +12,6 @@ const { fakeAdapter, rowsByTable, getAdapterMock } = vi.hoisted(() => {
   const rowsByTable = {
     usageHistory: [],
     usageDaily: [],
-    providerNodes: [],
   };
 
   const adapter = {
@@ -29,7 +28,6 @@ const { fakeAdapter, rowsByTable, getAdapterMock } = vi.hoisted(() => {
         }
         return rows;
       }
-      if (/FROM providerNodes/i.test(sql)) return rowsByTable.providerNodes;
       return [];
     },
     get() { return null; },
@@ -112,7 +110,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   rowsByTable.usageHistory = [];
   rowsByTable.usageDaily = [];
-  rowsByTable.providerNodes = [{ id: "openai", name: "OpenAI" }];
 });
 
 describe("getModelRanking (repo)", () => {
@@ -137,14 +134,13 @@ describe("getModelRanking (repo)", () => {
     expect(ranking.models[0]).toMatchObject({
       rank: 1,
       model: "gpt-5",
-      provider: "OpenAI", // display name resolved via providerNodes
       requests: 110,
       totalTokens: 400,
     });
     expect(ranking.models[1].model).toBe("claude-sonnet-4");
     expect(ranking.totalRequests).toBe(140);
     expect(ranking.totalTokens).toBe(550);
-    // Cost stays in the repo-level payload; the public route strips it.
+    // Cost stays in the repo-level payload and is safe to expose as an aggregate.
     expect(ranking.models[0].cost).toBeDefined();
     expect(ranking.period).toBe("7d");
   });
@@ -183,6 +179,45 @@ describe("getModelRanking (repo)", () => {
     expect(byRequests.models.map((m) => m.model)).toEqual(["a-model", "b-model"]);
   });
 
+  it("merges the same model across providers into one ranked row", async () => {
+    rowsByTable.usageHistory = [
+      histRow({ ts: isoMinutesAgo(5), model: "shared-model", provider: "provider-a", promptTokens: 100, completionTokens: 20 }),
+      histRow({ ts: isoMinutesAgo(2), model: "shared-model", provider: "provider-b", promptTokens: 300, completionTokens: 40 }),
+    ];
+
+    const ranking = await getModelRanking("24h", {});
+
+    expect(ranking.models).toHaveLength(1);
+    expect(ranking.models[0]).toMatchObject({
+      model: "shared-model",
+      requests: 2,
+      promptTokens: 400,
+      completionTokens: 60,
+      totalTokens: 460,
+      cost: 0.02,
+    });
+    expect(ranking.models[0]).not.toHaveProperty("provider");
+  });
+
+  it("merges the same model across providers in daily rollups", async () => {
+    rowsByTable.usageDaily = [
+      dayRow(dateKeyDaysAgo(1), {
+        "shared-model|provider-a": { rawModel: "shared-model", provider: "provider-a", requests: 3, promptTokens: 100, completionTokens: 20, cost: 0.03 },
+        "shared-model|provider-b": { rawModel: "shared-model", provider: "provider-b", requests: 4, promptTokens: 300, completionTokens: 40, cost: 0.04 },
+      }),
+    ];
+
+    const ranking = await getModelRanking("7d", {});
+
+    expect(ranking.models).toHaveLength(1);
+    expect(ranking.models[0]).toMatchObject({
+      model: "shared-model",
+      requests: 7,
+      totalTokens: 460,
+      cost: 0.07,
+    });
+  });
+
   it("uses history only as a lastUsed overlay for long windows (no double counting)", async () => {
     const recentTs = isoMinutesAgo(1);
     rowsByTable.usageDaily = [
@@ -207,7 +242,7 @@ describe("getModelRanking (repo)", () => {
 });
 
 describe("GET /api/ranking/models (public route)", () => {
-  it("serves rankings without any auth context and strips cost", async () => {
+  it("serves aggregate cost without exposing providers or auth context", async () => {
     rowsByTable.usageHistory = [histRow({ ts: isoMinutesAgo(3), model: "gpt-5", provider: "openai" })];
 
     const response = await rankingGET(request("?period=24h&limit=10"));
@@ -216,10 +251,11 @@ describe("GET /api/ranking/models (public route)", () => {
     const body = response.body;
     expect(body.period).toBe("24h");
     expect(body.models).toHaveLength(1);
-    expect(body.models[0]).not.toHaveProperty("cost");
+    expect(body.models[0].cost).toBe(0.01);
+    expect(body.models[0]).not.toHaveProperty("provider");
     expect(body.models[0].rank).toBe(1);
     expect(Object.keys(body.models[0]).sort()).toEqual(
-      ["cachedTokens", "completionTokens", "lastUsed", "model", "promptTokens", "provider", "rank", "requests", "totalTokens"],
+      ["cachedTokens", "completionTokens", "cost", "lastUsed", "model", "promptTokens", "rank", "requests", "totalTokens"],
     );
   });
 

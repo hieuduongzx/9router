@@ -1222,8 +1222,8 @@ export async function getUsageStats(period = "all", options = {}) {
  * lands in both stores, so adding counts from both would double them.
  *
  * Deliberately excludes every user-identifying dimension (API key, owner,
- * connection/account) — this feeds an unauthenticated endpoint. Cost stays in
- * the repo-level rows; the public route strips it before responding.
+ * connection/account) — this feeds an unauthenticated endpoint. Provider is
+ * deliberately not a ranking dimension; matching model names share one row.
  *
  * @param {string} [period="7d"]
  * @param {{ sort?: "requests"|"tokens" }} [options]
@@ -1232,22 +1232,12 @@ export async function getModelRanking(period = "7d", options = {}) {
   const db = await getAdapter();
   const sort = options.sort === "tokens" ? "tokens" : "requests";
 
-  let providerNodeNameMap = {};
-  try {
-    const { getProviderNodes } = await import("./nodesRepo.js");
-    for (const n of await getProviderNodes()) {
-      if (n.id && n.name) providerNodeNameMap[n.id] = n.name;
-    }
-  } catch {}
-
   const acc = new Map();
-  const bucketFor = (rawModel, providerId) => {
-    const key = `${rawModel}|${providerId}`;
-    let entry = acc.get(key);
+  const bucketFor = (rawModel) => {
+    let entry = acc.get(rawModel);
     if (!entry) {
       entry = {
         rawModel,
-        providerId,
         requests: 0,
         promptTokens: 0,
         completionTokens: 0,
@@ -1255,7 +1245,7 @@ export async function getModelRanking(period = "7d", options = {}) {
         cost: 0,
         lastUsed: "",
       };
-      acc.set(key, entry);
+      acc.set(rawModel, entry);
     }
     return entry;
   };
@@ -1268,8 +1258,7 @@ export async function getModelRanking(period = "7d", options = {}) {
       const day = parseJson(dr.data, {});
       for (const [mk, m] of Object.entries(day.byModel || {})) {
         const rawModel = m.rawModel || mk.split("|")[0];
-        const providerId = m.provider || mk.split("|")[1] || "";
-        const entry = bucketFor(rawModel, providerId);
+        const entry = bucketFor(rawModel);
         entry.requests += m.requests || 0;
         entry.promptTokens += m.promptTokens || 0;
         entry.completionTokens += m.completionTokens || 0;
@@ -1294,12 +1283,12 @@ export async function getModelRanking(period = "7d", options = {}) {
   }
   const histWhere = histConds.length ? `WHERE ${histConds.join(" AND ")}` : "";
   const histRows = db.all(
-    `SELECT timestamp, provider, model, promptTokens, completionTokens, cost, tokens
+    `SELECT timestamp, model, promptTokens, completionTokens, cost, tokens
        FROM usageHistory ${histWhere}`,
     histParams,
   );
   for (const r of histRows) {
-    const entry = bucketFor(r.model || "unknown", r.provider || "");
+    const entry = bucketFor(r.model || "unknown");
 
     if (!DAILY_SUMMARY_PERIODS.has(period)) {
       const tokens = parseJson(r.tokens, {}) || {};
@@ -1324,7 +1313,6 @@ export async function getModelRanking(period = "7d", options = {}) {
     .map((e) => ({
       rank: 0,
       model: e.rawModel,
-      provider: providerNodeNameMap[e.providerId] || e.providerId,
       requests: e.requests,
       promptTokens: e.promptTokens,
       completionTokens: e.completionTokens,

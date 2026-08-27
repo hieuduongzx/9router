@@ -6,7 +6,7 @@ import { Button } from "@/shared/components";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
 import ModelRow from "./ModelRow";
 
-export default function CompatibleModelsSection({ providerStorageAlias, providerDisplayAlias, modelAliases, customModels, copied, onCopy, onDeleteAlias, onAddCustomModel, onDeleteCustomModel, onTestModel, onTestWebSearch, onTestReasoning, modelTestResults, webSearchTestResults, reasoningTestResults, testingModelIds, testingWebSearchModelIds, testingReasoningModelIds, connections, isAnthropic }) {
+export default function CompatibleModelsSection({ providerStorageAlias, providerDisplayAlias, modelAliases, customModels, copied, onCopy, onDeleteAlias, onAddCustomModel, onDeleteCustomModel, onTestModel, modelTestResults, testingModelIds, connections, isAnthropic }) {
   const [newModel, setNewModel] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -74,14 +74,8 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
               onCopy={onCopy}
               onDeleteAlias={() => source === "custom" ? onDeleteCustomModel(id) : onDeleteAlias(alias)}
               onTest={connections.some((connection) => connection.isActive !== false) ? () => onTestModel(id) : undefined}
-              onTestWebSearch={connections.some((connection) => connection.isActive !== false) ? () => onTestWebSearch(id) : undefined}
-              onTestReasoning={connections.some((connection) => connection.isActive !== false) ? () => onTestReasoning(id) : undefined}
               testStatus={modelTestResults[id]}
-              webSearchTestStatus={webSearchTestResults[id]}
-              reasoningTestStatus={reasoningTestResults[id]}
               isTesting={testingModelIds.has(id)}
-              isTestingWebSearch={testingWebSearchModelIds.has(id)}
-              isTestingReasoning={testingReasoningModelIds.has(id)}
               isCustom
             />
           ))}
@@ -102,14 +96,8 @@ CompatibleModelsSection.propTypes = {
   onAddCustomModel: PropTypes.func.isRequired,
   onDeleteCustomModel: PropTypes.func.isRequired,
   onTestModel: PropTypes.func.isRequired,
-  onTestWebSearch: PropTypes.func.isRequired,
-  onTestReasoning: PropTypes.func.isRequired,
   modelTestResults: PropTypes.object.isRequired,
-  webSearchTestResults: PropTypes.object.isRequired,
-  reasoningTestResults: PropTypes.object.isRequired,
   testingModelIds: PropTypes.instanceOf(Set).isRequired,
-  testingWebSearchModelIds: PropTypes.instanceOf(Set).isRequired,
-  testingReasoningModelIds: PropTypes.instanceOf(Set).isRequired,
   connections: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string,
     isActive: PropTypes.bool,

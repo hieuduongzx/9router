@@ -24,6 +24,12 @@ const RANK_MEDALS = {
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 const COMPACT_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const COST_FORMAT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
+});
 
 function formatNumber(value) {
   return Number.isFinite(Number(value)) ? NUMBER_FORMAT.format(Number(value)) : "—";
@@ -31,6 +37,10 @@ function formatNumber(value) {
 
 function formatCompact(value) {
   return Number.isFinite(Number(value)) ? COMPACT_FORMAT.format(Number(value)) : "—";
+}
+
+function formatCost(value) {
+  return Number.isFinite(Number(value)) ? COST_FORMAT.format(Number(value)) : "—";
 }
 
 function formatRelative(timestamp) {
@@ -221,7 +231,7 @@ export default function RankingBoard() {
               {/* Mobile cards */}
               <div className="divide-y divide-zinc-100 md:hidden">
                 {models.map((model) => (
-                  <article key={`${model.rank}-${model.model}-${model.provider}`} className="p-4">
+                  <article key={`${model.rank}-${model.model}`} className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className={`inline-flex size-8 shrink-0 items-center justify-center border font-mono text-sm font-bold ${RANK_MEDALS[model.rank] || "border-zinc-200 bg-white text-zinc-500"}`}>
@@ -229,7 +239,7 @@ export default function RankingBoard() {
                         </span>
                         <div className="min-w-0">
                           <p className="truncate font-mono text-sm font-semibold leading-6 text-zinc-950">{model.model}</p>
-                          <p className="truncate text-xs text-zinc-500">{model.provider || "—"}</p>
+                          <p className="truncate font-mono text-xs tabular-nums text-emerald-700">{formatCost(model.cost)}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -248,7 +258,7 @@ export default function RankingBoard() {
                     <tr className="border-b border-zinc-200">
                       <th className="w-16 px-5 py-4">Rank</th>
                       <th className="px-5 py-4">Model</th>
-                      <th className="px-5 py-4">Provider</th>
+                      <th className="px-5 py-4 text-right">Cost</th>
                       <th className="px-5 py-4 text-right">Requests</th>
                       <th className="px-5 py-4 text-right">Tokens</th>
                       <th className="w-[220px] px-5 py-4">Share</th>
@@ -260,7 +270,7 @@ export default function RankingBoard() {
                       const value = Number(model[metric]) || 0;
                       const total = Number(sort === "tokens" ? data.totalTokens : data.totalRequests) || 1;
                       return (
-                        <tr key={`${model.rank}-${model.model}-${model.provider}`} className="bg-white transition hover:bg-zinc-50">
+                        <tr key={`${model.rank}-${model.model}`} className="bg-white transition hover:bg-zinc-50">
                           <td className="px-5 py-4">
                             <span className={`inline-flex size-8 items-center justify-center border font-mono text-sm font-bold ${RANK_MEDALS[model.rank] || "border-zinc-200 bg-white text-zinc-500"}`}>
                               {model.rank}
@@ -269,9 +279,7 @@ export default function RankingBoard() {
                           <td className="max-w-[280px] px-5 py-4">
                             <p className="truncate font-mono text-sm font-semibold text-zinc-950" title={model.model}>{model.model}</p>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="border border-zinc-200 bg-zinc-50 px-2 py-1 font-mono text-xs text-zinc-600">{model.provider || "—"}</span>
-                          </td>
+                          <td className="px-5 py-4 text-right font-mono font-semibold tabular-nums text-emerald-700">{formatCost(model.cost)}</td>
                           <td className="px-5 py-4 text-right font-mono font-semibold text-zinc-800">{formatNumber(model.requests)}</td>
                           <td className="px-5 py-4 text-right font-mono font-semibold text-zinc-800">{formatCompact(model.totalTokens)}</td>
                           <td className="px-5 py-4">

@@ -61,7 +61,7 @@ function getEmptyMessage(period) {
 
 export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
   const [details, setDetails] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 50, totalItems: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedDetail, setSelectedDetail] = useState(null);
