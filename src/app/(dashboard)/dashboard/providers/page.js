@@ -19,11 +19,11 @@ import {
   OPENAI_COMPATIBLE_PREFIX,
   ANTHROPIC_COMPATIBLE_PREFIX,
 } from "@/shared/constants/providers";
-import Link from "next/link";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
 import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
 import AddCompatibleModal from "./components/AddCompatibleModal";
+import ProviderSettingsLightbox from "./components/ProviderSettingsLightbox";
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -106,6 +106,7 @@ export default function ProvidersPage() {
   const [testResults, setTestResults] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState(null);
   const notify = useNotificationStore();
 
   const matchSearch = (name) =>
@@ -158,6 +159,22 @@ export default function ProvidersPage() {
     };
     fetchData();
   }, []);
+
+  const closeProviderSettings = async () => {
+    setSelectedProvider(null);
+    try {
+      const [connectionsRes, nodesRes] = await Promise.all([
+        fetch("/api/providers"),
+        fetch("/api/provider-nodes"),
+      ]);
+      const connectionsData = await connectionsRes.json();
+      const nodesData = await nodesRes.json();
+      if (connectionsRes.ok) setConnections(connectionsData.connections || []);
+      if (nodesRes.ok) setProviderNodes(nodesData.nodes || []);
+    } catch (error) {
+      console.log("Error refreshing provider data:", error);
+    }
+  };
 
   const getProviderStats = (providerId, authType) => {
     const authTypes = Array.isArray(authType) ? authType : [authType];
@@ -505,6 +522,7 @@ export default function ProvidersPage() {
                   provider={info}
                   stats={getProviderStats(info.id, "apikey")}
                   authType="compatible"
+                  onOpen={() => setSelectedProvider({ id: info.id, name: info.name })}
                   onToggle={(active) =>
                     handleToggleProvider(info.id, "apikey", active)
                   }
@@ -554,6 +572,7 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, authTypes)}
                 authType="oauth"
+                onOpen={() => setSelectedProvider({ id: key, name: info.name })}
                 onToggle={(active) => handleToggleProvider(key, authTypes, active)}
               />
             );
@@ -600,6 +619,7 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, freeAuthTypes)}
                 authType="free"
+                onOpen={() => setSelectedProvider({ id: key, name: info.name })}
                 onToggle={(active) =>
                   handleToggleProvider(key, freeAuthTypes, active)
                 }
@@ -615,6 +635,7 @@ export default function ProvidersPage() {
                 provider={info}
                 stats={getProviderStats(key, freeAuthTypes)}
                 authType={Array.isArray(freeAuthTypes) ? (freeAuthTypes[0] ?? "apikey") : freeAuthTypes}
+                onOpen={() => setSelectedProvider({ id: key, name: info.name })}
                 onToggle={(active) => handleToggleProvider(key, freeAuthTypes, active)}
               />
             );
@@ -657,6 +678,7 @@ export default function ProvidersPage() {
               provider={info}
               stats={getProviderStats(key, "apikey")}
               authType="apikey"
+              onOpen={() => setSelectedProvider({ id: key, name: info.name })}
               onToggle={(active) => handleToggleProvider(key, "apikey", active)}
             />
           ))}
@@ -704,6 +726,13 @@ export default function ProvidersPage() {
           setShowAddCompatibleModal(false);
         }}
       />
+      {selectedProvider && (
+        <ProviderSettingsLightbox
+          providerId={selectedProvider.id}
+          providerName={selectedProvider.name}
+          onClose={closeProviderSettings}
+        />
+      )}
       <AddCompatibleModal
         variant="anthropic"
         isOpen={showAddAnthropicCompatibleModal}
@@ -746,7 +775,7 @@ export default function ProvidersPage() {
   );
 }
 
-function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
+function ProviderCard({ providerId, provider, stats, authType, onToggle, onOpen }) {
   const { connected, error, errorCode, errorTime, allDisabled } = stats;
   const isNoAuth = !!provider.noAuth;
 
@@ -764,10 +793,16 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
   };
 
   return (
-    <Link href={`/dashboard/providers/${providerId}`} className="group min-w-0">
+    <div className="group relative min-w-0 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        aria-label={`Configure ${provider.name}`}
+      />
       <Card
         padding="xs"
-        className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}
+        className={`pointer-events-none h-full transition-colors group-hover:bg-black/[0.01] dark:group-hover:bg-white/[0.01] ${allDisabled ? "opacity-50" : ""}`}
       >
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -816,7 +851,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
           <div className="flex shrink-0 items-center gap-2">
             {stats.total > 0 && (
               <div
-                className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -834,7 +869,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
           </div>
         </div>
       </Card>
-    </Link>
+    </div>
   );
 }
 
@@ -854,6 +889,7 @@ ProviderCard.propTypes = {
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
+  onOpen: PropTypes.func.isRequired,
 };
 
 function ApiKeyProviderCard({
@@ -862,6 +898,7 @@ function ApiKeyProviderCard({
   stats,
   authType,
   onToggle,
+  onOpen,
 }) {
   const { connected, error, errorCode, errorTime, allDisabled } = stats;
   const isCompatible = providerId.startsWith(OPENAI_COMPATIBLE_PREFIX);
@@ -892,10 +929,16 @@ function ApiKeyProviderCard({
   };
 
   return (
-    <Link href={`/dashboard/providers/${providerId}`} className="group min-w-0">
+    <div className="group relative min-w-0 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        aria-label={`Configure ${provider.name}`}
+      />
       <Card
         padding="xs"
-        className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}
+        className={`pointer-events-none h-full transition-colors group-hover:bg-black/[0.01] dark:group-hover:bg-white/[0.01] ${allDisabled ? "opacity-50" : ""}`}
       >
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -954,7 +997,7 @@ function ApiKeyProviderCard({
           <div className="flex shrink-0 items-center gap-2">
             {stats.total > 0 && (
               <div
-                className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -972,7 +1015,7 @@ function ApiKeyProviderCard({
           </div>
         </div>
       </Card>
-    </Link>
+    </div>
   );
 }
 
@@ -993,6 +1036,7 @@ ApiKeyProviderCard.propTypes = {
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
+  onOpen: PropTypes.func.isRequired,
 };
 
 function ProviderTestResultsView({ results }) {

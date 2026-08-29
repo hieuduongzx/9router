@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
+import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "../../../shared/utils/requestTokens.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -1648,7 +1649,7 @@ export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 
   const newest = Math.max(...times) + 60_000;
   const usageRows = db.all(
     `SELECT uh.timestamp, uh.provider, uh.model, uh.connectionId, uh.apiKey,
-            uh.promptTokens, uh.completionTokens, uh.cost,
+            uh.promptTokens, uh.completionTokens, uh.cost, uh.tokens,
             ak.name AS apiKeyName, u.username, u.email
        FROM usageHistory uh
        LEFT JOIN apiKeys ak ON ak.key = uh.apiKey
@@ -1694,6 +1695,10 @@ export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 
     if (nearestDelta > 60_000) usage = null;
 
     const parsedDetail = parseJson(detail.data, {});
+    const tokens = {
+      ...parseJson(usage?.tokens, {}),
+      ...(parsedDetail.tokens || {}),
+    };
 
     return {
       detailId: detail.detailId,
@@ -1703,8 +1708,10 @@ export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 
       username: detail.username || usage?.username || ((detail.apiKey || usage?.apiKey) ? "Unassigned key" : "Local / system"),
       email: detail.email || usage?.email || "",
       apiKeyName: detail.apiKeyName || usage?.apiKeyName || ((detail.apiKey || usage?.apiKey) ? "Unknown key" : "No API key"),
-      inputTokens: usage?.promptTokens || 0,
-      outputTokens: usage?.completionTokens || 0,
+      inputTokens: getInputTokens(tokens) || usage?.promptTokens || 0,
+      cachedTokens: getCachedTokens(tokens),
+      cacheCreationTokens: getCacheCreationTokens(tokens),
+      outputTokens: tokens?.completion_tokens || tokens?.output_tokens || usage?.completionTokens || 0,
       cost: Number.isFinite(usage?.cost) ? usage.cost : null,
       status: detail.status || "-",
       timingMs: Number.isFinite(parsedDetail.latency?.total) ? parsedDetail.latency.total : null,

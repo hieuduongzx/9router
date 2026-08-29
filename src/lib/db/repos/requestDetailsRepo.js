@@ -193,15 +193,26 @@ export async function saveRequestDetail(detail) {
   }
 }
 
-function addApiKeyFilter(filter, conds, params) {
+function addApiKeyFilter(filter, conds, params, column = "apiKey") {
   if (!Object.prototype.hasOwnProperty.call(filter, "apiKeys")) return;
   const apiKeys = Array.isArray(filter.apiKeys) ? filter.apiKeys.filter(Boolean) : [];
   if (apiKeys.length === 0) {
     conds.push("1 = 0");
     return;
   }
-  conds.push(`apiKey IN (${apiKeys.map(() => "?").join(", ")})`);
+  conds.push(`${column} IN (${apiKeys.map(() => "?").join(", ")})`);
   params.push(...apiKeys);
+}
+
+function attachApiKeyMeta(detail, row) {
+  if (!detail) return detail;
+  const safe = { ...detail };
+  delete safe.apiKey;
+  return {
+    ...safe,
+    apiKeyName: row.apiKeyName || (row.apiKey ? "Unknown key" : "No API key"),
+    apiKeyId: row.apiKeyId || null,
+  };
 }
 
 async function withRequestCost(detail) {
@@ -227,16 +238,16 @@ export async function getRequestDetails(filter = {}) {
   const conds = [];
   const params = [];
 
-  if (filter.provider) { conds.push("provider = ?"); params.push(filter.provider); }
-  if (filter.model) { conds.push("model = ?"); params.push(filter.model); }
-  if (filter.connectionId) { conds.push("connectionId = ?"); params.push(filter.connectionId); }
-  if (filter.status) { conds.push("status = ?"); params.push(filter.status); }
-  if (filter.startDate) { conds.push("timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
-  if (filter.endDate) { conds.push("timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
-  addApiKeyFilter(filter, conds, params);
+  if (filter.provider) { conds.push("rd.provider = ?"); params.push(filter.provider); }
+  if (filter.model) { conds.push("rd.model = ?"); params.push(filter.model); }
+  if (filter.connectionId) { conds.push("rd.connectionId = ?"); params.push(filter.connectionId); }
+  if (filter.status) { conds.push("rd.status = ?"); params.push(filter.status); }
+  if (filter.startDate) { conds.push("rd.timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
+  if (filter.endDate) { conds.push("rd.timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
+  addApiKeyFilter(filter, conds, params, "rd.apiKey");
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
-  const cntRow = db.get(`SELECT COUNT(*) as c FROM requestDetails ${where}`, params);
+  const cntRow = db.get(`SELECT COUNT(*) as c FROM requestDetails rd ${where}`, params);
   const totalItems = cntRow ? cntRow.c : 0;
 
   const page = filter.page || 1;
@@ -244,10 +255,16 @@ export async function getRequestDetails(filter = {}) {
   const totalPages = Math.ceil(totalItems / pageSize);
   const offset = (page - 1) * pageSize;
   const rows = db.all(
-    `SELECT data FROM requestDetails ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    `SELECT rd.data AS data, rd.apiKey AS apiKey, ak.name AS apiKeyName, ak.id AS apiKeyId
+       FROM requestDetails rd
+       LEFT JOIN apiKeys ak ON ak.key = rd.apiKey
+       ${where}
+      ORDER BY rd.timestamp DESC LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
-  const details = await Promise.all(rows.map((row) => withRequestCost(parseJson(row.data, {}))));
+  const details = await Promise.all(rows.map(async (row) => (
+    attachApiKeyMeta(await withRequestCost(parseJson(row.data, {})), row)
+  )));
 
   return {
     details,
@@ -269,8 +286,14 @@ export async function getDistinctProviders(filter = {}) {
 
 export async function getRequestDetailById(id) {
   const db = await getAdapter();
-  const row = db.get(`SELECT data FROM requestDetails WHERE id = ?`, [id]);
-  return row ? await withRequestCost(parseJson(row.data, null)) : null;
+  const row = db.get(
+    `SELECT rd.data AS data, rd.apiKey AS apiKey, ak.name AS apiKeyName, ak.id AS apiKeyId
+       FROM requestDetails rd
+       LEFT JOIN apiKeys ak ON ak.key = rd.apiKey
+      WHERE rd.id = ?`,
+    [id],
+  );
+  return row ? attachApiKeyMeta(await withRequestCost(parseJson(row.data, null)), row) : null;
 }
 
 const _shutdownHandler = async () => {

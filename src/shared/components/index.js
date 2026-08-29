@@ -42,6 +42,7 @@ export { default as StatTile } from "./StatTile";
 export { default as StatusPill } from "./StatusPill";
 export { default as PeriodDropdown } from "./PeriodDropdown";
 export { default as CursorPagination } from "./CursorPagination";
+export { default as RequestTableColumnSettings } from "./RequestTableColumnSettings";
 
 // Layouts
 export * from "./layouts";

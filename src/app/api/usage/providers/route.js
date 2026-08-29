@@ -12,13 +12,13 @@ export async function GET(request) {
   try {
     const owner = await getDashboardAccount(request);
     if (!owner) return NextResponse.json({ error: "Account login required" }, { status: 403 });
-    const keys = owner.role === "admin" ? null : await getApiKeys(owner.id);
+    const keys = await getApiKeys(owner.id);
 
     // Query DISTINCT provider column directly — avoids parsing every row's
     // full JSON blob (can be hundreds of MB), which previously caused OOM.
-    const providerIds = await getDistinctProviders(
-      keys ? { apiKeys: keys.map((key) => key.key) } : {},
-    );
+    const providerIds = await getDistinctProviders({
+      apiKeys: keys.map((key) => key.key),
+    });
 
     const nodeMap = {};
     if (owner.role === "admin") {

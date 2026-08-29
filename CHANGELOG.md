@@ -1,6 +1,14 @@
 # Unreleased
 
 ## Features
+- **Usage**: Model request history shows which API key made each request
+  (key name only — the secret is never returned), including Activity Request Logs
+- **Usage**: Model request history shows Cached and Cache write token counts
+  on Usage, Activity Request Logs, and the Users Requests tab
+- **Usage**: request tables have a Columns setting to show/hide fields.
+  API key and Cache write are hidden by default (Usage, Activity Request Logs,
+  and Users Requests share the same prefs)
+- **Accounts**: admin user detail page is split into Overview / API keys / Credit / Requests tabs
 - **Ranking**: public model leaderboard at `/ranking` (no sign-in) — most-used
   models across the whole system ranked by requests or tokens over 1h / 24h /
   7d / 30d / all-time windows, with share bars, medal ranks, auto-refresh, and
@@ -10,6 +18,11 @@
   rollups for whole-day windows (survives history retention pruning), indexed
   live `usageHistory` scans for sub-day windows plus a lastUsed overlay. Linked
   from the landing nav and the dashboard Traffic sidebar.
+
+## Fixes
+- **Usage**: `/dashboard/usage` Model request history is scoped to the signed-in
+  account even for administrators — system-wide history stays on Activity / a
+  specific Users page (`?userId=`)
 
 # v0.5.55 (2026-08-14)
 

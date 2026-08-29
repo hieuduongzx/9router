@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import Drawer from "./Drawer";
 import { cn } from "@/shared/utils/cn";
+import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -13,20 +14,6 @@ const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 6,
 });
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
-
-function getCachedTokens(tokens) {
-  return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
-}
-
-function getCacheCreationTokens(tokens) {
-  return tokens?.cache_creation_input_tokens || 0;
-}
-
-function getInputTokens(tokens) {
-  const prompt = tokens?.prompt_tokens || tokens?.input_tokens || 0;
-  const cache = getCachedTokens(tokens);
-  return prompt < cache ? cache : prompt;
-}
 
 function formatCost(value) {
   return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
@@ -75,8 +62,8 @@ export function buildDetailReport(detail, providerName) {
     `cost         : total ${formatCost(detail.cost)} (in ${formatCost(detail.costInput)} / out ${formatCost(detail.costOutput)})`,
   ];
 
-  if (detail.account?.username || detail.account?.apiKeyName) {
-    lines.push(`account      : ${detail.account.username || "—"} · key ${detail.account.apiKeyName || "—"}`);
+  if (detail.account?.username || detail.account?.apiKeyName || detail.apiKeyName) {
+    lines.push(`account      : ${detail.account?.username || "—"} · key ${detail.account?.apiKeyName || detail.apiKeyName || "—"}`);
   }
   if (detail.connectionId) lines.push(`connectionId : ${detail.connectionId}`);
   if (detail.pxpipe) {
@@ -296,6 +283,9 @@ export default function RequestDetailDrawer({
             <SummaryRow label="Mode" value={detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"} />
             {showProviderDetails && <SummaryRow label="Provider" value={resolvedProviderName} mono={false} />}
             <SummaryRow label="Model" value={detail.model || "—"} />
+            {(detail.account?.apiKeyName || detail.apiKeyName) && (
+              <SummaryRow label="API key" value={detail.account?.apiKeyName || detail.apiKeyName} />
+            )}
             {detail.account?.username && <SummaryRow label="Account" value={detail.account.username} mono={false} />}
           </SummarySection>
 

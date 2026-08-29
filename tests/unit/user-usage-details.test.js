@@ -30,5 +30,31 @@ describe("admin account usage details", () => {
     expect(page).toContain("Encrypted · cannot be viewed");
     expect(page).toContain("Recent activity");
     expect(page).toContain("Usage by model");
+    expect(page).toContain('{ value: "overview", label: "Overview" }');
+    expect(page).toContain('{ value: "keys", label: "API keys" }');
+    expect(page).toContain('{ value: "credit", label: "Credit" }');
+    expect(page).toContain('{ value: "requests", label: "Requests" }');
+    expect(page).toContain('tab === "overview"');
+    expect(page).toContain('tab === "keys"');
+    expect(page).toContain('tab === "credit"');
+    expect(page).toContain('tab === "requests"');
+  });
+
+  it("shows cache token columns on usage, activity, and user request history", () => {
+    const usage = read("src/app/(dashboard)/dashboard/usage/components/RequestDetailsTab.js");
+    const logger = read("src/shared/components/RequestLogger.js");
+    const columns = read("src/shared/components/RequestTableColumnSettings.js");
+    expect(usage).toContain("getCachedTokens(detail.tokens)");
+    expect(usage).toContain("getCacheCreationTokens(detail.tokens)");
+    expect(usage).toContain('table="history"');
+    expect(logger).toContain("log.cachedTokens");
+    expect(logger).toContain("log.cacheCreationTokens");
+    expect(logger).toContain("log.apiKeyName");
+    expect(logger).toContain('table="activity"');
+    expect(columns).toContain('id: "cached"');
+    expect(columns).toContain('id: "cacheWrite"');
+    expect(columns).toContain('id: "apiKey"');
+    expect(columns).toContain('label: "API key", defaultVisible: false');
+    expect(columns).toContain('label: "Cache write", defaultVisible: false');
   });
 });

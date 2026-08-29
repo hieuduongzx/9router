@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Card from "./Card";
 import CursorPagination from "./CursorPagination";
 import RequestDetailDrawer, { useRequestDetailDrawer } from "./RequestDetailDrawer";
+import RequestTableColumnSettings, { useRequestTableColumns } from "./RequestTableColumnSettings";
 import StatusPill from "./StatusPill";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
@@ -25,7 +26,61 @@ function formatTiming(ms) {
   return value >= 1000 ? `${(value / 1000).toFixed(3)}s` : `${Math.round(value)}ms`;
 }
 
+function activityCell(id, log) {
+  switch (id) {
+    case "time":
+      return new Date(log.timestamp).toLocaleString();
+    case "account":
+      return (
+        <>
+          <span className="block truncate font-medium text-text-main" title={log.username}>{log.username}</span>
+          {log.email && <span className="block truncate text-[10px] text-text-muted" title={log.email}>{log.email}</span>}
+        </>
+      );
+    case "apiKey":
+      return log.apiKeyName || "No API key";
+    case "cost":
+      return formatCost(log.cost);
+    case "input":
+      return NUMBER_FORMAT.format(log.inputTokens || 0);
+    case "cached":
+      return NUMBER_FORMAT.format(log.cachedTokens || 0);
+    case "cacheWrite":
+      return NUMBER_FORMAT.format(log.cacheCreationTokens || 0);
+    case "output":
+      return NUMBER_FORMAT.format(log.outputTokens || 0);
+    case "timing":
+      return formatTiming(log.timingMs);
+    case "model":
+      return log.model;
+    case "mode":
+      return log.mode || "—";
+    case "status":
+      return <StatusPill status={log.status} />;
+    default:
+      return "—";
+  }
+}
+
+function activityCellClass(id) {
+  if (id === "account") return "max-w-[190px] px-4 py-2.5";
+  if (id === "apiKey") return "max-w-[180px] truncate px-4 py-2.5 font-mono text-text-main";
+  if (id === "model") return "max-w-[190px] truncate px-4 py-2.5 font-mono text-text-main";
+  if (id === "status") return "whitespace-nowrap px-4 py-2.5";
+  if (id === "cost") return "whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main";
+  if (id === "timing" || id === "mode") return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted";
+  return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main";
+}
+
+function activityCellTitle(id, log) {
+  if (id === "apiKey") return log.apiKeyName || "No API key";
+  if (id === "model") return log.model;
+  return undefined;
+}
+
 export default function RequestLogger({ period = "all" }) {
+  const { columns, visibility } = useRequestTableColumns("activity");
+  const visibleColumns = columns.filter((column) => visibility[column.id] !== false);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -92,21 +147,24 @@ export default function RequestLogger({ period = "all" }) {
           <h2 className="font-mono text-lg font-semibold text-text-main">Request Logs</h2>
           <p className="mt-0.5 text-xs text-text-muted">Account ownership is resolved from the API key used for each request.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAutoRefresh((value) => !value)}
-          aria-pressed={autoRefresh}
-          className="inline-flex items-center gap-2 self-start font-mono text-xs font-medium text-text-muted sm:self-auto"
-        >
-          <span>Auto refresh</span>
-          <span className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors ${
-            autoRefresh ? "border-primary bg-primary" : "border-border bg-surface-2"
-          }`}>
-            <span className={`inline-block size-3 rounded-full bg-white transition-transform ${
-              autoRefresh ? "translate-x-5" : "translate-x-1"
-            }`} />
-          </span>
-        </button>
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setAutoRefresh((value) => !value)}
+            aria-pressed={autoRefresh}
+            className="inline-flex items-center gap-2 font-mono text-xs font-medium text-text-muted"
+          >
+            <span>Auto refresh</span>
+            <span className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors ${
+              autoRefresh ? "border-primary bg-primary" : "border-border bg-surface-2"
+            }`}>
+              <span className={`inline-block size-3 rounded-full bg-white transition-transform ${
+                autoRefresh ? "translate-x-5" : "translate-x-1"
+              }`} />
+            </span>
+          </button>
+          <RequestTableColumnSettings table="activity" />
+        </div>
       </div>
 
       {detailError && (
@@ -122,18 +180,14 @@ export default function RequestLogger({ period = "all" }) {
           ) : logs.length === 0 ? (
             <div className="p-8 text-center text-sm text-text-muted">No request details recorded yet.</div>
           ) : (
-            <table className="w-full min-w-[1080px] border-collapse text-left text-xs">
+            <table className="w-full min-w-max border-collapse text-left text-xs">
               <thead className="thead-data">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Time</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Account</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Total Cost</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Input Tokens</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Output Tokens</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Timing</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Model</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Mode</th>
-                  <th className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">Status</th>
+                  {visibleColumns.map((column) => (
+                    <th key={column.id} className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">
+                      {column.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -145,20 +199,11 @@ export default function RequestLogger({ period = "all" }) {
                       loadingDetailId === log.detailId ? "opacity-60" : ""
                     } ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
                   >
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted tabular-nums">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="max-w-[190px] px-4 py-2.5">
-                      <span className="block truncate font-medium text-text-main" title={log.username}>{log.username}</span>
-                      {log.email && <span className="block truncate text-[10px] text-text-muted" title={log.email}>{log.email}</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main">{formatCost(log.cost)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{NUMBER_FORMAT.format(log.inputTokens || 0)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main">{NUMBER_FORMAT.format(log.outputTokens || 0)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted">{formatTiming(log.timingMs)}</td>
-                    <td className="max-w-[190px] truncate px-4 py-2.5 font-mono text-text-main" title={log.model}>{log.model}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-text-muted">{log.mode || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5"><StatusPill status={log.status} /></td>
+                    {visibleColumns.map((column) => (
+                      <td key={column.id} className={activityCellClass(column.id)} title={activityCellTitle(column.id, log)}>
+                        {activityCell(column.id, log)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

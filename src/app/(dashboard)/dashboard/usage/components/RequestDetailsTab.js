@@ -5,8 +5,10 @@ import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import RequestDetailDrawer from "@/shared/components/RequestDetailDrawer";
 import CursorPagination from "@/shared/components/CursorPagination";
+import RequestTableColumnSettings, { useRequestTableColumns } from "@/shared/components/RequestTableColumnSettings";
 import StatusPill from "@/shared/components/StatusPill";
 import { getUsagePeriodStartIso } from "@/shared/constants/usagePeriods";
+import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -18,17 +20,6 @@ const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
 function formatCost(value) {
   return Number.isFinite(value) ? MONEY_FORMAT.format(value) : "—";
 }
-
-function getCachedTokens(tokens) {
-  return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
-}
-
-function getInputTokens(tokens) {
-  const prompt = tokens?.prompt_tokens || tokens?.input_tokens || 0;
-  const cache = getCachedTokens(tokens);
-  return prompt < cache ? cache : prompt;
-}
-
 function formatTiming(ms) {
   const value = Number(ms);
   if (!Number.isFinite(value)) return "—";
@@ -53,13 +44,73 @@ function formatTraceId(value) {
   return traceId.length > 12 ? `${traceId.slice(0, 8)}…${traceId.slice(-4)}` : traceId;
 }
 
+function formatApiKeyLabel(detail) {
+  return detail?.apiKeyName || "No API key";
+}
+
 function getEmptyMessage(period) {
   return period === "all"
     ? "No model requests have been recorded yet."
     : "No model requests were recorded in this period.";
 }
 
+function historyCell(id, detail) {
+  switch (id) {
+    case "time":
+      return formatRequestTime(detail.timestamp);
+    case "apiKey":
+      return formatApiKeyLabel(detail);
+    case "input":
+      return getInputTokens(detail.tokens).toLocaleString();
+    case "cached":
+      return getCachedTokens(detail.tokens).toLocaleString();
+    case "cacheWrite":
+      return getCacheCreationTokens(detail.tokens).toLocaleString();
+    case "output":
+      return (detail.tokens?.completion_tokens || 0).toLocaleString();
+    case "timing":
+      return formatTiming(detail.latency?.total);
+    case "model":
+      return detail.model || "—";
+    case "mode":
+      return detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—";
+    case "status":
+      return <StatusPill status={detail.status} />;
+    case "credits":
+      return formatCost(detail.cost);
+    case "trace":
+      return formatTraceId(detail.id);
+    default:
+      return "—";
+  }
+}
+
+function historyCellClass(id) {
+  const numeric = id === "input" || id === "cached" || id === "cacheWrite" || id === "output" || id === "timing" || id === "credits";
+  const truncate = id === "apiKey" || id === "model" || id === "trace";
+  return [
+    "whitespace-nowrap px-4 py-3 font-mono",
+    numeric ? "text-right tabular-nums" : "",
+    id === "credits" ? "font-medium text-text-main" : numeric && id !== "timing" ? "text-text-main" : "text-text-muted",
+    id === "timing" ? "text-text-muted" : "",
+    id === "apiKey" || id === "model" ? "text-text-main" : "",
+    truncate ? "max-w-[200px] truncate" : "",
+    id === "model" ? "max-w-[260px]" : "",
+    id === "trace" ? "max-w-[180px]" : "",
+  ].filter(Boolean).join(" ");
+}
+
+function historyCellTitle(id, detail) {
+  if (id === "apiKey") return formatApiKeyLabel(detail);
+  if (id === "model") return detail.model || "Unknown model";
+  if (id === "trace") return String(detail.id || "");
+  return undefined;
+}
+
 export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
+  const { columns, visibility } = useRequestTableColumns("history");
+  const visibleColumns = columns.filter((column) => visibility[column.id] !== false);
+  const colSpan = Math.max(visibleColumns.length, 1);
   const [details, setDetails] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 50, totalItems: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
@@ -128,28 +179,31 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
             <h2 className="font-mono text-sm font-semibold text-text-main">Model request history</h2>
             <p className="mt-0.5 text-xs text-text-muted">Token, timing, and price details for requests in your current account scope.</p>
           </div>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{pagination.totalItems || 0} requests</span>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="font-mono text-xs tabular-nums text-text-muted">{pagination.totalItems || 0} requests</span>
+            <RequestTableColumnSettings table="history" />
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-xs leading-tight">
+          <table className="w-full min-w-max text-xs leading-tight">
             <caption className="sr-only">Model request history for the current account and date filters</caption>
             <thead className="thead-data">
               <tr>
-                <th scope="col" className="px-4 py-2.5 text-left">Time</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Input Tokens</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Output Tokens</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Timing</th>
-                <th scope="col" className="px-4 py-2.5 text-left">Model</th>
-                <th scope="col" className="px-4 py-2.5 text-left">Mode</th>
-                <th scope="col" className="px-4 py-2.5 text-left">Status</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Credits</th>
-                <th scope="col" className="px-4 py-2.5 text-left">Trace ID</th>
+                {visibleColumns.map((column) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    className={`px-4 py-2.5 ${column.align === "right" ? "text-right" : "text-left"}`}
+                  >
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td colSpan={colSpan} className="px-4 py-12 text-center">
                     <span className="inline-flex items-center gap-2 text-sm text-text-muted">
                       <span className="material-symbols-outlined animate-spin text-[18px]" aria-hidden>progress_activity</span>
                       Loading model requests…
@@ -158,7 +212,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td colSpan={colSpan} className="px-4 py-12 text-center">
                     <div role="alert" className="inline-flex max-w-lg flex-col items-center gap-2">
                       <span className="material-symbols-outlined text-[22px] text-danger" aria-hidden>error</span>
                       <span className="text-sm text-text-main">Model request history could not be loaded.</span>
@@ -168,7 +222,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                 </tr>
               ) : details.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td colSpan={colSpan} className="px-4 py-12 text-center">
                     <div className="inline-flex flex-col items-center gap-2">
                       <span className="material-symbols-outlined text-[22px] text-text-subtle" aria-hidden>history</span>
                       <span className="text-sm text-text-main">{getEmptyMessage(period)}</span>
@@ -190,15 +244,11 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                   aria-label={`Open request ${detail.id || index + 1}`}
                   className="cursor-pointer transition-colors hover:bg-surface-2/70 focus-visible:bg-surface-2/70 focus-visible:outline-none"
                 >
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-text-muted tabular-nums">{formatRequestTime(detail.timestamp)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-main">{getInputTokens(detail.tokens).toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-main">{(detail.tokens?.completion_tokens || 0).toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-text-muted">{formatTiming(detail.latency?.total)}</td>
-                  <td className="max-w-[260px] truncate px-4 py-3 font-mono text-text-main" title={detail.model || "Unknown model"}>{detail.model || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-text-muted">{detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3"><StatusPill status={detail.status} /></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums text-text-main">{formatCost(detail.cost)}</td>
-                  <td className="max-w-[180px] truncate px-4 py-3 font-mono text-text-muted" title={String(detail.id || "")}>{formatTraceId(detail.id)}</td>
+                  {visibleColumns.map((column) => (
+                    <td key={column.id} className={historyCellClass(column.id)} title={historyCellTitle(column.id, detail)}>
+                      {historyCell(column.id, detail)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

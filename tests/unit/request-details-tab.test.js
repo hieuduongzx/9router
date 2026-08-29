@@ -6,6 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { buildRequestDetail } from "../../open-sse/handlers/chatCore/requestDetail.js";
+import {
+  getCachedTokens,
+  getCacheCreationTokens,
+  getInputTokens,
+} from "../../src/shared/utils/requestTokens.js";
 
 const authMocks = vi.hoisted(() => ({
   getDashboardAccount: vi.fn(async () => ({ id: "test-admin", role: "admin", isActive: true })),
@@ -133,6 +138,8 @@ describe("request details — tab crash-risk cases", () => {
     const result = await db.getRequestDetails({ apiKeys: ["sk-built-owner"], pageSize: 100 });
     expect(result.details.map((detail) => detail.id)).toContain("built-owned-detail");
     expect(result.details.find((detail) => detail.id === "built-owned-detail")?.apiKey).toBeUndefined();
+    expect(result.details.find((detail) => detail.id === "built-owned-detail")?.apiKeyName).toBe("Unknown key");
+    expect(JSON.stringify(result.details.find((detail) => detail.id === "built-owned-detail"))).not.toContain("sk-built-owner");
   });
 
   it("API-key filter returns only details owned by the selected account", async () => {
@@ -149,8 +156,38 @@ describe("request details — tab crash-risk cases", () => {
     expect(result.details.map((detail) => detail.id)).toContain("owned-a");
     expect(result.details.map((detail) => detail.id)).not.toContain("owned-b");
     expect(result.details.find((detail) => detail.id === "owned-a")?.apiKey).toBeUndefined();
+    expect(result.details.find((detail) => detail.id === "owned-a")?.apiKeyName).toBe("Unknown key");
     expect(await db.getDistinctProviders({ apiKeys: ["sk-owner-a"] })).toContain("openai");
     expect(await db.getDistinctProviders({ apiKeys: ["sk-owner-a"] })).not.toContain("anthropic");
+  });
+
+  it("request history exposes the owning API key name without the secret", async () => {
+    const owner = await db.createUser({
+      username: "history.key.owner",
+      email: "history.key.owner@example.com",
+      password: "password-owner",
+    });
+    const namedKey = await db.createApiKey("Prod dashboard", "machine-history-key", owner.id);
+    await saveDetail({
+      id: "named-key-detail", apiKey: namedKey.key, provider: "openai", model: "gpt-named",
+      status: "ok", tokens: {}, request: { stream: false }, response: {},
+    });
+    await saveDetail({
+      id: "no-key-detail", provider: "openai", model: "gpt-local",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+
+    const result = await db.getRequestDetails({ pageSize: 100 });
+    const named = result.details.find((detail) => detail.id === "named-key-detail");
+    const local = result.details.find((detail) => detail.id === "no-key-detail");
+    expect(named).toMatchObject({ apiKeyName: "Prod dashboard", apiKeyId: namedKey.id });
+    expect(named.apiKey).toBeUndefined();
+    expect(JSON.stringify(named)).not.toContain(namedKey.key);
+    expect(local).toMatchObject({ apiKeyName: "No API key", apiKeyId: null });
+
+    const byId = await db.getRequestDetailById("named-key-detail");
+    expect(byId).toMatchObject({ apiKeyName: "Prod dashboard", apiKeyId: namedKey.id });
+    expect(byId.apiKey).toBeUndefined();
   });
 
   it("activity logs expose the owning account and an inspectable detail id", async () => {
@@ -172,7 +209,7 @@ describe("request details — tab crash-risk cases", () => {
       model: "gpt-activity",
       connectionId: "activity-connection",
       apiKey: key.key,
-      tokens: { prompt_tokens: 17, completion_tokens: 5 },
+      tokens: { prompt_tokens: 17, completion_tokens: 5, cached_tokens: 8, cache_creation_input_tokens: 3 },
       status: "200 OK",
     });
     await saveDetail({
@@ -183,7 +220,7 @@ describe("request details — tab crash-risk cases", () => {
       model: "gpt-activity",
       connectionId: "activity-connection",
       status: "success",
-      tokens: { prompt_tokens: 17, completion_tokens: 5 },
+      tokens: { prompt_tokens: 17, completion_tokens: 5, cached_tokens: 8, cache_creation_input_tokens: 3 },
       request: {},
       response: {},
     });
@@ -194,6 +231,8 @@ describe("request details — tab crash-risk cases", () => {
       email: "activity.owner@example.com",
       apiKeyName: "Activity Owner Key",
       inputTokens: 17,
+      cachedTokens: 8,
+      cacheCreationTokens: 3,
       outputTokens: 5,
     });
     expect(log.cost).toBeCloseTo(0.000027, 12);
@@ -295,20 +334,6 @@ describe("request details — tab crash-risk cases", () => {
   });
 });
 
-// Mirror of RequestDetailsTab token helpers (component is "use client",
-// helpers are not exported). Keep in sync with the component.
-function getCachedTokens(tokens) {
-  return tokens?.cached_tokens || tokens?.cache_read_input_tokens || 0;
-}
-function getCacheCreationTokens(tokens) {
-  return tokens?.cache_creation_input_tokens || 0;
-}
-function getInputTokens(tokens) {
-  const prompt = tokens?.prompt_tokens || tokens?.input_tokens || 0;
-  const cache = getCachedTokens(tokens);
-  return prompt < cache ? cache : prompt;
-}
-
 describe("backupDbLite — excludes requestDetails, keeps critical data", () => {
   it("backup file omits requestDetails rows but keeps other tables", async () => {
     const { backupDbLite } = await import("@/lib/db/backup.js");
@@ -384,8 +409,26 @@ describe("token helpers — render-time crash safety", () => {
     expect(getCachedTokens({ cache_read_input_tokens: 42 })).toBe(42);
   });
 
+  it("cache write via nested prompt_tokens_details", () => {
+    expect(getCacheCreationTokens({
+      prompt_tokens_details: { cache_creation_tokens: 9 },
+    })).toBe(9);
+  });
+
   it("toLocaleString on helper result never throws", () => {
     expect(() => getInputTokens(undefined).toLocaleString()).not.toThrow();
+  });
+});
+
+describe("request table column catalog", () => {
+  it("hides API key and Cache write by default on both tables", () => {
+    const source = fs.readFileSync(
+      path.resolve(import.meta.dirname, "../../src/shared/components/RequestTableColumnSettings.js"),
+      "utf8",
+    );
+    expect(source).toMatch(/id: "apiKey", label: "API key", defaultVisible: false/);
+    expect(source).toMatch(/id: "cacheWrite", label: "Cache write", defaultVisible: false/);
+    expect(source).toMatch(/id: "cached", label: "Cached", defaultVisible: true/);
   });
 });
 
@@ -436,7 +479,7 @@ describe("API route contract — validation boundary", () => {
     expect(body.pagination).toMatchObject({ page: 1, pageSize: 20 });
   });
 
-  it("administrator history includes legacy details without API-key attribution", async () => {
+  it("administrator default usage view excludes unattributed and foreign details", async () => {
     await saveDetail({
       id: "route-legacy-null", provider: "openai", model: "legacy-model",
       status: "ok", tokens: {}, request: { stream: false }, response: {},
@@ -445,9 +488,35 @@ describe("API route contract — validation boundary", () => {
     const res = await GET(makeReq("page=1&pageSize=100"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    const detail = body.details.find((item) => item.id === "route-legacy-null");
-    expect(detail).toBeDefined();
-    expect(detail.request).toEqual({ redacted: true, stream: false });
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
+  });
+
+  it("administrator default usage view is scoped to owned API keys", async () => {
+    const adminOwner = await db.createUser({
+      username: "usage.admin.owner",
+      email: "usage.admin.owner@example.com",
+      password: "password-admin",
+    });
+    const adminKey = await db.createApiKey("Admin usage", "machine-admin-usage", adminOwner.id);
+    await saveDetail({
+      id: "admin-own-detail", apiKey: adminKey.key, provider: "openai", model: "admin-model",
+      status: "ok", tokens: {}, request: { stream: false }, response: {},
+    });
+    await saveDetail({
+      id: "admin-foreign-detail", apiKey: "sk-admin-foreign", provider: "openai", model: "foreign-model",
+      status: "ok", tokens: {}, request: {}, response: {},
+    });
+    authMocks.getDashboardAccount.mockResolvedValueOnce({ id: adminOwner.id, role: "admin", isActive: true });
+
+    const res = await GET(makeReq("page=1&pageSize=100"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.details.map((detail) => detail.id)).toContain("admin-own-detail");
+    expect(body.details.map((detail) => detail.id)).not.toContain("admin-foreign-detail");
+    expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
+    const owned = body.details.find((detail) => detail.id === "admin-own-detail");
+    expect(owned).toMatchObject({ apiKeyName: "Admin usage", apiKeyId: adminKey.id });
+    expect(owned.request).toEqual({ redacted: true, stream: false });
   });
 
   it("account route returns only details for API keys owned by the signed-in user", async () => {
@@ -473,6 +542,10 @@ describe("API route contract — validation boundary", () => {
     expect(body.details.map((detail) => detail.id)).toContain("route-owned");
     expect(body.details.map((detail) => detail.id)).not.toContain("route-foreign");
     expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
+    const owned = body.details.find((detail) => detail.id === "route-owned");
+    expect(owned).toMatchObject({ apiKeyName: "Own details", apiKeyId: ownKey.id });
+    expect(owned.apiKey).toBeUndefined();
+    expect(JSON.stringify(owned)).not.toContain(ownKey.key);
   });
 
   it("administrator userId narrowing remains restricted to that user's keys", async () => {
@@ -493,6 +566,7 @@ describe("API route contract — validation boundary", () => {
     expect(body.details.map((detail) => detail.id)).toContain("route-target-user");
     expect(body.details.map((detail) => detail.id)).not.toContain("route-foreign");
     expect(body.details.map((detail) => detail.id)).not.toContain("route-legacy-null");
+    expect(body.details.map((detail) => detail.id)).not.toContain("admin-own-detail");
   });
 
   it("administrator can load one request detail while users cannot", async () => {

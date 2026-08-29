@@ -10,7 +10,8 @@ import { MODEL_CAPABILITIES as CAPABILITIES } from "@/shared/utils/comboModelCon
 const MAX_VISIBLE_CAPS = 3;
 
 const SORT_OPTIONS = [
-  { value: "id:asc", label: "Default (A–Z)" },
+  { value: "provider:asc", label: "Default (Provider A–Z)" },
+  { value: "id:asc", label: "Model A–Z" },
   { value: "context:desc", label: "Context: largest first" },
   { value: "price:asc", label: "Input price: low to high" },
   { value: "price:desc", label: "Input price: high to low" },
@@ -34,7 +35,7 @@ export default function ModelsPage() {
   const [query, setQuery] = useState("");
   const [providerTab, setProviderTab] = useState("all");
   const [capabilityFilter, setCapabilityFilter] = useState("all");
-  const [sort, setSort] = useState({ key: "id", direction: "asc" });
+  const [sort, setSort] = useState({ key: "provider", direction: "asc" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { copied, copy } = useCopyToClipboard();
@@ -94,6 +95,10 @@ export default function ModelsPage() {
   const sortedModels = useMemo(() => {
     const direction = sort.direction === "asc" ? 1 : -1;
     return [...visibleModels].sort((a, b) => {
+      if (sort.key === "provider") {
+        const providerOrder = String(a.provider || "").localeCompare(String(b.provider || ""));
+        if (providerOrder !== 0) return providerOrder * direction;
+      }
       if (sort.key === "capabilities") {
         const aCount = CAPABILITIES.filter(([key]) => a.capabilities?.[key]).length;
         const bCount = CAPABILITIES.filter(([key]) => b.capabilities?.[key]).length;

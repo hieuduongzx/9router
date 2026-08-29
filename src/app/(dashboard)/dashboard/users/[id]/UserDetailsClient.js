@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Card, ConfirmModal, PeriodDropdown, StatTile } from "@/shared/components";
+import { Badge, Button, Card, ConfirmModal, PeriodDropdown, SegmentedControl, StatTile } from "@/shared/components";
 import { getRelativeTime } from "@/shared/utils";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import RequestDetailsTab from "@/app/(dashboard)/dashboard/usage/components/RequestDetailsTab";
@@ -25,6 +25,13 @@ import {
 
 /** Accounts are long-lived, so a month of history is the useful default here. */
 const DEFAULT_PERIOD = "30d";
+
+const TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "keys", label: "API keys" },
+  { value: "credit", label: "Credit" },
+  { value: "requests", label: "Requests" },
+];
 
 function CopyButton({ value, copiedId, onCopy, label }) {
   return (
@@ -54,6 +61,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
   const [user, setUser] = useState(initialUser);
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
+  const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -232,6 +240,15 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         />
       </div>
 
+      <SegmentedControl
+        options={TABS}
+        value={tab}
+        onChange={setTab}
+        className="w-full sm:w-auto"
+      />
+
+      {tab === "overview" && (
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,1fr)]">
         <Card padding="none" className="min-w-0">
           <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
@@ -330,7 +347,9 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
           </div>
         </Card>
       </div>
+      )}
 
+      {tab === "keys" && (
       <Card padding="none">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
@@ -409,7 +428,9 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
           </div>
         )}
       </Card>
+      )}
 
+      {tab === "credit" && (
       <Card padding="none">
         <div className="border-b border-border px-5 py-3.5">
           <h2 className="font-mono text-sm font-semibold text-text-main">Credit history</h2>
@@ -467,7 +488,10 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
           </div>
         )}
       </Card>
+      )}
 
+      {tab === "requests" && (
+      <div className="flex min-w-0 flex-col gap-6">
       <div className="grid gap-5 lg:grid-cols-2">
         <Card padding="none" className="min-w-0">
           <div className="border-b border-border px-5 py-3.5">
@@ -521,6 +545,8 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       </div>
 
       <RequestDetailsTab period={period} userId={user.id} />
+      </div>
+      )}
 
       {creditOpen && (
         <CreditAdjustModal
