@@ -355,8 +355,6 @@ function buildTinyfishRequest(config, params) {
   if (!params.token) throw new Error("TinyFish Search requires an API key");
 
   const qp = new URLSearchParams({ query: params.query });
-
-  // domain_type: web | news | research_paper
   const domainType =
     params.searchType === "news"
       ? "news"
@@ -364,33 +362,76 @@ function buildTinyfishRequest(config, params) {
         ? "research_paper"
         : "web";
   if (domainType !== "web") qp.set("domain_type", domainType);
-
   if (params.country) qp.set("location", params.country.toUpperCase());
   if (params.language) qp.set("language", params.language);
-
   if (params.timeRange && params.timeRange !== "any") {
     const recencyMap = { day: 1440, week: 10080, month: 43200, year: 525600 };
     const minutes = recencyMap[params.timeRange];
     if (minutes) qp.set("recency_minutes", String(minutes));
   }
-
-  // TinyFish page is 0-indexed (max 10)
   if (typeof params.offset === "number" && params.offset > 0 && params.maxResults > 0) {
     const page = Math.min(Math.floor(params.offset / params.maxResults), 10);
     if (page > 0) qp.set("page", String(page));
   }
-
   const purpose = getProviderSetting(params, "purpose");
   if (purpose) qp.set("purpose", purpose);
-
   return {
     url: `${resolveBaseUrl(config, params)}?${qp}`,
+    init: { method: "GET", headers: { Accept: "application/json", "X-API-Key": params.token } },
+  };
+}
+
+function buildXquikRequest(config, params) {
+  const apiKey = params.token;
+  if (!apiKey) throw new Error("Xquik requires an API key");
+  const queryType = getProviderSetting(params, "queryType");
+  if (queryType && !["Latest", "Top"].includes(queryType)) throw new Error("Xquik queryType must be Latest or Top");
+  const qp = new URLSearchParams({ q: params.query, limit: String(params.maxResults) });
+  const cursor = getProviderSetting(params, "cursor");
+  if (cursor) qp.set("cursor", cursor);
+  if (queryType) qp.set("queryType", queryType);
+  if (params.language) qp.set("language", params.language);
+  return { url: `${resolveBaseUrl(config, params)}?${qp}`, init: { method: "GET", headers: { Accept: "application/json", "x-api-key": apiKey } } };
+}
+
+// ── Ollama Cloud web_search ──────────────────────────────────────────────
+function buildOllamaSearchRequest(config, params) {
+  const body = { query: params.query, max_results: params.maxResults };
+  if (params.country) body.country = params.country;
+  if (params.language) body.language = params.language;
+  return {
+    url: resolveBaseUrl(config, params),
     init: {
-      method: "GET",
+      method: "POST",
       headers: {
-        Accept: "application/json",
-        "X-API-Key": params.token,
+        "Content-Type": "application/json",
+        ...(params.token ? { Authorization: `Bearer ${params.token}` } : {}),
       },
+      body: JSON.stringify(body),
+    },
+  };
+}
+
+// ── GLM Coding plan MCP web_search_prime ──────────────────────────────────
+function buildGlmSearchRequest(config, params) {
+  const body = {
+    jsonrpc: "2.0",
+    id: `9r-${Date.now()}`,
+    method: "tools/call",
+    params: {
+      name: "web_search_prime",
+      arguments: { search_query: params.query, count: params.maxResults },
+    },
+  };
+  return {
+    url: resolveBaseUrl(config, params),
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(params.token ? { Authorization: `Bearer ${params.token}` } : {}),
+      },
+      body: JSON.stringify(body),
     },
   };
 }
@@ -409,6 +450,9 @@ const BUILDERS = {
   "youcom": buildYouComRequest,
   "searxng": buildSearxngRequest,
   "tinyfish": buildTinyfishRequest,
+  "xquik": buildXquikRequest,
+  "ollama-search": buildOllamaSearchRequest,
+  "glm": buildGlmSearchRequest,
 };
 
 /**

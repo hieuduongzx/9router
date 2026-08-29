@@ -5,6 +5,7 @@ import { Card, Button, ModelSelectModal, ManualConfigModal, TerminalBlock } from
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
+import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 
@@ -92,6 +93,7 @@ export default function GrokBuildToolCard({
   const hasFetchedStatus = useRef(Boolean(initialStatus));
 
   const configuredModel = grokStatus?.settings?.model;
+  const currentBaseUrl = configuredModel?.base_url || "";
   const configStatus = !grokStatus?.installed
     ? null
     : !configuredModel?.base_url
@@ -180,6 +182,8 @@ export default function GrokBuildToolCard({
       });
       const data = await res.json();
       if (res.ok) {
+        // Remember the endpoint so it stays selectable next time
+        rememberEndpoint(getEffectiveBaseUrl());
         setMessage({ type: "success", text: "Main and subagent models applied successfully!" });
         checkStatus();
       } else {

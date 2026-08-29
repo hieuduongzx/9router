@@ -109,9 +109,11 @@ export default function ProvidersPage() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const notify = useNotificationStore();
 
-  const matchSearch = (name) =>
-    !searchQuery.trim() ||
-    name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  const matchSearch = (name) => {
+    if (!searchQuery.trim()) return true;
+    if (!name) return false;
+    return name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  };
 
   const sortByPriority = (entries, authType) =>
     [...entries].sort(([ka, a], [kb, b]) => {

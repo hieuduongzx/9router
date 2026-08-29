@@ -7,6 +7,7 @@ import {
   extractApiKey,
   authorizeBillableApiKey,
 } from "../services/auth.js";
+import { handleAntigravityQuotaError } from "../services/antigravityQuota.js";
 import { getSettings, getUserTokenSaverSettings } from "@/lib/localDb";
 import { getModelInfo, getComboRoute } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
@@ -309,6 +310,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       headroomEnabled: !!ts.headroomEnabled,
       headroomUrl: ts.headroomUrl || DEFAULT_HEADROOM_URL,
       headroomCompressUserMessages: !!ts.headroomCompressUserMessages,
+      headroomTimeoutMs: ts.headroomTimeoutMs,
       cavemanEnabled: !!ts.cavemanEnabled,
       cavemanLevel: ts.cavemanLevel || "full",
       ponytailEnabled: !!ts.ponytailEnabled,
@@ -337,8 +339,22 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
 
     if (result.success) return result.response;
 
-    // Mark account unavailable (auto-calculates cooldown with exponential backoff, or precise resetsAtMs)
-    const { shouldFallback } = await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, result.resetsAtMs);
+    // Antigravity 409/429: refresh live quota to get exact resetAt before locking
+    let quotaResetMs = null;
+    let resetsAtMs = result.resetsAtMs;
+    if (provider === "antigravity" && (result.status === 409 || result.status === 429)) {
+      quotaResetMs = await handleAntigravityQuotaError(
+        credentials.connectionId, result.status, model,
+        refreshedCredentials.accessToken, credentials.providerSpecificData
+      );
+      if (quotaResetMs) resetsAtMs = quotaResetMs;
+    }
+
+    // Exhausted Antigravity model is blocked only in RAM cache until upstream resetAt.
+    // Do not persist a modelLock_* for this path.
+    const shouldFallback = provider === "antigravity" && quotaResetMs
+      ? true
+      : (await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model, resetsAtMs)).shouldFallback;
 
     if (shouldFallback) {
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
