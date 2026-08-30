@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw, Wallet } from "lucide-react";
 import Card from "@/shared/components/Card";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
 import SectionLabel from "@/shared/components/SectionLabel";
@@ -187,6 +187,7 @@ export default function DashboardHomeClient() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [balanceCents, setBalanceCents] = useState(0);
 
   const range = useMemo(() => findRange(period), [period]);
 
@@ -201,6 +202,7 @@ export default function DashboardHomeClient() {
       fetchJson(`/api/usage/stats?period=${period}${scope}`, signal),
       fetchJson(`/api/usage/chart?period=${period}${scope}`, signal),
       fetchJson("/api/keys", signal),
+      fetchJson("/api/account/wallet", signal),
       compare
         ? fetchJson(`/api/usage/chart?period=${compare.period}${scope}`, signal)
         : Promise.resolve(null),
@@ -208,13 +210,16 @@ export default function DashboardHomeClient() {
 
     if (signal?.aborted) return;
 
-    const [statsResult, chartResult, keysResult, compareResult] = results;
+    const [statsResult, chartResult, keysResult, walletResult, compareResult] = results;
     if (statsResult.status === "fulfilled") setStats(statsResult.value);
     if (chartResult.status === "fulfilled") {
       setChartData(normalizeUsageChartPoints(chartResult.value));
     }
     if (keysResult.status === "fulfilled") {
       setKeys(Array.isArray(keysResult.value?.keys) ? keysResult.value.keys : []);
+    }
+    if (walletResult.status === "fulfilled") {
+      setBalanceCents(walletResult.value?.balanceCents || 0);
     }
 
     // Previous window = the buckets immediately before the displayed ones.
@@ -330,6 +335,42 @@ export default function DashboardHomeClient() {
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-8">
       <QuickStartPanel apiKey={primaryKey} />
+
+      <section className="min-w-0">
+        <SectionLabel>Account Data</SectionLabel>
+        <div className="tile-grid grid-cols-1 sm:grid-cols-2">
+          <Card padding="md">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
+                <Wallet aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+                  Current Balance
+                </p>
+                <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums tracking-tight text-text-main">
+                  {formatCurrency(balanceCents / 100)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card padding="md">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
+                <ArrowRight aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+                  Consumption
+                </p>
+                <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums tracking-tight text-text-main">
+                  {formatCurrency(totalCost)}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
 
       {error && (
         <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">

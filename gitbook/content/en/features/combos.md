@@ -485,13 +485,19 @@ When limit reached, 9Router skips paid models and uses free tier only.
 ### Enable/Disable Models in Combo
 
 ```
-Dashboard → Combos → Edit → Models:
-  ✅ cc/claude-opus-4-5 (enabled)
-  ❌ glm/glm-4.7 (temporarily disabled)
-  ✅ if/kimi-k2-thinking (enabled)
+Dashboard → Model Routes → Edit → Models:
+  ✅ cc/claude-opus-4-5 (routed)
+  ❌ glm/glm-4.7 (off — skipped by routing)
+  ✅ if/kimi-k2-thinking (routed)
 ```
 
-**Use case**: Temporarily disable expensive models without deleting combo.
+A switched-off member keeps its place in the fallback order but is skipped
+everywhere: routing, `/v1/models`, the published catalog, route tests, and the
+capabilities the route advertises. A route with every member off behaves like an
+empty route — it cannot be enabled and stops answering requests.
+
+**Use case**: temporarily take an expensive or misbehaving model out of a route
+without losing its position or deleting it.
 
 ### Clone Existing Combo
 

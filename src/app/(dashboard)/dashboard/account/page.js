@@ -107,7 +107,7 @@ function AccountPage() {
   const [account, setAccount] = useState(null);
   const [keys, setKeys] = useState([]);
   const [usage, setUsage] = useState(null);
-  const [wallet, setWallet] = useState({ balanceCents: 0, entries: [], total: 0 });
+  const [wallet, setWallet] = useState({ balanceCents: 0, entries: [], topups: [], sepay: { enabled: false }, total: 0 });
   const [loading, setLoading] = useState(true);
   const [walletLoading, setWalletLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -117,6 +117,10 @@ function AccountPage() {
   const [passwords, setPasswords] = useState(EMPTY_PASSWORDS);
   const [passwordStatus, setPasswordStatus] = useState(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupSubmitting, setTopupSubmitting] = useState(false);
+  const [topupPayment, setTopupPayment] = useState(null);
+  const [topupStatus, setTopupStatus] = useState(null);
   const { copied, copy } = useCopyToClipboard();
 
   const setTab = (nextTab) => {
@@ -136,6 +140,8 @@ function AccountPage() {
       setWallet({
         balanceCents: data.balanceCents || 0,
         entries: Array.isArray(data.entries) ? data.entries : [],
+        topups: Array.isArray(data.topups) ? data.topups : [],
+        sepay: data.sepay || { enabled: false },
         total: data.total || 0,
       });
     } catch (error) {
@@ -188,6 +194,8 @@ function AccountPage() {
           setWallet({
             balanceCents: walletResult.value.balanceCents || 0,
             entries: Array.isArray(walletResult.value.entries) ? walletResult.value.entries : [],
+            topups: Array.isArray(walletResult.value.topups) ? walletResult.value.topups : [],
+            sepay: walletResult.value.sepay || { enabled: false },
             total: walletResult.value.total || 0,
           });
         }
@@ -195,7 +203,7 @@ function AccountPage() {
         setProfile(EMPTY_PROFILE);
         setKeys([]);
         setUsage(null);
-        setWallet({ balanceCents: 0, entries: [], total: 0 });
+        setWallet({ balanceCents: 0, entries: [], topups: [], sepay: { enabled: false }, total: 0 });
       }
     } catch (error) {
       if (error?.name !== "AbortError") setLoadError(error.message || "Unable to load your account");
@@ -216,9 +224,42 @@ function AccountPage() {
   useEffect(() => {
     if (activeTab !== "wallet") return undefined;
     const controller = new AbortController();
-    loadWallet(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadWallet(controller.signal), 0);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [activeTab, loadWallet]);
+
+
+  useEffect(() => {
+    const invoice = topupPayment?.topup?.invoiceNumber;
+    if (activeTab !== "wallet" || !invoice) return undefined;
+    const controller = new AbortController();
+    let attempts = 0;
+    let timer = null;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/account/topup/${encodeURIComponent(invoice)}`, { cache: "no-store", signal: controller.signal });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.topup?.status === "paid") {
+          setTopupStatus({ type: "success", message: `Payment confirmed. ${CREDIT_FORMAT.format((data.topup.creditCents || 0) / 100)} was added to your wallet.` });
+          setTopupPayment(null);
+          loadWallet(controller.signal);
+          return;
+        }
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+      attempts += 1;
+      if (attempts < 150) timer = setTimeout(poll, 2000);
+    };
+    timer = setTimeout(poll, 2000);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTab, loadWallet, topupPayment]);
 
   const identity = account?.user;
   const isOidc = account?.oidcLogin === true;
@@ -233,6 +274,28 @@ function AccountPage() {
   const balanceCents = wallet.balanceCents ?? identity?.creditCents ?? 0;
   const profileDirty = Boolean(identity)
     && (profile.username !== identity.username || profile.email !== identity.email);
+
+  const submitTopup = async (event) => {
+    event.preventDefault();
+    setTopupSubmitting(true);
+    setTopupStatus(null);
+    try {
+      const response = await fetch("/api/account/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountUsd: topupAmount }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Unable to create top-up");
+      setTopupPayment({ ...data.payment, topup: data.topup });
+      setTopupStatus({ type: "success", message: "Scan the QR or transfer the exact amount with the invoice content." });
+      await loadWallet();
+    } catch (error) {
+      setTopupStatus({ type: "error", message: error.message || "Unable to create top-up" });
+    } finally {
+      setTopupSubmitting(false);
+    }
+  };
 
 
   const submitProfile = async (event) => {
@@ -418,12 +481,85 @@ function AccountPage() {
 
       {activeTab === "wallet" && (
         <div className="space-y-5">
+          <Card padding="lg">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.75fr)] lg:items-start">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-primary">account_balance</span>
+                  <h2 className="font-mono text-sm font-semibold text-text-main">Top up with SePay</h2>
+                </div>
+                <p className="mt-2 max-w-2xl text-sm text-text-muted">
+                  Scan the QR code or transfer the exact amount from your Vietnamese bank account. Credit is added after SePay verifies the incoming transfer.
+                </p>
+                {wallet.sepay?.enabled ? (
+                  <p className="mt-2 font-mono text-xs text-text-subtle">Rate: {Number(wallet.sepay.vndPerUsd).toLocaleString("vi-VN")} VND = $1.00</p>
+                ) : (
+                  <p className="mt-2 text-xs text-warning">SePay top-ups are not configured. Ask an administrator to set the Webhooks variables.</p>
+                )}
+                {topupStatus && <div className="mt-4"><StatusMessage status={topupStatus} /></div>}
+              </div>
+              <form onSubmit={submitTopup} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <Input
+                  label="Wallet credit (USD)"
+                  type="number"
+                  min="0.01"
+                  max="1000000"
+                  step="0.01"
+                  inputMode="decimal"
+                  icon="attach_money"
+                  value={topupAmount}
+                  onChange={(event) => setTopupAmount(event.target.value)}
+                  hint="The QR amount is calculated on the server."
+                  disabled={!wallet.sepay?.enabled}
+                  required
+                />
+                <Button type="submit" icon="qr_code_2" loading={topupSubmitting} disabled={!topupAmount || !wallet.sepay?.enabled}>Generate QR</Button>
+              </form>
+            </div>
+            {topupPayment && (
+              <div className="mt-6 grid gap-6 border-t border-border pt-6 md:grid-cols-[320px_minmax(0,1fr)] md:items-start">
+                <div className="flex justify-center bg-white p-3">
+                  <img src={topupPayment.qrUrl} alt="SePay bank transfer QR code" width="300" height="300" className="size-[300px] object-contain" />
+                </div>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div><dt className="text-xs text-text-muted">Bank</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.bankCode}</dd></div>
+                  <div><dt className="text-xs text-text-muted">Account number</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.bankAccount}</dd></div>
+                  <div><dt className="text-xs text-text-muted">Account name</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.accountName}</dd></div>
+                  <div><dt className="text-xs text-text-muted">Exact amount</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{Number(topupPayment.amountVnd).toLocaleString("vi-VN")} VND</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-text-muted">Transfer content</dt><dd className="mt-0.5 flex items-center gap-2"><code className="min-w-0 break-all font-mono font-semibold text-primary">{topupPayment.transferContent}</code><button type="button" className="shrink-0 border border-border px-2 py-1 text-xs text-text-muted hover:text-text-main" onClick={() => copy(topupPayment.transferContent)} title="Copy transfer content">Copy</button></dd></div>
+                </dl>
+              </div>
+            )}
+          </Card>
+
+          {wallet.topups.length > 0 && (
+            <Card padding="none" className="overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="font-mono text-sm font-semibold text-text-main">SePay payments</h2>
+                <p className="text-xs text-text-muted">Pending and completed bank transfer top-ups for this account.</p>
+              </div>
+              <div className="divide-y divide-border-subtle">
+                {wallet.topups.map((topup) => (
+                  <div key={topup.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-xs font-semibold text-text-main">{topup.invoiceNumber}</p>
+                      <p className="mt-0.5 text-xs text-text-muted">{formatDateTime(topup.createdAt)} · {Number(topup.amountVnd || 0).toLocaleString("vi-VN")} VND</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${topup.status === "paid" ? "bg-success/10 text-success" : topup.status === "pending" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}>{topup.status}</span>
+                      <span className="font-mono text-sm font-semibold text-text-main">{CREDIT_FORMAT.format((topup.creditCents || 0) / 100)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           <Card padding="none" className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
                 <h2 className="font-mono text-sm font-semibold text-text-main">Wallet history</h2>
                 <p className="text-xs text-text-muted">
-                  Top-ups, admin adjustments, and signup bonuses. LLM usage is tracked under Usage, not here.
+                  Top-ups, admin adjustments, coupons, and signup bonuses. API spend is tracked under Usage, not here.
                 </p>
               </div>
               <Button size="sm" variant="ghost" icon="refresh" loading={walletLoading} onClick={() => loadWallet()}>
@@ -476,7 +612,7 @@ function AccountPage() {
                           <td className="px-4 py-3">
                             <p className="text-sm text-text-main">{ledgerLabel(entry)}</p>
                             <p className="mt-0.5 font-mono text-[11px] text-text-subtle">
-                              {[entry.source, entry.meta?.model, entry.meta?.provider].filter(Boolean).join(" · ") || "—"}
+                              {[entry.source, entry.meta?.invoiceNumber].filter(Boolean).join(" · ") || "—"}
                             </p>
                           </td>
                           <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${

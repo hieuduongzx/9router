@@ -1,3 +1,4 @@
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 import { getEffectiveComboCapabilities } from "@/shared/utils/comboModelConfig";
 
 const LLM_KIND = "llm";
@@ -31,6 +32,11 @@ export function buildPublishedModelsCatalog(combos, publishedModels) {
     const ownedBy = String(combo.modelProvider || "").trim();
     if (!id || !ownedBy || seenIds.has(id)) continue;
 
+    // A route with no enabled member cannot serve a request (getComboRoute
+    // resolves it to null), so it must not be advertised as a public model.
+    const routedMembers = comboRoutedModels(combo);
+    if (routedMembers.length === 0) continue;
+
     seenIds.add(id);
     models.push({
       id,
@@ -38,7 +44,7 @@ export function buildPublishedModelsCatalog(combos, publishedModels) {
       owned_by: ownedBy,
       provider: ownedBy,
       comboId: combo.id,
-      memberCount: Array.isArray(combo.models) ? combo.models.length : 0,
+      memberCount: routedMembers.length,
       capabilities: getComboCapabilities(combo),
       pricingTarget: comboPricingTarget(combo),
     });

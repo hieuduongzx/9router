@@ -6,6 +6,7 @@ import { checkFallbackError, formatRetryAfter } from "./accountFallback.js";
 import { unavailableResponse } from "../utils/error.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { extractTextContent } from "../translator/formats/gemini.js";
+import { comboRoutedModels } from "./comboMembers.js";
 
 // Hard capabilities = input modalities; missing one drops request data (e.g. image
 // stripped). Must be prioritized. Soft (e.g. search) only degrades a feature.
@@ -246,7 +247,8 @@ export function resetComboRotation(comboName) {
 }
 
 /**
- * Get combo models from combos data
+ * Get the routable combo models from combos data.
+ * Members switched off in the dashboard are skipped (see comboMembers.js).
  * @param {string} modelStr - Model string to check
  * @param {Array|Object} combosData - Array of combos or object with combos
  * @returns {string[]|null} Array of models or null if not a combo
@@ -254,15 +256,14 @@ export function resetComboRotation(comboName) {
 export function getComboModelsFromData(modelStr, combosData) {
   // Don't check if it's in provider/model format
   if (modelStr.includes("/")) return null;
-  
+
   // Handle both array and object formats
   const combos = Array.isArray(combosData) ? combosData : (combosData?.combos || []);
-  
+
   const combo = combos.find(c => c.name === modelStr);
-  if (combo && combo.models && combo.models.length > 0) {
-    return combo.models;
-  }
-  return null;
+  if (!combo) return null;
+  const models = comboRoutedModels(combo);
+  return models.length > 0 ? models : null;
 }
 
 /**

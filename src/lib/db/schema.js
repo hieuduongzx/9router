@@ -3,7 +3,7 @@
 // pre-change safety backup in migrate.js: when the stored version is lower,
 // one lightweight DB backup is taken before applying schema changes. Forgetting
 // to bump only skips that backup — it does NOT break the additive auto-sync.
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 12;
 
 export const PRAGMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -156,6 +156,7 @@ export const TABLES = {
       models: "TEXT NOT NULL",
       thinkingMode: "TEXT NOT NULL DEFAULT 'auto'",
       capabilityOverrides: "TEXT NOT NULL DEFAULT '{}'",
+      disabledMembers: "TEXT NOT NULL DEFAULT '[]'",
       createdAt: "TEXT NOT NULL",
       updatedAt: "TEXT NOT NULL",
     },
@@ -216,6 +217,26 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_rd_model ON requestDetails(model)",
       "CREATE INDEX IF NOT EXISTS idx_rd_conn ON requestDetails(connectionId)",
       "CREATE INDEX IF NOT EXISTS idx_rd_api_key ON requestDetails(apiKey, timestamp DESC)",
+    ],
+  },
+  paymentTopups: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      userId: "TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE",
+      invoiceNumber: "TEXT NOT NULL UNIQUE",
+      sepayOrderId: "TEXT UNIQUE",
+      sepayTransactionId: "TEXT UNIQUE",
+      amountVnd: "INTEGER NOT NULL CHECK(amountVnd > 0)",
+      creditCents: "INTEGER NOT NULL CHECK(creditCents > 0)",
+      status: "TEXT NOT NULL",
+      paymentMethod: "TEXT",
+      rawData: "TEXT",
+      createdAt: "TEXT NOT NULL",
+      paidAt: "TEXT",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_payment_topups_user_created ON paymentTopups(userId, createdAt DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_payment_topups_status ON paymentTopups(status, createdAt DESC)",
     ],
   },
 };

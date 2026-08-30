@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
-import Sidebar from "../Sidebar";
+import UserSidebar from "../UserSidebar";
 import Header from "../Header";
 
 function getToastStyle(type) {
@@ -91,7 +91,7 @@ export default function DashboardLayout({ children }) {
             />
           }
         >
-          <Sidebar />
+          <UserSidebar />
         </Suspense>
       </div>
 
@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }) {
         }`}
       >
         <Suspense fallback={null}>
-          <Sidebar onClose={() => setSidebarOpen(false)} />
+          <UserSidebar onClose={() => setSidebarOpen(false)} />
         </Suspense>
       </div>
 

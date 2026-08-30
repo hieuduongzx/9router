@@ -28,17 +28,10 @@ import {
   normalizeCapabilityOverrides,
   thinkingModeMeta,
 } from "@/shared/utils/comboModelConfig";
-import { THINKING_COMPLIANCE, judgeThinkingCompliance } from "@/lib/reasoningEvidence";
+import { comboRoutedModels, normalizeDisabledMembers } from "open-sse/services/comboMembers.js";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
-
-const THINKING_STATE_STYLE = {
-  [THINKING_COMPLIANCE.OK]: { icon: "check_circle", color: "text-success" },
-  [THINKING_COMPLIANCE.VIOLATION]: { icon: "cancel", color: "text-danger" },
-  [THINKING_COMPLIANCE.UNPROVEN]: { icon: "help", color: "text-warning" },
-  [THINKING_COMPLIANCE.ERROR]: { icon: "warning", color: "text-danger" },
-};
 
 // Capacity adapter: global fallback pools of models per input-modality capability.
 // A request needing a capability the target model/combo lacks switches straight
@@ -162,10 +155,10 @@ export default function CombosPage() {
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        // A new route starts enabled when it already has an owner and members,
-        // so creating one makes it immediately routable.
+        // A new route starts enabled when it already has an owner and at least
+        // one enabled member, so creating one makes it immediately routable.
         const created = await res.json().catch(() => null);
-        if (created?.id && created.modelProvider && (created.models || []).length > 0) {
+        if (created?.id && created.modelProvider && comboRoutedModels(created).length > 0) {
           await handleTogglePublished(created, true);
         }
         await fetchData();
@@ -887,7 +880,9 @@ function RouteTestDetails({ combo, testState }) {
             )}
           </div>
           <div className="flex min-w-0 flex-wrap gap-1.5">
-            {combo.models.map((model, index) => (
+            {/* Result indices are positions in the routed member list — the only
+                members the server tests. */}
+            {comboRoutedModels(combo).map((model, index) => (
               <TestStateMark
                 key={`${model}-${index}`}
                 model={model}
@@ -1184,12 +1179,16 @@ function ComboTableRow({
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
   const isFusion = current === "fusion";
-  const firstModel = combo.models[0];
-  const overflowModels = Math.max(combo.models.length - 1, 0);
+  // The row summarizes what the route actually serves, so switched-off members
+  // are neither shown first nor counted.
+  const routedModels = comboRoutedModels(combo);
+  const firstModel = routedModels[0];
+  const overflowModels = Math.max(routedModels.length - 1, 0);
+  const skippedMembers = combo.models.length - routedModels.length;
   // Publishing requires an owner and at least one routed member (enforced server-side too).
-  const publishable = Boolean(String(combo.modelProvider || "").trim()) && combo.models.length > 0;
+  const publishable = Boolean(String(combo.modelProvider || "").trim()) && routedModels.length > 0;
   const toggleTitle = !publishable
-    ? "Set a model provider and add at least one routed model before enabling this route"
+    ? "Set a model provider and enable at least one routed model before enabling this route"
     : published
       ? "Enabled — listed in Dashboard / Models and routable through /v1"
       : "Disabled — hidden from Dashboard / Models and rejected by /v1";
@@ -1235,7 +1234,12 @@ function ComboTableRow({
             </span>
           </div>
         </td>
-        <td className="px-2 py-2 align-middle" title={combo.models.join("\n")}>
+        <td
+          className="px-2 py-2 align-middle"
+          title={combo.models
+            .map((model) => (routedModels.includes(model) ? model : `${model} (off)`))
+            .join("\n")}
+        >
           {firstModel ? (
             <div className="flex min-w-0 items-center gap-1.5">
               <code className="block min-w-0 truncate font-mono text-[11px] text-text-main">
@@ -1243,6 +1247,9 @@ function ComboTableRow({
               </code>
               {overflowModels > 0 && (
                 <span className="shrink-0 font-mono text-[11px] text-text-muted">+{overflowModels}</span>
+              )}
+              {skippedMembers > 0 && (
+                <span className="shrink-0 font-mono text-[11px] text-text-subtle">{skippedMembers} off</span>
               )}
             </div>
           ) : (
@@ -1302,7 +1309,7 @@ function ComboTableRow({
             <button
               type="button"
               onClick={() => onTest({ strategy: current, judgeModel: judge })}
-              disabled={testState?.testing || combo.models.length === 0}
+              disabled={testState?.testing || routedModels.length === 0}
               className={`inline-flex size-7 items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 testState?.ok === true
                   ? "text-success hover:bg-success/10"
@@ -1466,7 +1473,7 @@ function CapacityAdapterCap({ cap, entry, onChange, activeProviders, getCaps }) 
   );
 }
 
-function ModelItem({ id, index, model, isFirst, isLast, testResult, onEdit, onMoveUp, onMoveDown, onRemove }) {
+function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResult, onToggleEnabled, onEdit, onMoveUp, onMoveDown, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1498,7 +1505,7 @@ function ModelItem({ id, index, model, isFirst, isLast, testResult, onEdit, onMo
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex min-w-0 items-center gap-1.5 rounded-sm px-2 py-1 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "ring-1 ring-primary/30" : ""}`}
+      className={`group flex min-w-0 items-center gap-1.5 rounded-sm px-2 py-1 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "ring-1 ring-primary/30" : ""} ${enabled ? "" : "opacity-60"}`}
     >
       {/* Drag handle */}
       <button
@@ -1517,6 +1524,16 @@ function ModelItem({ id, index, model, isFirst, isLast, testResult, onEdit, onMo
 
       {/* Index badge */}
       <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0">{index + 1}</span>
+
+      {/* Member on/off — keeps the member (and its order) but takes it out of routing */}
+      <Toggle
+        size="sm"
+        checked={enabled}
+        onChange={onToggleEnabled}
+        className="shrink-0"
+        title={enabled ? "Routed — click to skip this member" : "Skipped — click to route this member again"}
+        ariaLabel={`${enabled ? "Disable" : "Enable"} ${model}`}
+      />
       {testPresentation && (
         <span
           className={`material-symbols-outlined shrink-0 text-sm ${testPresentation.color} ${testPresentation.spin ? "animate-spin" : ""}`}
@@ -1538,7 +1555,7 @@ function ModelItem({ id, index, model, isFirst, isLast, testResult, onEdit, onMo
         />
       ) : (
         <div
-          className="min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs text-text-main hover:bg-black/5 dark:hover:bg-white/5"
+          className={`min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs hover:bg-black/5 dark:hover:bg-white/5 ${enabled ? "text-text-main" : "text-text-muted line-through decoration-text-subtle"}`}
           onClick={() => setEditing(true)}
           title="Click to edit"
         >
@@ -1598,6 +1615,11 @@ function ComboFormModal({
   const [capabilityOverrides, setCapabilityOverrides] = useState(() =>
     normalizeCapabilityOverrides(combo?.capabilityOverrides)
   );
+  // Members kept in the list but taken out of routing. Keyed by model string so
+  // dragging, editing or removing a row can never move an off-switch to another.
+  const [disabledMembers, setDisabledMembers] = useState(() =>
+    normalizeDisabledMembers(combo?.disabledMembers, combo?.models || [])
+  );
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -1607,14 +1629,24 @@ function ComboFormModal({
   const [testStrategy, setTestStrategy] = useState(strategy.fallbackStrategy || "fallback");
   const [testJudge, setTestJudge] = useState(strategy.judgeModel || "");
   const [modalTestState, setModalTestState] = useState(testState || null);
-  const [thinkingTest, setThinkingTest] = useState(null);
 
-  const baseCapabilities = useMemo(() => deriveComboCapabilities(models), [models]);
+  // Everything downstream (Caps, thinking levels, tests) describes what the route
+  // can actually serve, so all of it reads the enabled members only.
+  const disabledSet = useMemo(() => new Set(disabledMembers), [disabledMembers]);
+  const routedModels = useMemo(
+    () => comboRoutedModels({ models, disabledMembers }),
+    [models, disabledMembers]
+  );
+  const routedIndexByMember = useMemo(
+    () => new Map(routedModels.map((model, index) => [model, index])),
+    [routedModels]
+  );
+  const baseCapabilities = useMemo(() => deriveComboCapabilities(routedModels), [routedModels]);
   const effectiveCapabilities = useMemo(
     () => ({ ...baseCapabilities, ...capabilityOverrides }),
     [baseCapabilities, capabilityOverrides]
   );
-  const thinkingProfile = useMemo(() => getComboThinkingProfile(models), [models]);
+  const thinkingProfile = useMemo(() => getComboThinkingProfile(routedModels), [routedModels]);
   const thinkingOptions = useMemo(() => {
     if (thinkingProfile.options.some((option) => option.value === thinkingMode)) {
       return thinkingProfile.options;
@@ -1684,12 +1716,41 @@ function ComboFormModal({
     }
   };
 
+  // Dropping a member drops its off-switch with it, so re-adding it later starts routed.
+  const forgetDisabled = (model) => {
+    setDisabledMembers((current) => current.filter((member) => member !== model));
+  };
+
   const handleDeselectModel = (model) => {
     setModels(models.filter((m) => m !== model.value));
+    forgetDisabled(model.value);
   };
 
   const handleRemoveModel = (index) => {
+    const removed = models[index];
     setModels(models.filter((_, i) => i !== index));
+    forgetDisabled(removed);
+  };
+
+  const handleToggleMember = (model, enabled) => {
+    setDisabledMembers((current) => (
+      enabled
+        ? current.filter((member) => member !== model)
+        : current.includes(model) ? current : [...current, model]
+    ));
+  };
+
+  // Renaming a member in place must carry its on/off state to the new id.
+  const handleEditModel = (index, nextValue) => {
+    const previous = models[index];
+    const updated = [...models];
+    updated[index] = nextValue;
+    setModels(updated);
+    setDisabledMembers((current) => (
+      current.includes(previous)
+        ? [...current.filter((member) => member !== previous), nextValue]
+        : current
+    ));
   };
 
   const handleMoveUp = (index) => {
@@ -1721,6 +1782,7 @@ function ComboFormModal({
       modelProvider: normalizedProvider,
       thinkingMode,
       capabilityOverrides,
+      disabledMembers: normalizeDisabledMembers(disabledMembers, models),
     });
     setSaving(false);
   };
@@ -1735,7 +1797,8 @@ function ComboFormModal({
   };
 
   const handleRunTest = async () => {
-    const testedModels = [...models];
+    // Only enabled members are routable, so they are the only ones worth probing.
+    const testedModels = [...routedModels];
     setModalTestState({
       testing: true,
       strategy: testStrategy,
@@ -1759,36 +1822,6 @@ function ComboFormModal({
         error: error?.message || "Failed to test model route",
       });
     }
-  };
-
-  // Probe every member with the thinking default currently selected in this form,
-  // so "Off" is checked the way the router would actually send it. This is the
-  // runtime counterpart to the static cannotDisable warning below.
-  const handleRunThinkingTest = async () => {
-    const mode = thinkingMode;
-    const testedModels = [...models];
-    setThinkingTest({ testing: true, mode, rows: [] });
-
-    const rows = await Promise.all(testedModels.map(async (member) => {
-      try {
-        const response = await fetch("/api/models/test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: member, mode: "reasoning", thinking: mode }),
-        });
-        const data = await response.json().catch(() => ({}));
-        const probe = response.ok ? data : { verdict: "error", error: data.error || `HTTP ${response.status}` };
-        return { model: member, ...judgeThinkingCompliance(mode, probe) };
-      } catch (error) {
-        return {
-          model: member,
-          state: THINKING_COMPLIANCE.ERROR,
-          label: error?.message || "Network error",
-        };
-      }
-    }));
-
-    setThinkingTest({ testing: false, mode, rows });
   };
 
   const isEdit = !!combo;
@@ -1849,7 +1882,14 @@ function ComboFormModal({
 
           {/* Models */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Models</label>
+            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+              <label className="text-sm font-medium">Models</label>
+              {models.length > 0 && (
+                <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                  {routedModels.length} of {models.length} routed
+                </span>
+              )}
+            </div>
 
             {models.length === 0 ? (
               <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 bg-black/[0.01] dark:bg-white/[0.01]">
@@ -1860,31 +1900,36 @@ function ComboFormModal({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
               <SortableContext items={modelItems.map((m) => m.uid)} strategy={verticalListSortingStrategy}>
                 <div className="flex max-h-[55vh] min-w-0 flex-col gap-1 overflow-y-auto sm:max-h-[350px]">
-                  {modelItems.map(({ uid, model }, index) => (
-                    <ModelItem
-                      key={uid}
-                      id={uid}
-                      index={index}
-                      model={model}
-                      isFirst={index === 0}
-                      isLast={index === modelItems.length - 1}
-                      testResult={
-                        modalTestState?.testedModels?.[index] === model
-                          ? modalTestState.testing
-                            ? { state: "pending" }
-                            : modalResultsByIndex.get(index)
-                          : null
-                      }
-                      onEdit={(newVal) => {
-                        const updated = [...models];
-                        updated[index] = newVal;
-                        setModels(updated);
-                      }}
-                      onMoveUp={() => handleMoveUp(index)}
-                      onMoveDown={() => handleMoveDown(index)}
-                      onRemove={() => handleRemoveModel(index)}
-                    />
-                  ))}
+                  {modelItems.map(({ uid, model }, index) => {
+                    // Tests run over the routed subset, so results are keyed by
+                    // position in that subset, not in the full member list.
+                    const routedIndex = routedIndexByMember.get(model);
+                    const tested = routedIndex != null
+                      && modalTestState?.testedModels?.[routedIndex] === model;
+                    return (
+                      <ModelItem
+                        key={uid}
+                        id={uid}
+                        index={index}
+                        model={model}
+                        enabled={!disabledSet.has(model)}
+                        isFirst={index === 0}
+                        isLast={index === modelItems.length - 1}
+                        testResult={
+                          tested
+                            ? modalTestState.testing
+                              ? { state: "pending" }
+                              : modalResultsByIndex.get(routedIndex)
+                            : null
+                        }
+                        onToggleEnabled={(next) => handleToggleMember(model, next)}
+                        onEdit={(newVal) => handleEditModel(index, newVal)}
+                        onMoveUp={() => handleMoveUp(index)}
+                        onMoveDown={() => handleMoveDown(index)}
+                        onRemove={() => handleRemoveModel(index)}
+                      />
+                    );
+                  })}
                 </div>
               </SortableContext>
             </DndContext>
@@ -1938,52 +1983,6 @@ function ComboFormModal({
                     {thinkingProfile.cannotDisable} member{thinkingProfile.cannotDisable === 1 ? "" : "s"} cannot fully disable reasoning and will use the minimum supported level.
                   </p>
                 )}
-
-                <div className="mt-3 border-t border-border pt-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleRunThinkingTest}
-                      loading={thinkingTest?.testing}
-                      disabled={models.length === 0 || thinkingTest?.testing}
-                    >
-                      Test thinking default
-                    </Button>
-                    <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
-                      Sends one request per member as &quot;{selectedThinking.label}&quot;
-                    </span>
-                  </div>
-
-                  {thinkingTest && !thinkingTest.testing && thinkingTest.rows.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-1">
-                      {thinkingTest.mode !== thinkingMode && (
-                        <p className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
-                          Results are for &quot;{thinkingModeMeta(thinkingTest.mode).label}&quot; — re-run to match the current setting.
-                        </p>
-                      )}
-                      {thinkingTest.rows.map((row, index) => (
-                        <div key={`${row.model}-${index}`} className="flex min-w-0 items-start gap-1.5">
-                          <span
-                            className={`material-symbols-outlined shrink-0 text-sm ${THINKING_STATE_STYLE[row.state].color}`}
-                            aria-hidden="true"
-                          >
-                            {THINKING_STATE_STYLE[row.state].icon}
-                          </span>
-                          <span className="min-w-0 text-xs">
-                            <span className="font-mono text-text-main">{row.model}</span>
-                            <span className={`ml-1.5 ${THINKING_STATE_STYLE[row.state].color}`}>{row.label}</span>
-                          </span>
-                        </div>
-                      ))}
-                      {thinkingTest.rows.some((row) => row.state === THINKING_COMPLIANCE.VIOLATION) && (
-                        <p className="mt-1 border-l-2 border-danger pl-2 text-xs text-danger">
-                          Runtime disagrees with the capability catalog — these members do not honour this thinking default.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div className="min-w-0 border border-border">
@@ -2024,7 +2023,8 @@ function ComboFormModal({
               </div>
             </div>
             <p className="mt-2 text-[11px] text-text-subtle">
-              Caps change public model metadata only. Routing still checks each member's actual capabilities.
+              Inherited Caps come from the enabled members only. Caps change public model metadata; routing still
+              checks each member&apos;s actual capabilities.
             </p>
           </section>
 

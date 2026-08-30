@@ -8,6 +8,7 @@ import {
 import { getProviderConnections, getCombos, getCustomModels, getModelAliases, getPublishedModels } from "@/lib/localDb";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
 import { resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { resolveCopilotModels } from "open-sse/services/copilotModels.js";
@@ -296,6 +297,8 @@ export async function buildModelsList(kindFilter, options = {}) {
   // Combos first (filtered by kind). Web combos expose `kind` so AI knows search vs fetch.
   for (const combo of combos) {
     if (!comboMatchesKinds(combo, kindFilter)) continue;
+    // Every member switched off: the route cannot serve a request, so it is not listed.
+    if (comboRoutedModels(combo).length === 0) continue;
     const entry = {
       id: combo.name,
       object: "model",

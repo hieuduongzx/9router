@@ -40,6 +40,7 @@ const PUBLIC_API_PATHS = [
   "/api/catalog/models",
   // Aggregate model leaderboard — no user-identifying data leaves the server.
   "/api/ranking/models",
+  "/api/payments/sepay/ipn",
 ];
 
 // Public top-level prefixes (LLM API endpoints with their own API key auth).
@@ -122,6 +123,28 @@ const ACCOUNT_DASHBOARD_PATHS = [
   "/dashboard/models",
   "/dashboard/account",
   "/dashboard/token-saver",
+];
+
+// Admin-only dashboard paths
+const ADMIN_DASHBOARD_PATHS = [
+  "/admin",
+  "/admin/providers",
+  "/admin/api-keys",
+  "/admin/usage",
+  "/admin/activity",
+  "/admin/combos",
+  "/admin/models",
+  "/admin/skills",
+  "/admin/cli-tools",
+  "/admin/token-saver",
+  "/admin/translator",
+  "/admin/users",
+  "/admin/quota",
+  "/admin/proxy-pools",
+  "/admin/console-log",
+  "/admin/settings",
+  "/admin/account",
+  "/admin/media-providers",
 ];
 
 // Read-only status/health probes under admin-only API prefixes that any signed-in
@@ -275,6 +298,10 @@ function isAccountDashboardPath(pathname) {
   return ACCOUNT_DASHBOARD_PATHS.some((prefix) => matchesPathPrefix(pathname, prefix));
 }
 
+function isAdminDashboardPath(pathname) {
+  return ADMIN_DASHBOARD_PATHS.some((prefix) => matchesPathPrefix(pathname, prefix));
+}
+
 async function isAdminRequest(request) {
   if (await hasValidCliToken(request)) return true;
   const account = await getDashboardAccount(request);
@@ -372,6 +399,37 @@ export async function proxy(request) {
     const token = request.cookies.get("auth_token")?.value;
     if (token) {
       if (await verifyDashboardAuthToken(token)) return NextResponse.next();
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Protect all admin dashboard routes - admin only
+  if (pathname.startsWith("/admin")) {
+    let requireLogin = true;
+
+    try {
+      const settings = await loadSettings();
+      if (settings) requireLogin = settings.requireLogin !== false;
+    } catch {
+      // On error, keep the secure default.
+    }
+
+    // If login is disabled, deny access to admin routes
+    if (!requireLogin) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Verify JWT token and admin role
+    const token = request.cookies.get("auth_token")?.value;
+    if (token) {
+      if (await verifyDashboardAuthToken(token)) {
+        const account = await getDashboardAccount(request);
+        if (account?.role === "admin") return NextResponse.next();
+        // Non-admin user trying to access admin routes
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
       return NextResponse.redirect(new URL("/login", request.url));
     }
 

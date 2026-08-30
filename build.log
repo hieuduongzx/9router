@@ -1,0 +1,36 @@
+
+> 9router-app@0.5.59 build
+> next build --webpack
+
+▲ Next.js 16.2.10 (webpack)
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+  · proxyClientMaxBodySize: "128mb"
+
+  Creating an optimized production build ...
+glob error [Error: EPERM: operation not permitted, scandir 'C:\Users\hieul\Application Data'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'scandir',
+  path: 'C:\\Users\\hieul\\Application Data'
+}
+glob error [Error: EPERM: operation not permitted, scandir 'C:\Users\hieul\AppData\Local\Application Data'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'scandir',
+  path: 'C:\\Users\\hieul\\AppData\\Local\\Application Data'
+}
+glob error [Error: EPERM: operation not permitted, scandir 'C:\Users\hieul\AppData\Local\Application Data'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'scandir',
+  path: 'C:\\Users\\hieul\\AppData\\Local\\Application Data'
+}
+unhandledRejection [Error: EPERM: operation not permitted, scandir 'C:\Users\hieul\AppData\Local\Application Data'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'scandir',
+  path: 'C:\\Users\\hieul\\AppData\\Local\\Application Data'
+}
+BUILD_EXIT=1

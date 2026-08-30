@@ -4,16 +4,10 @@
 //
 // No network: global.fetch is stubbed with canned SSE bodies.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  REASONING_EVIDENCE,
-  THINKING_COMPLIANCE,
-  detectReasoningEvidence,
-  judgeThinkingCompliance,
-} from "@/lib/reasoningEvidence.js";
+import { REASONING_EVIDENCE, detectReasoningEvidence } from "@/lib/reasoningEvidence.js";
 import { pingModelReasoning } from "@/app/api/models/test/ping.js";
 
 const E = REASONING_EVIDENCE;
-const C = THINKING_COMPLIANCE;
 
 describe("detectReasoningEvidence", () => {
   it.each([
@@ -151,57 +145,10 @@ describe("pingModelReasoning", () => {
   });
 });
 
-describe("judgeThinkingCompliance", () => {
-  const reasoned = { verdict: "verified", reasoned: true, evidence: E.TOKENS, reasoningTokens: 42 };
-  const reportedZero = { verdict: "unsupported", reasoned: false, evidence: E.ZERO, reasoningTokens: 0 };
-  const silent = { verdict: "unknown", reasoned: false, evidence: E.NONE, reasoningTokens: 0 };
-
-  // The whole point of the combo-editor button: an operator turns thinking off
-  // and the model keeps reasoning (and keeps billing) anyway.
-  it("flags a model that still reasons when thinking is off", () => {
-    expect(judgeThinkingCompliance("none", reasoned)).toMatchObject({ state: C.VIOLATION });
-  });
-
-  it("accepts thinking off when the provider reports zero reasoning tokens", () => {
-    expect(judgeThinkingCompliance("none", reportedZero)).toMatchObject({ state: C.OK });
-  });
-
-  it("will not claim thinking is off on silence alone", () => {
-    expect(judgeThinkingCompliance("none", silent)).toMatchObject({ state: C.UNPROVEN });
-  });
-
-  it("treats off/disabled as the same mode as none", () => {
-    expect(judgeThinkingCompliance("off", reasoned)).toMatchObject({ state: C.VIOLATION });
-    expect(judgeThinkingCompliance("disabled", reasoned)).toMatchObject({ state: C.VIOLATION });
-  });
-
-  it("flags a model asked to think that reports zero reasoning tokens", () => {
-    expect(judgeThinkingCompliance("high", reportedZero)).toMatchObject({ state: C.VIOLATION });
-  });
-
-  it("accepts a model that reasons when asked to", () => {
-    expect(judgeThinkingCompliance("high", reasoned)).toMatchObject({ state: C.OK });
-  });
-
-  it("never reports a violation for auto — no default is imposed", () => {
-    expect(judgeThinkingCompliance("auto", reasoned)).toMatchObject({ state: C.OK });
-    expect(judgeThinkingCompliance("auto", reportedZero)).toMatchObject({ state: C.OK });
-    expect(judgeThinkingCompliance("auto", silent)).toMatchObject({ state: C.OK });
-  });
-
-  it("reports a failed probe as an error, not a violation", () => {
-    expect(judgeThinkingCompliance("none", { verdict: "error", error: "HTTP 500" }))
-      .toMatchObject({ state: C.ERROR, label: "HTTP 500" });
-    expect(judgeThinkingCompliance("none", null)).toMatchObject({ state: C.ERROR });
-  });
-
-  it("falls back to the verdict when `reasoned` is absent", () => {
-    expect(judgeThinkingCompliance("none", { verdict: "verified" })).toMatchObject({ state: C.VIOLATION });
-  });
-
-  // judgeThinkingCompliance uses the app-side normalizer to keep the provider
-  // registry out of the combos client bundle; the router uses the open-sse one.
-  // They must agree, or the button would judge a different mode than runs.
+// The app-side normalizer keeps the provider registry out of the combos client
+// bundle; the router uses the open-sse one. They must agree, or a route would
+// persist a different thinking default than the one actually sent upstream.
+describe("thinking mode normalization", () => {
   it("normalizes modes identically to the router", async () => {
     const { normalizeThinkingMode } = await import("@/shared/utils/comboModelConfig.js");
     const { normalizeModelThinkingDefault } = await import(

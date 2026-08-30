@@ -114,7 +114,7 @@ Swiss/schematic grid: dashboard stat rows are 3 equal hairline-bordered columns 
 
 Sidebar is a 256px icon+label rail — paper-dim background, hairline right border, no shadow — collapsible on desktop to a 64px icon-only rail (state persisted per browser). Collapsed, group eyebrows reduce to their hairline rule, labels move to `sr-only` plus a native tooltip, and the media submenu is closed rather than shown, since a nested list has nowhere to go at that width.
 
-Rail order, top to bottom: wordmark → `Jump to… ⌘K` navigator → update notice (admin, only when one exists) → nav groups `PINNED / TRAFFIC / CAPABILITIES / SYSTEM / ACCOUNT` → the account row. **Identity lives at the foot of the rail, never in the page header** — the header carries page context and actions only. Nav groups come from `src/shared/constants/dashboardNav.js`, which the rail and the ⌘K palette both read, so a route can never appear in one and not the other.
+Rail order, top to bottom: wordmark → `Jump to… ⌘K` navigator → update notice (admin, only when one exists) → nav groups `PINNED / TRAFFIC / CAPABILITIES / SYSTEM / ACCOUNT` → the rail foot (appearance toggle + language, then the collapse toggle; collapsed they stack, since three 28px controls do not fit across a 64px rail). **Identity lives at the right end of the header bar, never in the rail** — the header carries page context, page actions, view mode, and identity; the rail carries navigation and the two global preferences. Nav groups come from `src/shared/constants/dashboardNav.js`, which the rail and the ⌘K palette both read, so a route can never appear in one and not the other.
 
 ### Page shell (every dashboard route)
 - Root element is `flex min-w-0 flex-col gap-6` — no page-level padding (the layout already pads) and no `space-y-*` stacks.
@@ -165,7 +165,9 @@ Two-tier radius, applied narrowly:
 ### Navigation (Sidebar)
 - Flat paper-dim rail, hairline right border, no active-pill background — active item gets a 2px left ink bar + ink text, inactive = muted text. Group labels are mono `LABEL` style at 10–11px tracked uppercase with a trailing hairline rule, replacing the current plain uppercase sans labels.
 - **Jump-to navigator:** a hairline field under the wordmark opens a ⌘K/Ctrl+K dialog listing the same destinations as the rail — substring match on label and group, arrow keys + Enter to go. It navigates; it never searches server data.
-- **Account row:** square avatar + name + `ROLE · BALANCE` in mono, chevron on the right, menu opening upward (profile link, sign out). Collapsed, it is the avatar alone.
+- **Account menu (header, right end):** square avatar + name + `ROLE · BALANCE` in mono, chevron on the right, menu opening downward and right-aligned (profile link, sign out). Below `sm` it is the avatar alone. It sits at the right end of the header bar, after the view-mode switch.
+- **Top-up control:** a hairline `+` square immediately right of the identity trigger, linking to `/dashboard/account?tab=wallet`. Rendered only when the account has a balance. Below `sm` the corner control is hidden and the same link moves into the menu's balance row, so exactly one is ever reachable.
+- **Rail foot:** appearance toggle + language on the left, collapse toggle on the right; collapsed, the three stack vertically. The mobile drawer keeps the two preferences and drops the collapse toggle (it is always full width).
 
 ### Code / terminal blocks
 - Signature component: black (`#000`/`#0a0a0a`) background regardless of theme, mono text, small "Copy" button top-right (hairline border, not filled) — matches the reference `$ npm i -g ...` blocks exactly; this is the one place true black-on-white-elsewhere is correct.

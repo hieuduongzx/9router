@@ -229,7 +229,7 @@ export default function RequestLogger({ period = "all" }) {
         detail={selectedDetail}
         isOpen={isDrawerOpen}
         onClose={closeDetail}
-        providerName={selectedDetail?.provider}
+        providerName={selectedDetail?.providerName || selectedDetail?.provider}
         onPrev={hasPrevLog ? () => viewDetail(logs[activeLogIndex - 1]) : undefined}
         onNext={hasNextLog ? () => viewDetail(logs[activeLogIndex + 1]) : undefined}
         hasPrev={hasPrevLog}

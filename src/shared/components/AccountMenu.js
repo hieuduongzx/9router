@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PropTypes from "prop-types";
-import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
+import { ChevronDown, LogOut, Plus, UserCog } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
 const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
@@ -13,18 +13,12 @@ const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
 });
 
 /**
- * Identity row at the foot of the sidebar rail (it used to sit in the page
- * header). The menu opens upward because the trigger is pinned to the bottom of
- * the viewport, and collapses to the avatar alone on the 64px rail.
+ * Identity control at the right end of the page header. The menu opens downward
+ * and right-aligned because the trigger is pinned to the top edge; below `sm`
+ * the name and role collapse away and only the square avatar remains, so the
+ * header keeps room for page context.
  */
-export default function AccountMenu({
-  displayName,
-  role,
-  creditCents,
-  collapsed = false,
-  onLogout,
-  onNavigate,
-}) {
+export default function AccountMenu({ displayName, role, creditCents, onLogout, onNavigate }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
   const hasCredit = Number.isSafeInteger(creditCents);
@@ -52,45 +46,53 @@ export default function AccountMenu({
   const subtitle = [role || "user", formattedCredit].filter(Boolean).join(" · ");
 
   return (
-    <div className={cn("relative", collapsed ? "shrink-0" : "min-w-0 flex-1")} ref={menuRef}>
+    <div className="relative flex shrink-0 items-center" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Account menu for ${displayName}`}
-        title={collapsed ? displayName : undefined}
+        title={displayName}
         className={cn(
-          "flex items-center rounded-sm text-left transition-colors",
+          "flex h-9 items-center rounded-sm text-left transition-colors",
           "hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
-          collapsed ? "size-8 justify-center" : "h-11 w-full gap-2.5 px-1.5"
+          "justify-center px-0 sm:w-auto sm:justify-start sm:gap-2 sm:px-1.5"
         )}
       >
         <span className="flex size-7 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-[11px] font-semibold text-text-main">
           {avatarLabel}
         </span>
-        {collapsed ? null : (
-          <>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium leading-tight text-text-main">
-                {displayName}
-              </span>
-              <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
-                {subtitle}
-              </span>
-            </span>
-            <ChevronsUpDown aria-hidden size={14} strokeWidth={2.25} className="shrink-0 text-text-subtle" />
-          </>
-        )}
+        <span className="hidden min-w-0 max-w-[9rem] sm:block">
+          <span className="block truncate text-[13px] font-medium leading-tight text-text-main">
+            {displayName}
+          </span>
+          <span className="block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+            {subtitle}
+          </span>
+        </span>
+        <ChevronDown aria-hidden size={14} strokeWidth={2.25} className="hidden shrink-0 text-text-subtle sm:block" />
       </button>
+
+      {/* Top-up sits beside the balance in the corner. Hidden below `sm`, where
+          the trigger collapses to the avatar and the balance is not shown —
+          the menu's own balance row carries the same link there. */}
+      {hasCredit && (
+        <Link
+          href="/dashboard/account?tab=wallet"
+          aria-label="Add credit"
+          title="Add credit"
+          onClick={() => onNavigate?.()}
+          className="hidden size-7 shrink-0 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 sm:flex"
+        >
+          <Plus aria-hidden size={14} strokeWidth={2.75} />
+        </Link>
+      )}
 
       {open && (
         <div
           role="menu"
-          className={cn(
-            "absolute bottom-full z-50 mb-2 w-60 border border-border bg-surface",
-            collapsed ? "left-0" : "left-0 right-0 w-auto min-w-[15rem]"
-          )}
+          className="absolute right-0 top-full z-50 mt-2 w-60 border border-border bg-surface"
         >
           <div className="border-b border-border px-3 py-2.5">
             <p className="truncate text-sm font-medium text-text-main">{displayName}</p>
@@ -98,17 +100,48 @@ export default function AccountMenu({
               {role || "user"} account
             </p>
             {hasCredit && (
-              <div className="mt-2 flex items-center justify-between gap-3 border border-border px-2.5 py-1.5">
+              <div className="mt-2 flex items-center justify-between gap-2 border border-border pl-2.5 sm:pr-2.5">
                 <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
                   Balance
                 </span>
-                <span className="font-mono text-xs font-semibold tabular-nums text-text-main">
-                  {formattedCredit}
+                <span className="flex min-w-0 items-center">
+                  <span className="truncate py-1.5 font-mono text-xs font-semibold tabular-nums text-text-main">
+                    {formattedCredit}
+                  </span>
+                  {/* Below `sm` the corner control is hidden (the trigger is the
+                      avatar alone), so the menu carries top-up there instead. */}
+                  <Link
+                    href="/dashboard/account?tab=wallet"
+                    role="menuitem"
+                    aria-label="Add credit"
+                    title="Add credit"
+                    onClick={() => {
+                      setOpen(false);
+                      onNavigate?.();
+                    }}
+                    className="ml-1.5 flex size-7 shrink-0 items-center justify-center border-l border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main sm:hidden"
+                  >
+                    <Plus aria-hidden size={14} strokeWidth={2.75} />
+                  </Link>
                 </span>
               </div>
             )}
           </div>
           <div className="p-1">
+            {role === "admin" && (
+              <Link
+                href="/admin"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onNavigate?.();
+                }}
+                className="flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm text-primary transition-colors hover:bg-primary/10"
+              >
+                <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
+                Admin Panel
+              </Link>
+            )}
             <Link
               href="/dashboard/account"
               role="menuitem"
@@ -144,7 +177,6 @@ AccountMenu.propTypes = {
   displayName: PropTypes.string,
   role: PropTypes.string,
   creditCents: PropTypes.number,
-  collapsed: PropTypes.bool,
   onLogout: PropTypes.func.isRequired,
   onNavigate: PropTypes.func,
 };

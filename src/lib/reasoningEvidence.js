@@ -10,11 +10,6 @@
 // :315-320), so a non-streaming probe only ever sees reasoning text from models
 // that spent their whole budget thinking. Probes must stream.
 
-// Deliberately NOT open-sse's normalizeModelThinkingDefault, though the logic is
-// identical: that module pulls thinkingUnified → the whole provider registry, and
-// this file is imported by the combos client component.
-import { normalizeThinkingMode } from "@/shared/utils/comboModelConfig";
-
 /** Forces multi-step work — a model with optional thinking should choose to use it. */
 export const REASONING_PROBE_PROMPT =
   "Think step by step, then answer: a train leaves at 09:47 and arrives 3h 38m later. What time does it arrive?";
@@ -79,62 +74,4 @@ export function detectReasoningEvidence(raw) {
     evidence: explicitZero ? REASONING_EVIDENCE.ZERO : REASONING_EVIDENCE.NONE,
     reasoningTokens: 0,
   };
-}
-
-export const THINKING_COMPLIANCE = {
-  OK: "ok",              // the model did what the route's thinking default asks
-  VIOLATION: "violation",// it did the opposite — the actionable case
-  UNPROVEN: "unproven",  // no evidence either way; the provider reports nothing
-  ERROR: "error",        // the probe never got a usable answer
-};
-
-/**
- * Judge a probe result against the thinking default a model route would apply.
- *
- * The case worth catching: an operator sets Thinking = Off, and the model keeps
- * reasoning anyway (and keeps billing for it). thinkingLevels.js predicts that
- * from static data via thinkingCanDisable; this is the runtime check.
- *
- * @param {string} mode  combo thinkingMode — auto | none | thinking | <level>
- * @param {{verdict?: string, reasoned?: boolean, evidence?: string, reasoningTokens?: number}} probe
- * @returns {{state: string, label: string}}
- */
-export function judgeThinkingCompliance(mode, probe) {
-  const normalized = normalizeThinkingMode(mode);
-  if (!probe || probe.verdict === "error") {
-    return { state: THINKING_COMPLIANCE.ERROR, label: probe?.error || "Probe failed" };
-  }
-
-  // pingModelReasoning only sets `reasoned` implicitly, via verdict "verified".
-  const reasoned = probe.reasoned ?? probe.verdict === "verified";
-  const tokens = Number(probe.reasoningTokens) || 0;
-  const tokenSuffix = tokens ? ` (${tokens} reasoning tokens)` : "";
-
-  if (normalized === "auto") {
-    // No default is imposed, so nothing can violate it — just report what happened.
-    return {
-      state: THINKING_COMPLIANCE.OK,
-      label: reasoned ? `Reasons by default${tokenSuffix}` : "No reasoning by default",
-    };
-  }
-
-  if (normalized === "none") {
-    if (reasoned) {
-      return {
-        state: THINKING_COMPLIANCE.VIOLATION,
-        label: `Still reasoned with thinking off${tokenSuffix}`,
-      };
-    }
-    return probe.evidence === REASONING_EVIDENCE.ZERO
-      ? { state: THINKING_COMPLIANCE.OK, label: "Confirmed off (reasoning_tokens=0)" }
-      : { state: THINKING_COMPLIANCE.UNPROVEN, label: "No reasoning seen, but the provider reported nothing" };
-  }
-
-  // An explicit level was requested — the model is expected to reason.
-  if (reasoned) {
-    return { state: THINKING_COMPLIANCE.OK, label: `Reasoned as requested${tokenSuffix}` };
-  }
-  return probe.evidence === REASONING_EVIDENCE.ZERO
-    ? { state: THINKING_COMPLIANCE.VIOLATION, label: `Asked for "${normalized}" but reported reasoning_tokens=0` }
-    : { state: THINKING_COMPLIANCE.UNPROVEN, label: "No reasoning evidence returned" };
 }

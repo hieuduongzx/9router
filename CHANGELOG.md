@@ -18,11 +18,43 @@
   rollups for whole-day windows (survives history retention pruning), indexed
   live `usageHistory` scans for sub-day windows plus a lastUsed overlay. Linked
   from the landing nav and the dashboard Traffic sidebar.
+- **Model Routes**: each member of a route can be switched off individually. The
+  member stays in the list (and keeps its fallback position) but is skipped by
+  routing, excluded from `/v1/models` and the published catalog, left out of
+  route tests, and dropped from the route's inherited Caps. A route with every
+  member off is treated as empty: it cannot be published and stops resolving.
+  Persisted per route as `combos.disabledMembers` (by model id, so reordering
+  or renaming a member never moves an off-switch to a different one).
+- **Dashboard**: the account identity control (avatar, name, `ROLE · BALANCE`,
+  profile link, sign out) moved from the foot of the sidebar rail to the right
+  end of the header bar, with a `+` top-up shortcut beside it that opens the
+  wallet's top-up form. The appearance (dark mode) and language toggles moved
+  the other way — out of the header and into the foot of the rail
 
 ## Fixes
 - **Usage**: `/dashboard/usage` Model request history is scoped to the signed-in
   account even for administrators — system-wide history stays on Activity / a
   specific Users page (`?userId=`)
+- **Model Routes**: removed the "Test thinking default" probe from the route
+  editor — the static "cannot fully disable reasoning" warning already covers
+  the case, and the probe spent one live request per member per click
+- **Activity**: the System tab was missing cache entirely — it now carries a
+  Cache hit tile (cache-read share of input tokens, plus cache-write count) and
+  a Cached column in the per-account table. `GET /api/usage/system` returns
+  `cachedTokens` / `cacheCreationTokens`, aggregated in SQL out of the JSON
+  `tokens` column so OpenAI-style `cached_tokens` and Claude-style
+  `cache_read_input_tokens` both count
+- **Usage**: request details showed the raw provider id (e.g.
+  `openai-compatible-chat-<uuid>`) instead of the provider's name. Details and
+  request logs now carry a resolved `providerName` — custom provider nodes use
+  their operator name, registry providers their catalog name — while `provider`
+  keeps the raw id for filters and links
+- **Usage**: the Usage Details drawer hid the Cached and Cache write rows when
+  they were zero, which is exactly the case an operator checks for. Both always
+  render, and Cached shows its share of input tokens
+- **Dashboard**: removed the "New key" button from the header bar; API keys are
+  reached from the rail
+
 # v0.5.59 (2026-08-29)
 
 ## Features

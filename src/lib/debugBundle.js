@@ -149,6 +149,7 @@ export async function buildDebugBundle({ detailLimit = 50, period = "24h" } = {}
       enabled: publishedIds.has(combo.id),
       memberCount: Array.isArray(combo.models) ? combo.models.length : 0,
       members: combo.models || [],
+      disabledMembers: combo.disabledMembers || [],
     })),
     connections: (connections || []).map((connection) => ({
       id: connection.id,

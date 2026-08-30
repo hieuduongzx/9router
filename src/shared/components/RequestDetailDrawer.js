@@ -53,7 +53,11 @@ export function buildDetailReport(detail, providerName) {
     "=== 9router request detail ===",
     `id           : ${detail.id || "—"}`,
     `time         : ${detail.timestamp || "—"}`,
-    `provider     : ${providerName || detail.provider || "—"}`,
+    `provider     : ${providerName || detail.providerName || detail.provider || "—"}${
+      detail.provider && (providerName || detail.providerName) && detail.provider !== (providerName || detail.providerName)
+        ? ` (${detail.provider})`
+        : ""
+    }`,
     `model        : ${detail.model || "—"}`,
     `mode         : ${request.stream === true ? "stream" : request.stream === false ? "sync" : "—"}`,
     `status       : ${detail.status || "—"}`,
@@ -240,9 +244,17 @@ export default function RequestDetailDrawer({
   hasPrev = false,
   hasNext = false,
 }) {
-  const resolvedProviderName = providerName || detail?.provider || "Unknown";
+  // `detail.providerName` is the server-resolved label (custom providers are
+  // stored under a generated id); `detail.provider` is that raw id, last resort.
+  const resolvedProviderName = providerName || detail?.providerName || detail?.provider || "Unknown";
   const { copied, copy } = useCopyToClipboard(1500);
   const completed = detail?.status === "success" || detail?.status === "ok";
+  const inputTokens = getInputTokens(detail?.tokens);
+  const outputTokens = detail?.tokens?.completion_tokens || detail?.tokens?.output_tokens || 0;
+  const cachedTokens = getCachedTokens(detail?.tokens);
+  const cacheWriteTokens = getCacheCreationTokens(detail?.tokens);
+  // Input already includes the cache-read portion, so it is the denominator.
+  const cacheRate = inputTokens > 0 ? Math.round((cachedTokens / inputTokens) * 100) : 0;
 
   const headerActions = (
     <>
@@ -290,15 +302,23 @@ export default function RequestDetailDrawer({
           </SummarySection>
 
           <SummarySection icon="tag" title="Tokens">
-            <SummaryRow label="Input" value={NUMBER_FORMAT.format(getInputTokens(detail.tokens))} />
-            <SummaryRow label="Output" value={NUMBER_FORMAT.format(detail.tokens?.completion_tokens || 0)} />
+            <SummaryRow label="Input" value={NUMBER_FORMAT.format(inputTokens)} />
+            <SummaryRow label="Output" value={NUMBER_FORMAT.format(outputTokens)} />
             <SummaryRow
               label="Total"
               strong
-              value={NUMBER_FORMAT.format(getInputTokens(detail.tokens) + (detail.tokens?.completion_tokens || 0))}
+              value={NUMBER_FORMAT.format(inputTokens + outputTokens)}
             />
-            {getCachedTokens(detail.tokens) > 0 && <SummaryRow label="Cached" value={NUMBER_FORMAT.format(getCachedTokens(detail.tokens))} />}
-            {getCacheCreationTokens(detail.tokens) > 0 && <SummaryRow label="Cache creation" value={NUMBER_FORMAT.format(getCacheCreationTokens(detail.tokens))} />}
+            {/* Always rendered, including at zero: "no cache rows" and "cache
+                read nothing" are different facts, and the second is the one an
+                operator is checking for. Cached is a subset of Input. */}
+            <SummaryRow
+              label="Cached"
+              value={inputTokens > 0
+                ? `${NUMBER_FORMAT.format(cachedTokens)} · ${cacheRate}%`
+                : NUMBER_FORMAT.format(cachedTokens)}
+            />
+            <SummaryRow label="Cache write" value={NUMBER_FORMAT.format(cacheWriteTokens)} />
           </SummarySection>
 
           <SummarySection icon="payments" title="Cost">

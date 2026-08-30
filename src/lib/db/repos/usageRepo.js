@@ -3,6 +3,7 @@ import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
 import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "../../../shared/utils/requestTokens.js";
+import { providerLabel } from "../../../shared/utils/providerLabel.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -20,6 +21,27 @@ async function debitOwnerForApiKeyUsage(apiKey, costUsd, meta = null) {
   // Admin keys still debit when balance > 0 so self-usage is visible; zero stays allowed.
   await debitUserCreditForUsage(ownerId, costUsd, meta);
 }
+
+
+/**
+ * Cache token counts are stored inside the JSON `tokens` blob, not as columns,
+ * and the key depends on the upstream family: OpenAI-style `cached_tokens` vs
+ * Claude-style `cache_read_input_tokens`. These mirror getCachedTokens() /
+ * getCacheCreationTokens() from shared/utils/requestTokens.js so a SQL SUM and
+ * a JS read of the same row can never disagree.
+ *
+ * `json_valid` guards rows written before the column was JSON (and any truncated
+ * blob): json_extract on invalid JSON raises, which would fail the whole query.
+ */
+export const CACHED_TOKENS_SQL = (column) => `CASE WHEN json_valid(${column}) THEN COALESCE(
+  CAST(json_extract(${column}, '$.cached_tokens') AS INTEGER),
+  CAST(json_extract(${column}, '$.cache_read_input_tokens') AS INTEGER),
+  0) ELSE 0 END`;
+
+export const CACHE_WRITE_TOKENS_SQL = (column) => `CASE WHEN json_valid(${column}) THEN COALESCE(
+  CAST(json_extract(${column}, '$.cache_creation_input_tokens') AS INTEGER),
+  CAST(json_extract(${column}, '$.prompt_tokens_details.cache_creation_tokens') AS INTEGER),
+  0) ELSE 0 END`;
 
 const PENDING_TIMEOUT_MS = 60 * 1000;
 const RING_CAP = 50;
@@ -1398,10 +1420,16 @@ export async function getSystemUsageOverview(period = "today") {
   const where = cutoff ? "WHERE uh.timestamp >= ?" : "";
   const params = cutoff ? [cutoff] : [];
 
+  // Cache columns live inside the JSON `tokens` blob rather than their own
+  // columns, and providers disagree on the key (OpenAI-style `cached_tokens` vs
+  // Claude-style `cache_read_input_tokens`), so both are folded here. Summed in
+  // SQL — the alternative is scanning every row into JS just to add two numbers.
   const summary = db.get(
     `SELECT COUNT(*) AS requests,
             COALESCE(SUM(uh.promptTokens), 0) AS promptTokens,
             COALESCE(SUM(uh.completionTokens), 0) AS completionTokens,
+            COALESCE(SUM(${CACHED_TOKENS_SQL("uh.tokens")}), 0) AS cachedTokens,
+            COALESCE(SUM(${CACHE_WRITE_TOKENS_SQL("uh.tokens")}), 0) AS cacheCreationTokens,
             COALESCE(SUM(uh.cost), 0) AS cost
        FROM usageHistory uh ${where}`,
     params,
@@ -1415,6 +1443,8 @@ export async function getSystemUsageOverview(period = "today") {
             COUNT(*) AS requests,
             COALESCE(SUM(promptTokens), 0) AS promptTokens,
             COALESCE(SUM(completionTokens), 0) AS completionTokens,
+            COALESCE(SUM(cachedTokens), 0) AS cachedTokens,
+            COALESCE(SUM(cacheCreationTokens), 0) AS cacheCreationTokens,
             COALESCE(SUM(cost), 0) AS cost,
             MAX(timestamp) AS lastRequest
        FROM (
@@ -1428,6 +1458,8 @@ export async function getSystemUsageOverview(period = "today") {
                 COALESCE(ak.name, CASE WHEN uh.apiKey IS NULL OR uh.apiKey = '' THEN 'No API key' ELSE 'Unknown key' END) AS apiKeyName,
                 uh.promptTokens,
                 uh.completionTokens,
+                ${CACHED_TOKENS_SQL("uh.tokens")} AS cachedTokens,
+                ${CACHE_WRITE_TOKENS_SQL("uh.tokens")} AS cacheCreationTokens,
                 uh.cost,
                 uh.timestamp
            FROM usageHistory uh
@@ -1471,6 +1503,8 @@ export async function getSystemUsageOverview(period = "today") {
     activeRequests: activeByIdentity.get(row.identity)?.activeRequests || 0,
     promptTokens: row.promptTokens || 0,
     completionTokens: row.completionTokens || 0,
+    cachedTokens: row.cachedTokens || 0,
+    cacheCreationTokens: row.cacheCreationTokens || 0,
     cost: row.cost || 0,
     lastRequest: row.lastRequest,
   }));
@@ -1486,6 +1520,8 @@ export async function getSystemUsageOverview(period = "today") {
       activeRequests: active.activeRequests,
       promptTokens: 0,
       completionTokens: 0,
+      cachedTokens: 0,
+      cacheCreationTokens: 0,
       cost: 0,
       lastRequest: null,
     });
@@ -1503,6 +1539,8 @@ export async function getSystemUsageOverview(period = "today") {
       requests: summary.requests || 0,
       promptTokens: summary.promptTokens || 0,
       completionTokens: summary.completionTokens || 0,
+      cachedTokens: summary.cachedTokens || 0,
+      cacheCreationTokens: summary.cacheCreationTokens || 0,
       cost: summary.cost || 0,
       activeRequests: users.reduce((sum, user) => sum + user.activeRequests, 0),
       activeUsers: users.filter((user) => user.activeRequests > 0).length,
@@ -1644,6 +1682,16 @@ export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 
   };
   if (details.length === 0) return { logs: [], pagination };
 
+  // Custom providers are stored under a generated id, so a readable label needs
+  // the node rows. Loaded once per page, and only when there is a page to label.
+  const nodeNames = {};
+  try {
+    const { getProviderNodes } = await import("./nodesRepo.js");
+    for (const node of await getProviderNodes()) {
+      if (node?.id && node?.name) nodeNames[node.id] = node.name;
+    }
+  } catch {}
+
   const times = details.map((detail) => new Date(detail.timestamp).getTime()).filter(Number.isFinite);
   const oldest = Math.min(...times) - 60_000;
   const newest = Math.max(...times) + 60_000;
@@ -1705,6 +1753,8 @@ export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 
       timestamp: detail.timestamp,
       model: detail.model || "-",
       provider: detail.provider || "-",
+      // Raw id stays on `provider`; this is what a UI should render.
+      providerName: detail.provider ? providerLabel(detail.provider, nodeNames) : "-",
       username: detail.username || usage?.username || ((detail.apiKey || usage?.apiKey) ? "Unassigned key" : "Local / system"),
       email: detail.email || usage?.email || "",
       apiKeyName: detail.apiKeyName || usage?.apiKeyName || ((detail.apiKey || usage?.apiKey) ? "Unknown key" : "No API key"),

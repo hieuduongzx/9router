@@ -46,7 +46,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, models, kind, thinkingMode, capabilityOverrides } = body;
+    const { name, models, kind, thinkingMode, capabilityOverrides, disabledMembers } = body;
     const modelProvider = normalizeModelProvider(body.modelProvider);
 
     if (!name) {
@@ -78,6 +78,7 @@ export async function POST(request) {
       modelProvider: modelProvider || null,
       thinkingMode,
       capabilityOverrides,
+      disabledMembers,
     });
 
     return NextResponse.json(combo, { status: 201 });

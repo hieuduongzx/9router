@@ -1,5 +1,6 @@
 // Re-export from open-sse with localDb integration
 import { getModelAliases, getComboByName, getProviderNodes } from "@/lib/localDb";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 import { parseModel as parseModelCore, resolveModelAliasFromMap, getModelInfoCore } from "open-sse/services/model.js";
 import REGISTRY from "open-sse/providers/registry/index.js";
 
@@ -89,6 +90,10 @@ export async function getComboModels(modelStr) {
 
 /**
  * Resolve a public model route and its model-level defaults.
+ *
+ * `models` is the ROUTED set: members switched off in the dashboard are already
+ * removed, so no caller has to remember to filter. A route whose every member
+ * is off resolves to null — same as an empty route.
  * @returns {Promise<object|null>}
  */
 export async function getComboRoute(modelStr) {
@@ -96,5 +101,9 @@ export async function getComboRoute(modelStr) {
   if (modelStr.includes("/")) return null;
 
   const combo = await getComboByName(modelStr);
-  return combo && combo.models && combo.models.length > 0 ? combo : null;
+  if (!combo) return null;
+  const models = comboRoutedModels(combo);
+  if (models.length === 0) return null;
+  // Reuse the row when nothing is disabled — the common path copies nothing.
+  return models === combo.models ? combo : { ...combo, models };
 }

@@ -104,6 +104,9 @@ export {
 export {
   saveRequestDetail, getRequestDetails, getRequestDetailById, getDistinctProviders,
 } from "./repos/requestDetailsRepo.js";
+export {
+  TOPUP_STATUS, createTopup, getTopupByInvoice, getTopupByWebhookContent, listTopups, settleTopup,
+} from "./repos/topupsRepo.js";
 
 // Export/import full DB
 export async function exportDb() {
@@ -130,6 +133,13 @@ export async function exportDb() {
       balanceAfterCents: Number(r.balanceAfterCents) || 0, type: r.type, source: r.source,
       note: r.note, actorUserId: r.actorUserId, meta: r.meta, createdAt: r.createdAt,
     })),
+    paymentTopups: db.all(`SELECT * FROM paymentTopups ORDER BY createdAt ASC`).map((r) => ({
+      id: r.id, userId: r.userId, invoiceNumber: r.invoiceNumber,
+      sepayOrderId: r.sepayOrderId, sepayTransactionId: r.sepayTransactionId,
+      amountVnd: Number(r.amountVnd) || 0, creditCents: Number(r.creditCents) || 0,
+      status: r.status, paymentMethod: r.paymentMethod, rawData: r.rawData,
+      createdAt: r.createdAt, paidAt: r.paidAt,
+    })),
     userSettings: db.all(`SELECT userId, data FROM userSettings`).map((r) => ({
       userId: r.userId, data: parseJson(r.data, {}),
     })),
@@ -142,6 +152,7 @@ export async function exportDb() {
       models: parseJson(r.models, []),
       thinkingMode: r.thinkingMode || "auto",
       capabilityOverrides: parseJson(r.capabilityOverrides, {}),
+      disabledMembers: parseJson(r.disabledMembers, []),
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     })),
@@ -200,6 +211,7 @@ export async function importDb(payload) {
     if (restoreAccounts) {
       // creditLedger and apiKeys.ownerUserId both FK to users — clear children first.
       db.run(`DELETE FROM creditLedger`);
+      db.run(`DELETE FROM paymentTopups`);
       db.run(`DELETE FROM userSettings`);
       db.run(`DELETE FROM externalIdentities`);
       db.run(`DELETE FROM users`);
@@ -232,6 +244,19 @@ export async function importDb(payload) {
             typeof e.meta === "string" ? e.meta : (e.meta == null ? null : stringifyJson(e.meta)),
             e.createdAt || new Date().toISOString(),
           ]
+        );
+      }
+      for (const topup of payload.paymentTopups || []) {
+        if (!topup?.id || !topup?.userId || !topup?.invoiceNumber) continue;
+        db.run(
+          `INSERT OR REPLACE INTO paymentTopups(id, userId, invoiceNumber, sepayOrderId, sepayTransactionId, amountVnd, creditCents, status, paymentMethod, rawData, createdAt, paidAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            topup.id, topup.userId, topup.invoiceNumber, topup.sepayOrderId || null,
+            topup.sepayTransactionId || null, Number(topup.amountVnd) || 0,
+            Number(topup.creditCents) || 0, topup.status || "pending",
+            topup.paymentMethod || null, typeof topup.rawData === "string" ? topup.rawData : (topup.rawData == null ? null : stringifyJson(topup.rawData)),
+            topup.createdAt || new Date().toISOString(), topup.paidAt || null,
+          ],
         );
       }
       for (const s of payload.userSettings || []) {
@@ -290,7 +315,7 @@ export async function importDb(payload) {
     }
     for (const c of payload.combos || []) {
       db.run(
-        `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, thinkingMode, capabilityOverrides, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO combos(id, name, kind, modelProvider, models, thinkingMode, capabilityOverrides, disabledMembers, createdAt, updatedAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           c.id,
           c.name,
@@ -299,6 +324,7 @@ export async function importDb(payload) {
           stringifyJson(c.models || []),
           c.thinkingMode || "auto",
           stringifyJson(c.capabilityOverrides || {}),
+          stringifyJson(c.disabledMembers || []),
           c.createdAt || new Date().toISOString(),
           c.updatedAt || new Date().toISOString(),
         ]

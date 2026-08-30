@@ -5,6 +5,7 @@ import {
   getComboById,
   getPublishedModels,
 } from "@/lib/localDb";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +35,9 @@ export async function POST(request) {
         { status: 400 },
       );
     }
-    if (!Array.isArray(combo.models) || combo.models.length === 0) {
+    if (comboRoutedModels(combo).length === 0) {
       return NextResponse.json(
-        { error: "Add at least one routed model to the combo before publishing it" },
+        { error: "Add at least one enabled routed model to the combo before publishing it" },
         { status: 400 },
       );
     }

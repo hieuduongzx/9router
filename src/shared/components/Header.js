@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
-import { Menu, Plus, Search, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 
 import ProviderIcon from "@/shared/components/ProviderIcon";
-import HeaderLanguage from "@/shared/components/HeaderLanguage";
-import ThemeToggle from "@/shared/components/ThemeToggle";
+import AccountMenu from "@/shared/components/AccountMenu";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS } from "@/shared/constants/providers";
@@ -220,7 +219,7 @@ const getPageInfo = (pathname) => {
     };
   if (pathname === "/dashboard" || pathname === "/dashboard/")
     return {
-      title: "Home",
+      title: "Dashboard",
       description: "Model traffic, access, and account status at a glance",
       icon: "home",
       breadcrumbs: [],
@@ -234,13 +233,13 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   const [canSwitchDashboardView, setCanSwitchDashboardView] = useState(false);
   const [switchingView, setSwitchingView] = useState(false);
   const [viewModeError, setViewModeError] = useState("");
+  const [account, setAccount] = useState(null);
 
   // Memoize page info to prevent unnecessary recalculations
   const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
   const { title, description, breadcrumbs } = pageInfo;
-  const onApiKeysPage = pathname?.includes("/api-keys");
 
-  // Identity moved to the sidebar; the header only still needs the view mode.
+  // One auth read serves both the view-mode switch and the identity menu.
   useEffect(() => {
     let cancelled = false;
 
@@ -252,11 +251,17 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         if (!cancelled) {
           setViewMode(data?.viewMode || DASHBOARD_VIEW_USER);
           setCanSwitchDashboardView(data?.canSwitchDashboardView === true);
+          setAccount({
+            displayName: data?.displayName || data?.oidcName || data?.oidcEmail || "",
+            role: data?.role || "",
+            creditCents: Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null,
+          });
         }
       } catch {
         if (!cancelled) {
           setViewMode(DASHBOARD_VIEW_USER);
           setCanSwitchDashboardView(false);
+          setAccount(null);
         }
       }
     }
@@ -268,6 +273,15 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       window.removeEventListener("account-profile-updated", loadAuthStatus);
     };
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) window.location.assign("/login");
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    }
+  };
 
   const handleViewModeToggle = async () => {
     if (switchingView) return;
@@ -371,20 +385,9 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         ) : null}
       </div>
 
-      {/* Right actions; identity, role, and balance live in the account menu. */}
+      {/* Right actions, ending in the identity menu. */}
       <div className="flex shrink-0 items-center gap-1.5">
         <HeaderSearch />
-        {!onApiKeysPage && (
-          <Link
-            href="/dashboard/api-keys"
-            className="hidden h-8 shrink-0 items-center gap-1.5 rounded-sm bg-primary px-3 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 md:inline-flex"
-          >
-            <Plus aria-hidden size={14} strokeWidth={2.75} />
-            New key
-          </Link>
-        )}
-        <div className="hidden sm:block"><ThemeToggle /></div>
-        <HeaderLanguage />
         {canSwitchDashboardView && (
           <div className="ml-0.5 border-l border-border pl-1.5 sm:ml-1 sm:pl-2">
             <DashboardViewToggle
@@ -394,6 +397,16 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
             />
           </div>
         )}
+        {account?.displayName ? (
+          <div className="ml-0.5 border-l border-border pl-1.5 sm:ml-1 sm:pl-2">
+            <AccountMenu
+              displayName={account.displayName}
+              role={account.role}
+              creditCents={account.creditCents}
+              onLogout={handleLogout}
+            />
+          </div>
+        ) : null}
       </div>
 
       {viewModeError && (

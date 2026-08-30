@@ -30,4 +30,5 @@ export {
   updatePricing, resetPricing, resetAllPricing,
   pruneUsageHistory,
   exportDb, importDb,
+  TOPUP_STATUS, createTopup, getTopupByInvoice, listTopups, settleTopup,
 } from "@/lib/db/index.js";

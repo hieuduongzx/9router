@@ -29,9 +29,10 @@ import { DASHBOARD_NAV_GROUPS, visibleNavItems } from "@/shared/constants/dashbo
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
-import AccountMenu from "./AccountMenu";
 import Button from "./Button";
 import JumpToPalette from "./JumpToPalette";
+import HeaderLanguage from "./HeaderLanguage";
+import ThemeToggle from "./ThemeToggle";
 import { ConfirmModal } from "./Modal";
 
 /**
@@ -194,7 +195,6 @@ export default function Sidebar({ onClose }) {
   const [lastMediaRoute, setLastMediaRoute] = useState(onMediaRoute);
   const [isDisconnected, setIsDisconnected] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
-  const [account, setAccount] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
@@ -283,8 +283,7 @@ export default function Sidebar({ onClose }) {
     if (onMediaRoute) setMediaOpen(true);
   }
 
-  // One auth read serves both the nav gating and the account row at the foot of
-  // the rail, so moving the profile out of the header cost no extra request.
+  // Nav gating only — identity is read by the header's account menu.
   useEffect(() => {
     const loadAuthStatus = () =>
       fetch("/api/auth/status", { cache: "no-store" })
@@ -292,11 +291,6 @@ export default function Sidebar({ onClose }) {
         .then((data) => {
           const admin = data.isAdminView === true;
           setIsAdmin(admin);
-          setAccount({
-            displayName: data?.displayName || data?.oidcName || data?.oidcEmail || "",
-            role: data?.role || "",
-            creditCents: Number.isSafeInteger(data?.user?.creditCents) ? data.user.creditCents : null,
-          });
           if (!admin) return null;
           return fetch("/api/settings")
             .then((res) => (res.ok ? res.json() : null))
@@ -323,15 +317,6 @@ export default function Sidebar({ onClose }) {
   const handleUpdate = () => {
     setShowUpdateModal(false);
     setIsUpdating(true);
-  };
-
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
-      if (res.ok) window.location.assign("/login");
-    } catch (err) {
-      console.error("Failed to logout:", err);
-    }
   };
 
   const handleCopyAndShutdown = async () => {
@@ -614,23 +599,21 @@ export default function Sidebar({ onClose }) {
           ))}
         </nav>
 
-        {/* Account row + rail toggle — the profile lives at the foot of the rail,
-            not in the page header. */}
+        {/* Rail foot: appearance + language, then the collapse toggle. Identity
+            lives in the page header. Collapsed, three 28px controls do not fit
+            across a 64px rail, so they stack instead. */}
         <div
           className={cn(
-            "h-12 shrink-0 border-t border-border",
-            collapsed ? "flex flex-col items-center justify-center gap-2" : "flex items-center gap-1 px-2"
+            "flex shrink-0 items-center border-t border-border",
+            collapsed ? "flex-col gap-1 py-2" : "h-12 justify-between px-2"
           )}
         >
-
-          <AccountMenu
-            displayName={account?.displayName}
-            role={account?.role}
-            creditCents={account?.creditCents}
-            collapsed={collapsed}
-            onLogout={handleLogout}
-            onNavigate={onClose}
-          />
+          {/* Both controls already render at size-8; overriding the size here
+              would only stack a second Tailwind size class on top. */}
+          <div className={cn("flex items-center gap-1", collapsed && "flex-col")}>
+            <ThemeToggle />
+            <HeaderLanguage />
+          </div>
 
           {/* Drawer mode is always full width, so the rail toggle is desktop-only. */}
           {isDrawer ? null : (

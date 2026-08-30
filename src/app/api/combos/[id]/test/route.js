@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getComboById, getSettings } from "@/lib/localDb";
 import { pingModelByKind } from "@/app/api/models/test/ping";
 import { COMBO_TEST_STRATEGIES, runComboTest } from "@/lib/comboTest";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,12 @@ export async function POST(request, { params }) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const models = normalizeModels(body.models, combo.models || []);
+    const models = normalizeModels(body.models, comboRoutedModels(combo));
     if (!models) {
       return NextResponse.json({ error: "Models must be a list of at most 50 valid model IDs" }, { status: 400 });
     }
     if (models.length === 0) {
-      return NextResponse.json({ error: "Add at least one model before testing" }, { status: 400 });
+      return NextResponse.json({ error: "Enable at least one model before testing" }, { status: 400 });
     }
 
     const settings = await getSettings();

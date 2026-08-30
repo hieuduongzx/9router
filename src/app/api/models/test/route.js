@@ -9,8 +9,8 @@ export async function POST(request) {
     const result = mode === "web-search"
       ? await pingModelWebSearch(model)
       : mode === "reasoning"
-      // `thinking` lets the combo editor probe a route's thinking default
-      // (notably "none") instead of the plain capability check.
+      // `thinking` probes a specific thinking default (notably "none") instead
+      // of the plain "can this model reason at all" capability check.
       ? await pingModelReasoning(model, undefined, thinking || "high")
       : await pingModelByKind(model, kind || "llm");
     return NextResponse.json(result);

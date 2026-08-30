@@ -36,7 +36,7 @@ describe("Schema migrations", () => {
     expect(tables).toEqual(expect.arrayContaining([
       "_meta", "settings", "providerConnections", "providerNodes",
       "proxyPools", "apiKeys", "combos", "kv", "usageHistory", "usageDaily", "requestDetails",
-      "externalIdentities",
+      "externalIdentities", "paymentTopups",
     ]));
     const userColumns = db.all("PRAGMA table_info(users)").map((column) => column.name);
     expect(userColumns).toContain("creditCents");

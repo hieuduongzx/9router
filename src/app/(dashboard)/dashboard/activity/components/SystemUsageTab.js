@@ -14,6 +14,12 @@ function formatNumber(value) {
   return NUMBER_FORMAT.format(Number(value) || 0);
 }
 
+/** Matches the dashboard home tile: one decimal below 10%, whole numbers above. */
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return "0%";
+  return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
+}
+
 function formatTime(value) {
   if (!value) return "—";
   return new Date(value).toLocaleString();
@@ -58,6 +64,11 @@ export default function SystemUsageTab({ period }) {
   const summary = data?.summary || {};
   const users = data?.users || [];
   const totalTokens = (Number(summary.promptTokens) || 0) + (Number(summary.completionTokens) || 0);
+  // promptTokens already includes the cache-read portion, so it is the denominator.
+  const inputTokens = Number(summary.promptTokens) || 0;
+  const cachedTokens = Number(summary.cachedTokens) || 0;
+  const cacheWriteTokens = Number(summary.cacheCreationTokens) || 0;
+  const cacheRate = inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -95,6 +106,13 @@ export default function SystemUsageTab({ period }) {
             sub="Completion and reasoning tokens returned"
           />
           <StatTile
+            chip="tokens"
+            label="Cache hit"
+            value={formatPercent(cacheRate)}
+            bar={{ value: cacheRate / 100 }}
+            sub={`${formatNumber(cachedTokens)} of ${formatNumber(inputTokens)} input tokens${cacheWriteTokens ? ` · ${formatNumber(cacheWriteTokens)} written` : ""}`}
+          />
+          <StatTile
             chip="info"
             label="Active now"
             value={formatNumber(summary.activeRequests)}
@@ -123,6 +141,7 @@ export default function SystemUsageTab({ period }) {
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Active</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Input tokens</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium" title="Cache-read tokens, a subset of input tokens">Cached</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Output tokens</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Total tokens</th>
                 <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Cost</th>
@@ -147,6 +166,12 @@ export default function SystemUsageTab({ period }) {
                   </td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-main">{formatNumber(user.requests)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.promptTokens)}</td>
+                  <td
+                    className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted"
+                    title={user.cacheCreationTokens ? `${formatNumber(user.cacheCreationTokens)} cache write tokens` : undefined}
+                  >
+                    {formatNumber(user.cachedTokens)}
+                  </td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.completionTokens)}</td>
                   <td className="px-4 py-3.5 text-right font-mono font-medium tabular-nums text-text-main">
                     {formatNumber((Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0))}
@@ -156,7 +181,7 @@ export default function SystemUsageTab({ period }) {
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-sm text-text-muted">No usage recorded for this period.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-text-muted">No usage recorded for this period.</td></tr>
               )}
             </tbody>
           </table>

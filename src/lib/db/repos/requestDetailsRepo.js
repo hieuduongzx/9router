@@ -1,6 +1,7 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { calculateRequestCost, calculateRequestCostBreakdown } from "./usageRepo.js";
+import { providerLabel } from "../../../shared/utils/providerLabel.js";
 
 const DEFAULT_MAX_RECORDS = 200;
 const DEFAULT_BATCH_SIZE = 20;
@@ -215,6 +216,29 @@ function attachApiKeyMeta(detail, row) {
   };
 }
 
+/**
+ * `providerName` is the label a UI should show. `provider` stays the raw id so
+ * filters, links and debug reports keep working on the stored value.
+ */
+function attachProviderName(detail, nodeNames) {
+  if (!detail) return detail;
+  return { ...detail, providerName: providerLabel(detail.provider, nodeNames) };
+}
+
+/** `{ [nodeId]: name }` for custom provider nodes; empty when unavailable. */
+async function loadProviderNodeNames() {
+  try {
+    const { getProviderNodes } = await import("./nodesRepo.js");
+    const names = {};
+    for (const node of await getProviderNodes()) {
+      if (node?.id && node?.name) names[node.id] = node.name;
+    }
+    return names;
+  } catch {
+    return {};
+  }
+}
+
 async function withRequestCost(detail) {
   if (!detail) return detail;
   const hasCost = Number.isFinite(detail.cost);
@@ -262,8 +286,11 @@ export async function getRequestDetails(filter = {}) {
       ORDER BY rd.timestamp DESC LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
+  // One node lookup for the page, not one per row: custom providers are stored
+  // by generated id, so the drawer needs their operator name to be readable.
+  const nodeNames = await loadProviderNodeNames();
   const details = await Promise.all(rows.map(async (row) => (
-    attachApiKeyMeta(await withRequestCost(parseJson(row.data, {})), row)
+    attachProviderName(attachApiKeyMeta(await withRequestCost(parseJson(row.data, {})), row), nodeNames)
   )));
 
   return {
@@ -293,7 +320,12 @@ export async function getRequestDetailById(id) {
       WHERE rd.id = ?`,
     [id],
   );
-  return row ? attachApiKeyMeta(await withRequestCost(parseJson(row.data, null)), row) : null;
+  if (!row) return null;
+  const nodeNames = await loadProviderNodeNames();
+  return attachProviderName(
+    attachApiKeyMeta(await withRequestCost(parseJson(row.data, null)), row),
+    nodeNames,
+  );
 }
 
 const _shutdownHandler = async () => {

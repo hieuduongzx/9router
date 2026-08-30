@@ -1,4 +1,5 @@
 import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { resolveProviderId } from "@/shared/constants/providers";
 
@@ -96,8 +97,9 @@ export function applyCapabilityOverrides(capabilities, overrides) {
 }
 
 export function getEffectiveComboCapabilities(combo) {
+  // Switched-off members must not advertise caps the route can never serve.
   return applyCapabilityOverrides(
-    deriveComboCapabilities(combo?.models || []),
+    deriveComboCapabilities(comboRoutedModels(combo)),
     combo?.capabilityOverrides,
   );
 }
