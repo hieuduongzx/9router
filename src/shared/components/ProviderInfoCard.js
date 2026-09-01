@@ -1,6 +1,7 @@
 "use client";
 
 import Card from "./Card";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Only show fields user actually cares about
 const FIELD_SCHEMA = {
@@ -45,7 +46,7 @@ export default function ProviderInfoCard({ config, provider, title = "Provider I
             rel="noopener noreferrer"
             className="text-xs text-primary hover:underline inline-flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-sm">open_in_new</span>
+            <Icon name="open_in_new" className="size-3.5" />
             Get API Key
           </a>
         )}
@@ -53,7 +54,7 @@ export default function ProviderInfoCard({ config, provider, title = "Provider I
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
         {rows.map((r) => (
           <div key={r.key} className="flex items-center gap-3 min-w-0">
-            <span className="text-xs text-text-muted w-28 shrink-0">{r.label}</span>
+            <span className="text-xs text-muted-foreground w-28 shrink-0">{r.label}</span>
             {r.isLink ? (
               <a
                 href={r.raw}
@@ -64,7 +65,7 @@ export default function ProviderInfoCard({ config, provider, title = "Provider I
                 {r.value}
               </a>
             ) : (
-              <span className={`text-sm text-text-main truncate ${r.mono ? "font-mono" : ""}`}>
+              <span className={`text-sm text-foreground truncate ${r.mono ? "font-mono" : ""}`}>
                 {r.value}
               </span>
             )}
@@ -72,8 +73,8 @@ export default function ProviderInfoCard({ config, provider, title = "Provider I
         ))}
         {noticeText && (
           <div className="flex items-start gap-3 min-w-0 sm:col-span-2">
-            <span className="text-xs text-text-muted w-28 shrink-0 mt-0.5">Notice</span>
-            <span className="text-sm text-text-main leading-relaxed">{noticeText}</span>
+            <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Notice</span>
+            <span className="text-sm text-foreground leading-relaxed">{noticeText}</span>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/shared/utils/cn";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function SegmentedControl({
   options = [],
@@ -30,14 +31,12 @@ export default function SegmentedControl({
             "inline-flex shrink-0 items-center justify-center rounded-sm px-3 font-mono font-medium transition-colors",
             sizes[size],
             value === option.value
-              ? "bg-surface text-text-main border border-border"
-              : "text-text-muted hover:text-text-main"
+              ? "bg-surface text-foreground border border-border"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           {option.icon && (
-            <span className="material-symbols-outlined mr-1.5 text-[16px]">
-              {option.icon}
-            </span>
+            <Icon name={option.icon} className="mr-1.5 size-[16px]" />
           )}
           {option.label}
         </button>

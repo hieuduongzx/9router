@@ -197,7 +197,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
 
         {mode === "bulk" && (
           <div className="flex flex-col gap-3">
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-muted-foreground">
               {isCloudflareAi
                 ? <>One key per line. Format: <code>name|apiKey|accountId</code> or just <code>apiKey</code> (auto-named by index).</>
                 : provider === "qoder"
@@ -212,7 +212,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
               onChange={(e) => setBulkText(e.target.value)}
             />
             {bulkResult && (
-              <div className={`text-sm font-medium ${bulkResult.failed > 0 ? "text-yellow-400" : "text-green-400"}`}>
+              <div className={`text-sm font-medium ${bulkResult.failed > 0 ? "text-yellow-400" : "text-success"}`}>
                 ✓ {bulkResult.success} added{bulkResult.failed > 0 ? `, ✗ ${bulkResult.failed} failed` : ""}
               </div>
             )}
@@ -266,12 +266,12 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
           </div>
         )}
         {isXaiApiKey && (
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.
           </p>
         )}
         {isCookie && authHint && (
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             {authHint}
             {website && (
               <>
@@ -300,7 +300,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
           />
         )}
         {isOllamaLocal && (
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             Leave blank to use <code>http://localhost:11434</code>. For remote Ollama, enter the full host URL (e.g. <code>http://192.168.1.10:11434</code>).
           </p>
         )}
@@ -310,10 +310,10 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
           </Badge>
         )}
         {error && (
-          <p className="text-xs text-red-500 break-words">{error}</p>
+          <p className="text-xs text-destructive break-words">{error}</p>
         )}
         {isCompatible && (
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             Optional. Leave blank if the compatible provider exposes models dynamically.
           </p>
         )}
@@ -326,7 +326,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
               onChange={(e) => setCloudflareData({ ...cloudflareData, accountId: e.target.value })}
               placeholder="abc123def456..."
             />
-            <p className="text-xs text-text-muted mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Find your Account ID in the right sidebar of <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">dash.cloudflare.com</a>
             </p>
           </div>
@@ -382,12 +382,12 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
         />
 
         {(proxyPools || []).length === 0 && (
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             No active proxy pools available. Create one in Proxy Pools page first.
           </p>
         )}
 
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-muted-foreground">
           Legacy manual proxy fields are still accepted by API for backward compatibility.
         </p>
 

@@ -40,13 +40,13 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-text-muted">
+      <p className="text-sm text-muted-foreground">
         Add {isAnthropic ? "Anthropic" : "OpenAI"}-compatible models manually or use Fetch Models above.
       </p>
 
       <div className="flex items-end gap-2 flex-wrap">
         <div className="flex-1 min-w-[240px]">
-          <label htmlFor="new-compatible-model-input" className="text-xs text-text-muted mb-1 block">Model ID</label>
+          <label htmlFor="new-compatible-model-input" className="text-xs text-muted-foreground mb-1 block">Model ID</label>
           <input
             id="new-compatible-model-input"
             type="text"

@@ -1,7 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { UsageStats, CardSkeleton, PeriodDropdown } from "@/shared/components";
+import { useEffect, useState, Suspense } from "react";
+import {
+  UsageStats,
+  CardSkeleton,
+  PeriodDropdown,
+  Select,
+} from "@/shared/components";
 
 export default function UsagePage() {
   return (
@@ -25,36 +30,25 @@ function UsageContent() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      {/* Title/description are rendered once by the shared Header. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
-          <label className="flex min-w-0 items-center gap-2 font-mono text-sm text-text-muted">
-            <span className="material-symbols-outlined text-[18px] shrink-0">key</span>
-            <select
-              value={apiKeyId}
-              onChange={(e) => setApiKeyId(e.target.value)}
-              className="min-w-0 flex-1 rounded-sm border border-border bg-surface px-2.5 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary/40 sm:w-44"
-              title="Filter usage by API key"
-            >
-              <option value="all">All API keys</option>
-              {apiKeys.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.name || k.key?.slice(0, 12) + "…"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <PeriodDropdown value={period} onChange={setPeriod} />
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <Select
+          aria-label="Filter by API key"
+          value={apiKeyId}
+          onChange={(event) => setApiKeyId(event.target.value)}
+          className="w-full sm:w-52"
+          options={[
+            { value: "all", label: "All API keys" },
+            ...apiKeys.map((k) => ({
+              value: k.id,
+              label: k.name || (k.key ? `${k.key.slice(0, 12)}…` : k.id),
+            })),
+          ]}
+        />
+        <PeriodDropdown value={period} onChange={setPeriod} />
       </div>
 
       <Suspense fallback={<CardSkeleton />}>
-        <UsageStats
-          period={period}
-          setPeriod={setPeriod}
-          apiKeyId={apiKeyId}
-          hidePeriodSelector
-        />
+        <UsageStats period={period} setPeriod={setPeriod} apiKeyId={apiKeyId} hidePeriodSelector />
       </Suspense>
     </div>
   );

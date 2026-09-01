@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * Cursor Auth Modal
@@ -95,12 +96,10 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
         {autoDetecting && (
           <div className="text-center py-6">
             <div className="size-16 mx-auto mb-4 bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-primary animate-spin">
-                progress_activity
-              </span>
+              <Icon name="progress_activity" className="size-7 text-primary animate-spin" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Auto-detecting tokens...</h3>
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-muted-foreground">
               Reading from Cursor IDE database
             </p>
           </div>
@@ -111,10 +110,10 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
           <>
             {/* Success message if auto-detected */}
             {autoDetected && (
-              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-sm border border-green-200 dark:border-green-800">
+              <div className="bg-success/10 dark:bg-success/20 p-3 rounded-sm border border-success/30 dark:border-success/40">
                 <div className="flex gap-2">
-                  <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-                  <p className="text-sm text-green-800 dark:text-green-200">
+                  <Icon name="check_circle" className="text-success dark:text-success" />
+                  <p className="text-sm text-success dark:text-success">
                     Tokens auto-detected from Cursor IDE successfully!
                   </p>
                 </div>
@@ -123,14 +122,14 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
 
             {/* Windows manual instructions */}
             {windowsManual && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-sm border border-amber-200 dark:border-amber-800 flex flex-col gap-2">
+              <div className="bg-warning/10 dark:bg-warning/20 p-3 rounded-sm border border-warning/30 dark:border-warning/40 flex flex-col gap-2">
                 <div className="flex gap-2 items-center">
-                  <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">info</span>
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  <Icon name="info" className="text-warning dark:text-warning" />
+                  <p className="text-sm font-medium text-warning dark:text-warning">
                     Could not read Cursor database automatically.
                   </p>
                 </div>
-                <p className="text-xs text-amber-700 dark:text-amber-300">
+                <p className="text-xs text-warning dark:text-warning">
                   Make sure Cursor IDE has been opened at least once, then click <strong>Retry</strong>. If the problem persists, paste your tokens manually below.
                 </p>
                 <Button onClick={runAutoDetect} variant="outline" fullWidth>
@@ -141,10 +140,10 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
 
             {/* Info message if not auto-detected */}
             {!autoDetected && !windowsManual && !error && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-sm border border-blue-200 dark:border-blue-800">
+              <div className="bg-info/10 dark:bg-info/20 p-3 rounded-sm border border-info/30 dark:border-info/40">
                 <div className="flex gap-2">
-                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <Icon name="info" className="text-info dark:text-info" />
+                  <p className="text-sm text-info dark:text-info">
                     Cursor IDE not detected. Please paste your tokens manually.
                   </p>
                 </div>
@@ -154,7 +153,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
             {/* Access Token Input */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Access Token <span className="text-red-500">*</span>
+                Access Token <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={accessToken}
@@ -168,7 +167,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
             {/* Machine ID Input */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Machine ID <span className="text-red-500">*</span>
+                Machine ID <span className="text-destructive">*</span>
               </label>
               <Input
                 value={machineId}
@@ -180,8 +179,8 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
 
             {/* Error Display */}
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-sm border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <div className="bg-destructive/10 dark:bg-destructive/20 p-3 rounded-sm border border-destructive/30 dark:border-destructive/40">
+                <p className="text-sm text-destructive dark:text-destructive">{error}</p>
               </div>
             )}
 

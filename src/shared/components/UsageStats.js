@@ -10,6 +10,7 @@ import {
   normalizeUsageChartSeries,
 } from "@/shared/utils/usageChart";
 import { PeriodDropdown } from "@/shared/components";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function UsageStats({
   period: periodProp,
@@ -98,8 +99,8 @@ export default function UsageStats({
   }
 
   const spinner = (
-    <div className="flex items-center justify-center py-12 text-text-muted">
-      <span className="material-symbols-outlined animate-spin text-[32px]">progress_activity</span>
+    <div className="flex items-center justify-center py-12 text-muted-foreground">
+      <Icon name="progress_activity" className="animate-spin size-[32px]" />
     </div>
   );
 
@@ -108,7 +109,7 @@ export default function UsageStats({
       {!hidePeriodSelector && (
         <div className="flex w-full items-center gap-2 sm:w-auto sm:self-end">
           <PeriodDropdown value={period} onChange={setPeriod} disabled={fetching} />
-          {fetching && <span className="material-symbols-outlined animate-spin text-[16px] text-text-muted">progress_activity</span>}
+          {fetching && <Icon name="progress_activity" className="animate-spin size-[16px] text-muted-foreground" />}
         </div>
       )}
 

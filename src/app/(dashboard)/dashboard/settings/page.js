@@ -9,6 +9,7 @@ import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
 import { LOCALE_FLAGS } from "@/shared/constants/locales";
+import { Icon } from "@/shared/components/ui/icon";
 
 function getLocaleFromCookie() {
   if (typeof document === "undefined") return "en";
@@ -835,12 +836,12 @@ export default function SettingsPage() {
         <Card>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="size-10 sm:size-12 border border-border bg-surface-2 text-text-main flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">computer</span>
+              <div className="size-10 sm:size-12 border border-border bg-surface-2 text-foreground flex items-center justify-center shrink-0">
+                <Icon name="computer" className="size-5 sm:size-6" />
               </div>
               <div>
-                <h2 className="font-mono text-sm font-semibold text-text-main">Local Mode</h2>
-                <p className="text-sm text-text-muted">Running on your machine</p>
+                <h2 className="font-mono text-sm font-semibold text-foreground">Local Mode</h2>
+                <p className="text-sm text-muted-foreground">Running on your machine</p>
               </div>
             </div>
             <div className="inline-flex p-1 rounded-sm bg-black/5 dark:bg-white/5 w-full sm:w-auto">
@@ -852,13 +853,11 @@ export default function SettingsPage() {
                   className={cn(
                     "flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-sm font-mono font-medium transition-all flex-1 sm:flex-initial",
                     theme === option
-                      ? "bg-white dark:bg-white/10 text-text-main"
-                      : "text-text-muted hover:text-text-main"
+                      ? "bg-white dark:bg-white/10 text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <span className="material-symbols-outlined text-[18px]">
-                    {option === "light" ? "light_mode" : option === "dark" ? "dark_mode" : "contrast"}
-                  </span>
+                  <Icon name={option === "light" ? "light_mode" : option === "dark" ? "dark_mode" : "contrast"} className="size-[18px]" />
                   <span className="capitalize text-xs sm:text-sm">{option}</span>
                 </button>
               ))}
@@ -868,7 +867,7 @@ export default function SettingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border border-border bg-bg gap-2">
               <div>
                 <p className="font-mono font-medium text-sm sm:text-base">Database Location</p>
-                <p className="text-xs sm:text-sm text-text-muted font-mono break-all">~/.9router/db/data.sqlite</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-mono break-all">~/.9router/db/data.sqlite</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -899,7 +898,7 @@ export default function SettingsPage() {
               />
             </div>
             {dbStatus.message && (
-              <p className={`text-sm ${dbStatus.type === "error" ? "text-red-500" : "text-green-600 dark:text-green-400"}`}>
+              <p className={`text-sm ${dbStatus.type === "error" ? "text-destructive" : "text-success dark:text-success"}`}>
                 {dbStatus.message}
               </p>
             )}
@@ -909,17 +908,17 @@ export default function SettingsPage() {
         {/* Language */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="size-10 border border-border bg-surface-2 text-text-main flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[20px]">language</span>
+            <div className="size-10 border border-border bg-surface-2 text-foreground flex items-center justify-center shrink-0">
+              <Icon name="language" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Language</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Language</h3>
           </div>
           <button
             onClick={() => setLangOpen(true)}
             className="flex items-center justify-between w-full p-3 rounded-sm bg-bg border border-border hover:border-primary/50 transition-colors"
             data-i18n-skip="true"
           >
-            <span className="text-sm text-text-muted">Display language</span>
+            <span className="text-sm text-muted-foreground">Display language</span>
             <span className="text-2xl">{LOCALE_FLAGS[locale] || "🌐"}</span>
           </button>
         </Card>
@@ -927,16 +926,16 @@ export default function SettingsPage() {
         {/* Security */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">shield</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="shield" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Security</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Security</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Require login</p>
-                <p className="text-xs sm:text-sm text-text-muted">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   When ON, dashboard access requires an account or configured OIDC identity.
                 </p>
               </div>
@@ -950,7 +949,7 @@ export default function SettingsPage() {
               <div className="flex items-start sm:items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-mono font-medium text-sm sm:text-base">Signup credit</p>
-                  <p className="text-xs sm:text-sm text-text-muted">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Starting wallet balance granted when a new account registers.
                   </p>
                 </div>
@@ -1010,7 +1009,7 @@ export default function SettingsPage() {
                 </div>
 
                 {passStatus.message && (
-                  <p className={`text-xs sm:text-sm ${passStatus.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                  <p className={`text-xs sm:text-sm ${passStatus.type === "error" ? "text-destructive" : "text-success"}`}>
                     {passStatus.message}
                   </p>
                 )}
@@ -1032,12 +1031,12 @@ export default function SettingsPage() {
             onClick={() => setOidcExpanded((v) => !v)}
             className="w-full flex items-center gap-3 text-left"
           >
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">lock_open</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="lock_open" className="size-[20px]" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-mono text-sm font-semibold text-text-main">Single Sign-On (SSO)</h3>
-              <p className="text-xs text-text-muted">
+              <h3 className="font-mono text-sm font-semibold text-foreground">Single Sign-On (SSO)</h3>
+              <p className="text-xs text-muted-foreground">
                 {settings.authMode === "sso" || settings.authMode === "oidc" || settings.authMode === "saml"
                   ? `${settings.ssoType === "saml" ? "SAML 2.0" : "OIDC"} SSO active`
                   : settings.authMode === "both"
@@ -1045,13 +1044,11 @@ export default function SettingsPage() {
                     : "Optional SSO via Okta, Entra ID, Keycloak, or OIDC"}
               </p>
             </div>
-            <span className="material-symbols-outlined text-text-muted shrink-0">
-              {oidcExpanded ? "expand_less" : "expand_more"}
-            </span>
+            <Icon name={oidcExpanded ? "expand_less" : "expand_more"} className="text-muted-foreground shrink-0" />
           </button>
           {oidcExpanded && (
             <div className="flex flex-col gap-4 mt-4">
-              <p className="text-xs sm:text-sm text-text-muted">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Configure enterprise Single Sign-On (SSO) for dashboard access using SAML 2.0 or OIDC.
               </p>
 
@@ -1065,8 +1062,8 @@ export default function SettingsPage() {
                     className={cn(
                       "flex-1 py-1.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all text-center",
                       ssoTypeTab === "saml"
-                        ? "bg-white dark:bg-white/10 text-text-main shadow-sm"
-                        : "text-text-muted hover:text-text-main"
+                        ? "bg-white dark:bg-white/10 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     SAML 2.0
@@ -1077,8 +1074,8 @@ export default function SettingsPage() {
                     className={cn(
                       "flex-1 py-1.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all text-center",
                       ssoTypeTab === "oidc"
-                        ? "bg-white dark:bg-white/10 text-text-main shadow-sm"
-                        : "text-text-muted hover:text-text-main"
+                        ? "bg-white dark:bg-white/10 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     OIDC
@@ -1128,7 +1125,7 @@ export default function SettingsPage() {
                         disabled={loading || oidcLoading || samlLoading}
                       >
                         <p className="font-medium text-sm sm:text-base">{option.title}</p>
-                        <p className="text-xs sm:text-sm text-text-muted mt-1">{option.desc}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">{option.desc}</p>
                       </button>
                     );
                   })}
@@ -1146,26 +1143,21 @@ export default function SettingsPage() {
                       className="w-full p-3 flex items-center justify-between gap-2 text-left hover:bg-surface/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-lg">menu_book</span>
+                        <Icon name="menu_book" className="text-primary size-[18px]" />
                         <div>
-                          <p className="font-semibold text-xs sm:text-sm text-text-main">
+                          <p className="font-semibold text-xs sm:text-sm text-foreground">
                             IdP Setup Guidelines & Provider Configuration Instructions
                           </p>
-                          <p className="text-[11px] text-text-muted">
+                          <p className="text-[11px] text-muted-foreground">
                             Click to view setup steps for AWS IAM Identity Center, Okta, Entra ID, Keycloak, & Authentik
                           </p>
                         </div>
                       </div>
-                      <span
-                        className="material-symbols-outlined text-text-muted transition-transform text-lg"
-                        style={{ transform: showSamlGuide ? "rotate(180deg)" : "none" }}
-                      >
-                        expand_more
-                      </span>
+                      <Icon name="expand_more" className="text-muted-foreground transition-transform size-[18px]" style={{ transform: showSamlGuide ? "rotate(180deg)" : "none" }} />
                     </button>
 
                     {showSamlGuide && (
-                      <div className="p-4 border-t border-border bg-surface/30 text-xs text-text-main flex flex-col gap-3">
+                      <div className="p-4 border-t border-border bg-surface/30 text-xs text-foreground flex flex-col gap-3">
                         <div className="p-2.5 rounded border border-primary/20 bg-primary/5 text-primary text-xs">
                           <p className="font-semibold mb-1">🔑 Required Service Provider (SP) Values for your IdP Setup:</p>
                           <ul className="list-disc pl-4 space-y-1 font-mono text-[11px]">
@@ -1186,52 +1178,52 @@ export default function SettingsPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
-                            <p className="font-semibold text-text-main flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground flex items-center gap-1.5">
                               <span>☁️</span> AWS IAM Identity Center
                             </p>
-                            <ol className="list-decimal pl-4 text-text-muted space-y-1">
+                            <ol className="list-decimal pl-4 text-muted-foreground space-y-1">
                               <li>Applications → <b>Add application</b> → Select <b>Add custom SAML 2.0 application</b>.</li>
-                              <li>Set <b>Application ACS URL</b> to <code className="text-text-main font-mono">{samlAcsUrl}</code>.</li>
-                              <li>Set <b>Application SAML audience</b> to <code className="text-text-main font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code>.</li>
-                              <li>Under <i>Attribute mappings</i>, map <code className="text-text-main font-mono">Subject</code> or <code className="text-text-main font-mono">email</code> to <code className="text-text-main font-mono">${`{user:email}`}</code>.</li>
+                              <li>Set <b>Application ACS URL</b> to <code className="text-foreground font-mono">{samlAcsUrl}</code>.</li>
+                              <li>Set <b>Application SAML audience</b> to <code className="text-foreground font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code>.</li>
+                              <li>Under <i>Attribute mappings</i>, map <code className="text-foreground font-mono">Subject</code> or <code className="text-foreground font-mono">email</code> to <code className="text-foreground font-mono">${`{user:email}`}</code>.</li>
                               <li>Download <b>IAM Identity Center SAML metadata XML</b> file and use 1-Click Import below!</li>
                             </ol>
                           </div>
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
-                            <p className="font-semibold text-text-main flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground flex items-center gap-1.5">
                               <span>🔷</span> Microsoft Entra ID (Azure AD)
                             </p>
-                            <ol className="list-decimal pl-4 text-text-muted space-y-1">
+                            <ol className="list-decimal pl-4 text-muted-foreground space-y-1">
                               <li>Enterprise Applications → <b>New application</b> → <b>Create your own application</b>.</li>
                               <li>Select <b>Single sign-on</b> → <b>SAML</b>.</li>
-                              <li><b>Identifier (Entity ID):</b> <code className="text-text-main font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
-                              <li><b>Reply URL (ACS):</b> <code className="text-text-main font-mono">{samlAcsUrl}</code></li>
+                              <li><b>Identifier (Entity ID):</b> <code className="text-foreground font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
+                              <li><b>Reply URL (ACS):</b> <code className="text-foreground font-mono">{samlAcsUrl}</code></li>
                               <li>Download <b>Federation Metadata XML</b> and import or copy X.509 Certificate.</li>
                             </ol>
                           </div>
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
-                            <p className="font-semibold text-text-main flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground flex items-center gap-1.5">
                               <span>🟢</span> Okta / Auth0
                             </p>
-                            <ol className="list-decimal pl-4 text-text-muted space-y-1">
+                            <ol className="list-decimal pl-4 text-muted-foreground space-y-1">
                               <li>Applications → <b>Create App Integration</b> → Select <b>SAML 2.0</b>.</li>
-                              <li><b>Single Sign-On URL:</b> <code className="text-text-main font-mono">{samlAcsUrl}</code></li>
-                              <li><b>Audience URI (SP Entity ID):</b> <code className="text-text-main font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
+                              <li><b>Single Sign-On URL:</b> <code className="text-foreground font-mono">{samlAcsUrl}</code></li>
+                              <li><b>Audience URI (SP Entity ID):</b> <code className="text-foreground font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
                               <li>Name ID format: <i>EmailAddress</i>.</li>
                               <li>Download Identity Provider metadata XML or copy the X.509 cert.</li>
                             </ol>
                           </div>
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
-                            <p className="font-semibold text-text-main flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground flex items-center gap-1.5">
                               <span>🛡️</span> Keycloak / Authentik
                             </p>
-                            <ol className="list-decimal pl-4 text-text-muted space-y-1">
+                            <ol className="list-decimal pl-4 text-muted-foreground space-y-1">
                               <li>Clients → <b>Create client</b> → Select <b>SAML</b>.</li>
-                              <li><b>Client ID:</b> <code className="text-text-main font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
-                              <li><b>Master SAML Processing URL:</b> <code className="text-text-main font-mono">{samlAcsUrl}</code></li>
+                              <li><b>Client ID:</b> <code className="text-foreground font-mono">{samlForm.samlIssuer || "urn:router2k:sp"}</code></li>
+                              <li><b>Master SAML Processing URL:</b> <code className="text-foreground font-mono">{samlAcsUrl}</code></li>
                               <li>Export SAML Descriptor XML or copy IDP Certificate PEM.</li>
                             </ol>
                           </div>
@@ -1243,8 +1235,8 @@ export default function SettingsPage() {
                   {/* Quick Import Card */}
                   <div className="p-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <p className="font-medium text-sm text-text-main">1-Click IdP Metadata XML Import</p>
-                      <p className="text-xs text-text-muted">Auto-fill SSO URL, Issuer & Cert from XML metadata</p>
+                      <p className="font-medium text-sm text-foreground">1-Click IdP Metadata XML Import</p>
+                      <p className="text-xs text-muted-foreground">Auto-fill SSO URL, Issuer & Cert from XML metadata</p>
                     </div>
                     <Button
                       type="button"
@@ -1310,10 +1302,10 @@ export default function SettingsPage() {
                         placeholder="-----BEGIN CERTIFICATE-----&#10;MIIC...&#10;-----END CERTIFICATE-----"
                         value={samlForm.samlCert}
                         onChange={(e) => updateSamlForm("samlCert", e.target.value)}
-                        className="w-full p-2.5 rounded-lg border border-border bg-bg text-xs font-mono text-text-main focus:outline-none focus:border-primary"
+                        className="w-full p-2.5 rounded-lg border border-border bg-bg text-xs font-mono text-foreground focus:outline-none focus:border-primary"
                         disabled={loading || samlLoading}
                       />
-                      <p className="text-xs text-text-muted">Paste raw Base64 certificate or PEM block.</p>
+                      <p className="text-xs text-muted-foreground">Paste raw Base64 certificate or PEM block.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1349,10 +1341,10 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-bg text-xs sm:text-sm text-text-muted">
+                  <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-bg text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="font-medium text-text-main">ACS Callback URL</p>
+                        <p className="font-medium text-foreground">ACS Callback URL</p>
                         <code className="block break-all font-mono text-xs">{samlAcsUrl}</code>
                       </div>
                       <Button
@@ -1370,7 +1362,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
                       <div>
-                        <p className="font-medium text-text-main">SP XML Metadata</p>
+                        <p className="font-medium text-foreground">SP XML Metadata</p>
                         <code className="block break-all font-mono text-xs">{samlMetadataUrl}</code>
                       </div>
                       <a
@@ -1380,7 +1372,7 @@ export default function SettingsPage() {
                         download="Router2k-sp-metadata.xml"
                         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                       >
-                        <span className="material-symbols-outlined text-[16px]">download</span>
+                        <Icon name="download" className="size-[16px]" />
                         Download XML
                       </a>
                     </div>
@@ -1408,13 +1400,13 @@ export default function SettingsPage() {
                   </div>
 
                   {samlTestStatus.message && (
-                    <p className={`text-xs sm:text-sm ${samlTestStatus.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                    <p className={`text-xs sm:text-sm ${samlTestStatus.type === "error" ? "text-destructive" : "text-success"}`}>
                       {samlTestStatus.message}
                     </p>
                   )}
 
                   {samlStatus.message && (
-                    <p className={`text-xs sm:text-sm ${samlStatus.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                    <p className={`text-xs sm:text-sm ${samlStatus.type === "error" ? "text-destructive" : "text-success"}`}>
                       {samlStatus.message}
                     </p>
                   )}
@@ -1452,7 +1444,7 @@ export default function SettingsPage() {
                         onChange={(e) => setOidcClientSecret(e.target.value)}
                         disabled={loading || oidcLoading}
                       />
-                      <p className="text-xs sm:text-sm text-text-muted">This value is write-only after saving.</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">This value is write-only after saving.</p>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -1476,8 +1468,8 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-border bg-bg p-3 text-xs sm:text-sm text-text-muted">
-                    <p className="font-medium text-text-main mb-1">Redirect URI</p>
+                  <div className="rounded-lg border border-border bg-bg p-3 text-xs sm:text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">Redirect URI</p>
                     <code className="block break-all font-mono">{oidcRedirectUri}</code>
                   </div>
 
@@ -1491,13 +1483,13 @@ export default function SettingsPage() {
                   </div>
 
                   {oidcTestStatus.message && (
-                    <p className={`text-xs sm:text-sm ${oidcTestStatus.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                    <p className={`text-xs sm:text-sm ${oidcTestStatus.type === "error" ? "text-destructive" : "text-success"}`}>
                       {oidcTestStatus.message}
                     </p>
                   )}
 
                   {oidcStatus.message && (
-                    <p className={`text-xs sm:text-sm ${oidcStatus.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                    <p className={`text-xs sm:text-sm ${oidcStatus.type === "error" ? "text-destructive" : "text-success"}`}>
                       {oidcStatus.message}
                     </p>
                   )}
@@ -1505,13 +1497,13 @@ export default function SettingsPage() {
               )}
 
               {settings.authMode === "oidc" || settings.authMode === "saml" || settings.authMode === "sso" ? (
-                <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-xs sm:text-sm text-warning dark:text-warning">
                   SSO login ({settings.ssoType === "saml" ? "SAML 2.0" : "OIDC"}) is currently active. Password login is disabled until you switch back.
                 </p>
               ) : null}
 
               {settings.authMode === "both" && (
-                <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-xs sm:text-sm text-warning dark:text-warning">
                   Password and SSO login ({settings.ssoType === "saml" ? "SAML 2.0" : "OIDC"}) are both active.
                 </p>
               )}
@@ -1522,16 +1514,16 @@ export default function SettingsPage() {
         {/* Routing Preferences */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">route</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="route" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Routing Strategy</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Routing Strategy</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Published Models Only</p>
-                <p className="text-xs sm:text-sm text-text-muted">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Reject /v1 requests for any model that is not enabled in Model Routes
                 </p>
               </div>
@@ -1545,7 +1537,7 @@ export default function SettingsPage() {
             <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Round Robin</p>
-                <p className="text-xs sm:text-sm text-text-muted">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Cycle through accounts to distribute load
                 </p>
               </div>
@@ -1561,7 +1553,7 @@ export default function SettingsPage() {
               <div className="flex items-start sm:items-center justify-between gap-4 pt-2 border-t border-border/50">
                 <div className="flex-1 min-w-0">
                   <p className="font-mono font-medium text-sm sm:text-base">Sticky Limit</p>
-                  <p className="text-xs sm:text-sm text-text-muted">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Calls per account before switching
                   </p>
                 </div>
@@ -1581,7 +1573,7 @@ export default function SettingsPage() {
             <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Combo Round Robin</p>
-                <p className="text-xs sm:text-sm text-text-muted">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Cycle through providers in combos instead of always starting with first
                 </p>
               </div>
@@ -1597,7 +1589,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between pt-2 border-t border-border/50">
                 <div>
                   <p className="font-mono font-medium">Combo Sticky Limit</p>
-                  <p className="text-sm text-text-muted">
+                  <p className="text-sm text-muted-foreground">
                     Calls per combo model before switching
                   </p>
                 </div>
@@ -1613,7 +1605,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <p className="text-xs text-text-muted italic pt-2 border-t border-border/50">
+            <p className="text-xs text-muted-foreground italic pt-2 border-t border-border/50">
               {settings.fallbackStrategy === "round-robin"
                 ? `Currently distributing requests across all available accounts with ${settings.stickyRoundRobinLimit || 3} calls per account.`
                 : "Currently using accounts in priority order (Fill First)."}
@@ -1627,17 +1619,17 @@ export default function SettingsPage() {
         {/* Network */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">wifi</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="wifi" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Network</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Network</h3>
           </div>
 
           <div className="flex flex-col gap-4">
             <div className="flex items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Outbound Proxy</p>
-                <p className="text-xs sm:text-sm text-text-muted">Enable proxy for OAuth + provider outbound requests.</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Enable proxy for OAuth + provider outbound requests.</p>
               </div>
               <Toggle
                 checked={settings.outboundProxyEnabled === true}
@@ -1656,7 +1648,7 @@ export default function SettingsPage() {
                     onChange={(e) => setProxyForm((prev) => ({ ...prev, outboundProxyUrl: e.target.value }))}
                     disabled={loading || proxyLoading}
                   />
-                  <p className="text-xs sm:text-sm text-text-muted">Leave empty to inherit existing env proxy (if any).</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Leave empty to inherit existing env proxy (if any).</p>
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
@@ -1667,7 +1659,7 @@ export default function SettingsPage() {
                     onChange={(e) => setProxyForm((prev) => ({ ...prev, outboundNoProxy: e.target.value }))}
                     disabled={loading || proxyLoading}
                   />
-                  <p className="text-xs sm:text-sm text-text-muted">Comma-separated hostnames/domains to bypass the proxy.</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Comma-separated hostnames/domains to bypass the proxy.</p>
                 </div>
 
                 <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -1689,7 +1681,7 @@ export default function SettingsPage() {
             )}
 
             {proxyStatus.message && (
-              <p className={`text-xs sm:text-sm ${proxyStatus.type === "error" ? "text-red-500" : "text-green-500"} pt-2 border-t border-border/50`}>
+              <p className={`text-xs sm:text-sm ${proxyStatus.type === "error" ? "text-destructive" : "text-success"} pt-2 border-t border-border/50`}>
                 {proxyStatus.message}
               </p>
             )}
@@ -1699,15 +1691,15 @@ export default function SettingsPage() {
         {/* Observability Settings */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">monitoring</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="monitoring" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Observability</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Observability</h3>
           </div>
           <div className="flex items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <p className="font-mono font-medium text-sm sm:text-base">Enable Observability</p>
-              <p className="text-xs sm:text-sm text-text-muted">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Record request details for inspection in the logs view
               </p>
             </div>
@@ -1722,16 +1714,16 @@ export default function SettingsPage() {
         {/* Diagnostics */}
         <Card>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 border border-border bg-surface-2 text-text-main shrink-0">
-              <span className="material-symbols-outlined text-[20px]">bug_report</span>
+            <div className="p-2 border border-border bg-surface-2 text-foreground shrink-0">
+              <Icon name="bug_report" className="size-[20px]" />
             </div>
-            <h3 className="font-mono text-sm font-semibold text-text-main">Diagnostics</h3>
+            <h3 className="font-mono text-sm font-semibold text-foreground">Diagnostics</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex-1 min-w-0">
                 <p className="font-mono font-medium text-sm sm:text-base">Debug bundle</p>
-                <p className="text-xs sm:text-sm text-text-muted">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   One JSON file with environment, routes, recent request logs and details, and a usage rollup — for attaching to a bug report.
                 </p>
               </div>
@@ -1740,7 +1732,7 @@ export default function SettingsPage() {
                   value={debugPeriod}
                   onChange={(event) => setDebugPeriod(event.target.value)}
                   aria-label="Debug bundle time range"
-                  className="h-9 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main focus-visible:border-primary focus-visible:outline-none"
+                  className="h-9 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground focus-visible:border-primary focus-visible:outline-none"
                 >
                   <option value="24h">Last 24h</option>
                   <option value="7d">Last 7 days</option>
@@ -1757,13 +1749,13 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-text-muted italic pt-2 border-t border-border/50">
+            <p className="text-xs text-muted-foreground italic pt-2 border-t border-border/50">
               API keys, OAuth tokens, password hashes, and client secrets are replaced with
               <span className="font-mono"> [redacted] </span>
               before the file is written. Prompt and response payloads are included — review the file if your prompts are sensitive.
             </p>
             {debugError && (
-              <p role="alert" className="text-xs text-red-500">{debugError}</p>
+              <p role="alert" className="text-xs text-destructive">{debugError}</p>
             )}
           </div>
         </Card>
@@ -1775,7 +1767,7 @@ export default function SettingsPage() {
             fullWidth
             icon="power_settings_new"
             onClick={() => setShutdownOpen(true)}
-            className="text-red-500 border-red-200 hover:bg-red-50 hover:border-red-300"
+            className="text-destructive border-destructive/30 hover:bg-destructive/5 hover:border-destructive/30"
           >
             Shutdown
           </Button>
@@ -1790,7 +1782,7 @@ export default function SettingsPage() {
         </div>
 
         {/* App Info — no version string in the UI; the API still reports it. */}
-        <div className="py-4 text-center text-xs text-text-muted sm:text-sm">
+        <div className="py-4 text-center text-xs text-muted-foreground sm:text-sm">
           <p className="font-mono">{APP_CONFIG.name}</p>
           <p className="mt-1">Local Mode - All data stored on your machine</p>
         </div>
@@ -1832,7 +1824,7 @@ export default function SettingsPage() {
           </>
         }
       >
-        <p className="text-text-muted mb-3 text-sm">
+        <p className="text-muted-foreground mb-3 text-sm">
           Enter your current password to {dbAuth.mode === "export" ? "export" : "import"} the database.
         </p>
         <Input
@@ -1847,3 +1839,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

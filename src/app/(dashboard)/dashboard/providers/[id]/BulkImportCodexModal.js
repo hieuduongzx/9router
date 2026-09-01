@@ -86,7 +86,7 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
   return (
     <Modal isOpen={isOpen} title={translate("Bulk Add Codex Accounts")} onClose={handleClose}>
       <div className="flex flex-col gap-4">
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-muted-foreground">
           {translate(
             "Paste an array of codex account JSON objects. Each must include accessToken (and ideally refreshToken, idToken)."
           )}
@@ -101,14 +101,14 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
         />
 
         {parseError && (
-          <p className="text-xs text-red-500 break-words">{parseError}</p>
+          <p className="text-xs text-destructive break-words">{parseError}</p>
         )}
 
         {result && (
           <div className="flex flex-col gap-2">
             <div
               className={`text-sm font-medium ${
-                result.failed > 0 ? "text-yellow-400" : "text-green-400"
+                result.failed > 0 ? "text-yellow-400" : "text-success"
               }`}
             >
               ✓ {result.success} {translate("added")}
@@ -117,7 +117,7 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
             {failedItems.length > 0 && (
               <ul className="border border-accent/20 bg-sidebar/50 p-2 text-xs font-mono max-h-40 overflow-y-auto">
                 {failedItems.map((item) => (
-                  <li key={item.index} className="text-red-400">
+                  <li key={item.index} className="text-destructive">
                     [{item.index}] {item.error}
                   </li>
                 ))}

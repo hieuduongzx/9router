@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * Kebab menu for low-frequency account actions.
@@ -33,9 +34,9 @@ export default function ActionMenu({ items, label, align = "right" }) {
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex size-8 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+        className="inline-flex size-8 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
       >
-        <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+        <Icon name="more_horiz" className="size-[18px]" />
       </button>
       {open && (
         <div className={`absolute top-9 z-30 w-52 border border-border bg-surface py-1 ${align === "left" ? "left-0" : "right-0"}`}>
@@ -49,10 +50,10 @@ export default function ActionMenu({ items, label, align = "right" }) {
                 item.onSelect();
               }}
               className={`flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                item.danger ? "text-danger hover:bg-danger/10" : "text-text-main hover:bg-surface-2"
+                item.danger ? "text-danger hover:bg-danger/10" : "text-foreground hover:bg-surface-2"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
+              <Icon name={item.icon} className="size-[16px]" />
               {item.label}
             </button>
           ))}

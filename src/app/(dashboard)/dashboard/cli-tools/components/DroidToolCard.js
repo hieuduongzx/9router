@@ -7,6 +7,7 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
+import { Icon } from "@/shared/components/ui/icon";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
 
@@ -230,21 +231,21 @@ export default function DroidToolCard({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
-              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">Connected</span>}
-              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">Not configured</span>}
-              {configStatus === "other" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400">Other</span>}
+              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-success/30 bg-success/10 text-success dark:text-success">Connected</span>}
+              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-warning/30 bg-warning/10 text-warning dark:text-warning">Not configured</span>}
+              {configStatus === "other" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-info/30 bg-info/10 text-info dark:text-info">Other</span>}
             </div>
-            <p className="text-xs text-text-muted truncate">{tool.description}</p>
+            <p className="text-xs text-muted-foreground truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-muted-foreground size-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </div>
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checkingDroid && (
-            <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Icon name="progress_activity" className="animate-spin" />
               <span>Checking Factory Droid CLI...</span>
             </div>
           )}
@@ -253,19 +254,19 @@ export default function DroidToolCard({
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30">
                 <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-yellow-500">warning</span>
+                  <Icon name="warning" className="text-yellow-500" />
                   <div className="flex-1">
                     <p className="font-medium text-yellow-600 dark:text-yellow-400">Factory Droid CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if 9router is deployed on a remote server.</p>
+                    <p className="text-sm text-muted-foreground">Manual configuration is still available if 9router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
                   <Button variant="secondary" size="sm" onClick={() => setShowManualConfigModal(true)} className="!bg-yellow-500/20 !border-yellow-500/40 !text-yellow-700 dark:!text-yellow-300 hover:!bg-yellow-500/30">
-                    <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>
+                    <Icon name="content_copy" className="size-[18px] mr-1" />
                     Manual Config
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setShowInstallGuide(!showInstallGuide)}>
-                    <span className="material-symbols-outlined text-[18px] mr-1">{showInstallGuide ? "expand_less" : "help"}</span>
+                    <Icon name={showInstallGuide ? "expand_less" : "help"} className="size-[18px] mr-1" />
                     {showInstallGuide ? "Hide" : "How to Install"}
                   </Button>
                 </div>
@@ -275,10 +276,10 @@ export default function DroidToolCard({
                   <h4 className="font-mono font-medium mb-3">Installation Guide</h4>
                   <div className="space-y-3 text-sm">
                     <div>
-                      <p className="text-text-muted mb-1">macOS / Linux / Windows:</p>
+                      <p className="text-muted-foreground mb-1">macOS / Linux / Windows:</p>
                       <TerminalBlock command="curl -fsSL https://app.factory.ai/cli | sh" />
                     </div>
-                    <p className="text-text-muted">After installation, run <code className="px-1 bg-black/5 dark:bg-white/5 rounded font-mono">droid</code> to verify.</p>
+                    <p className="text-muted-foreground">After installation, run <code className="px-1 bg-black/5 dark:bg-white/5 rounded font-mono">droid</code> to verify.</p>
                   </div>
                 </div>
               )}
@@ -290,8 +291,8 @@ export default function DroidToolCard({
               <div className="flex flex-col gap-2">
                 {/* Endpoint (selector) */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">Select Endpoint</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <BaseUrlSelect value={customBaseUrl || getDisplayUrl()}
                   onChange={setCustomBaseUrl}
                   requiresExternalUrl={tool.requiresExternalUrl}  />
@@ -300,9 +301,9 @@ export default function DroidToolCard({
                 {/* Current configured */}
                 {droidStatus?.settings?.customModels?.find(m => m.id?.startsWith("custom:9Router"))?.baseUrl && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                    <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
-                    <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 font-mono text-xs text-text-muted sm:py-1.5">
+                    <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">Current</span>
+                    <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
+                    <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 font-mono text-xs text-muted-foreground sm:py-1.5">
                       {droidStatus.settings.customModels.find(m => m.id?.startsWith("custom:9Router")).baseUrl}
                     </span>
                   </div>
@@ -310,17 +311,17 @@ export default function DroidToolCard({
 
                 {/* API Key */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">API Key</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
                 {/* Models */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">
                     Models {modelList.length > 0 && <span className="text-primary">({modelList.length})</span>}
                   </span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <div className="flex-1 flex flex-col gap-1">
                     {/* Model list */}
                     {modelList.length > 0 && (
@@ -328,8 +329,8 @@ export default function DroidToolCard({
                         {modelList.map((id) => (
                           <div key={id} className="flex items-center gap-1.5 px-2 py-1 bg-bg-secondary rounded border border-border">
                             <span className="flex-1 text-xs font-mono truncate">{id}</span>
-                            <button onClick={() => removeModel(id)} className="text-text-muted hover:text-red-500 transition-colors shrink-0" title="Remove">
-                              <span className="material-symbols-outlined text-[12px]">close</span>
+                            <button onClick={() => removeModel(id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Remove">
+                              <Icon name="close" className="size-[12px]" />
                             </button>
                           </div>
                         ))}
@@ -353,7 +354,7 @@ export default function DroidToolCard({
                         Select
                       </button>
                       <button onClick={addModel} disabled={!modelInput.trim()} className="px-2 py-1.5 rounded border bg-surface border-border hover:border-primary text-xs shrink-0 disabled:opacity-50" title="Add model">
-                        <span className="material-symbols-outlined text-[14px]">add</span>
+                        <Icon name="add" className="size-[14px]" />
                       </button>
                     </div>
                   </div>
@@ -361,21 +362,21 @@ export default function DroidToolCard({
               </div>
 
               {message && (
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-                  <span className="material-symbols-outlined text-[14px]">{message.type === "success" ? "check_circle" : "error"}</span>
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                  <Icon name={message.type === "success" ? "check_circle" : "error"} className="size-[14px]" />
                   <span>{message.text}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={modelList.length === 0} loading={applying}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
+                  <Icon name="save" className="size-[14px] mr-1" />Apply
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!droidStatus?.has9Router} loading={restoring}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
+                  <Icon name="restore" className="size-[14px] mr-1" />Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>Manual Config
+                  <Icon name="content_copy" className="size-[14px] mr-1" />Manual Config
                 </Button>
               </div>
             </>

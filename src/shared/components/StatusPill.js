@@ -19,13 +19,13 @@ export default function StatusPill({ status, className }) {
   const completed = value.includes("success") || value.includes("ok") || value === "200";
 
   let tone = "border-danger/30 bg-danger/10 text-danger";
-  if (unknown) tone = "border-border bg-surface-2 text-text-muted";
+  if (unknown) tone = "border-border bg-surface-2 text-muted-foreground";
   else if (completed) tone = "border-success/30 bg-success/10 text-success";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center border px-2 py-0.5 text-xs font-medium text-muted-foreground tracking-wide",
         tone,
         className
       )}

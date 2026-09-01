@@ -3,8 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Check, Copy } from "lucide-react";
-import CropFrame from "@/shared/components/CropFrame";
-import SectionLabel from "@/shared/components/SectionLabel";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
@@ -16,11 +22,7 @@ function maskKey(key) {
   return `${prefix}${"•".repeat(12)}${key.slice(-4)}`;
 }
 
-/**
- * The one crop-marked panel on the dashboard (DESIGN.md reserves the ornament
- * for a single featured container). Left half is the endpoint an SDK points at,
- * right half is the two env vars that make that SDK talk to it.
- */
+/** The endpoint and two environment variables needed to call the gateway. */
 export default function QuickStartPanel({ apiKey }) {
   const [origin, setOrigin] = useState("");
   const { copied, copy } = useCopyToClipboard(1800);
@@ -36,24 +38,27 @@ export default function QuickStartPanel({ apiKey }) {
   const exportBlock = `export OPENAI_BASE_URL=${baseUrl}\nexport OPENAI_API_KEY=${apiKey || "<your-api-key>"}`;
 
   return (
-    <CropFrame>
-      <div className="grid border border-border bg-surface lg:grid-cols-2">
-        <div className="min-w-0 p-5 sm:p-6">
-          <SectionLabel>Base URL</SectionLabel>
+    <Card className="min-w-0 gap-0 overflow-hidden py-0">
+      <div className="grid lg:grid-cols-2">
+        <section className="min-w-0">
+          <CardHeader className="flex min-h-16 flex-row items-center px-6 py-4">
+            <CardTitle className="text-base">Base URL</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-6">
           <div className="flex items-center gap-2">
             <label className="sr-only" htmlFor="gateway-base-url">
               Base URL
             </label>
-            <input
+            <Input
               id="gateway-base-url"
               value={baseUrl}
               readOnly
-              className="min-w-0 flex-1 rounded-sm border border-border bg-bg-alt px-3 py-2.5 font-mono text-sm text-text-main outline-none"
+              className="min-w-0 flex-1 font-mono"
             />
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => copy(baseUrl, "base-url")}
-              className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
               aria-label="Copy base URL"
               title="Copy base URL"
             >
@@ -62,21 +67,22 @@ export default function QuickStartPanel({ apiKey }) {
               ) : (
                 <Copy aria-hidden size={16} strokeWidth={2.25} />
               )}
-            </button>
+            </Button>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-text-muted">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             OpenAI-compatible. Point any SDK, CLI, or agent at this URL and authenticate with
             a {APP_CONFIG.name} key.
           </p>
-        </div>
+          </CardContent>
+        </section>
 
-        <div className="min-w-0 border-t border-border p-5 sm:p-6 lg:border-l lg:border-t-0">
-          <SectionLabel
-            action={
-              <button
-                type="button"
+        <section className="min-w-0 border-t lg:border-l lg:border-t-0">
+          <CardHeader className="flex min-h-16 flex-row items-center justify-between gap-3 px-6 py-4">
+            <CardTitle className="text-base">Quick start</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => copy(exportBlock, "exports")}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-border px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
               >
                 {copied === "exports" ? (
                   <Check aria-hidden size={12} strokeWidth={2.5} />
@@ -84,12 +90,10 @@ export default function QuickStartPanel({ apiKey }) {
                   <Copy aria-hidden size={12} strokeWidth={2.5} />
                 )}
                 {copied === "exports" ? "Copied" : "Copy"}
-              </button>
-            }
-          >
-            Quick start
-          </SectionLabel>
-          <div className="terminal-block overflow-x-auto rounded-sm px-3 py-2.5">
+              </Button>
+          </CardHeader>
+          <CardContent className="pb-6">
+          <div className="terminal-block overflow-x-auto px-3 py-2.5">
             <pre className="min-w-0">
               <code className="block whitespace-pre">
                 <span className="terminal-prompt mr-2">$</span>
@@ -100,9 +104,10 @@ export default function QuickStartPanel({ apiKey }) {
               </code>
             </pre>
           </div>
-        </div>
+          </CardContent>
+        </section>
       </div>
-    </CropFrame>
+    </Card>
   );
 }
 

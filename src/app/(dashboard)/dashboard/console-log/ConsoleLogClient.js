@@ -5,17 +5,17 @@ import { Card, Button } from "@/shared/components";
 import { CONSOLE_LOG_CONFIG } from "@/shared/constants/config";
 
 const LOG_LEVEL_COLORS = {
-  LOG: "text-green-400",
-  INFO: "text-blue-400",
+  LOG: "text-success",
+  INFO: "text-info",
   WARN: "text-yellow-400",
-  ERROR: "text-red-400",
-  DEBUG: "text-purple-400",
+  ERROR: "text-destructive",
+  DEBUG: "text-info",
 };
 
 function colorLine(line) {
   const match = line.match(/\[(\w+)\]/g);
   const levelTag = match ? match[1]?.replace(/\[|\]/g, "") : null;
-  const color = LOG_LEVEL_COLORS[levelTag] || "text-green-400";
+  const color = LOG_LEVEL_COLORS[levelTag] || "text-success";
   return <span className={color}>{line}</span>;
 }
 
@@ -72,9 +72,9 @@ export default function ConsoleLogClient() {
     <div className="flex min-w-0 flex-col gap-6">
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-          <h2 className="font-mono text-sm font-semibold text-text-main">
+          <h2 className="font-mono text-sm font-semibold text-foreground">
             Console output
-            <span className="ml-2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+            <span className="ml-2 text-xs font-medium text-muted-foreground">
               {connected ? "Live" : "Disconnected"}
             </span>
           </h2>
@@ -87,7 +87,7 @@ export default function ConsoleLogClient() {
           className="terminal-block h-[calc(100vh-260px)] overflow-y-auto border-0 p-4 text-xs"
         >
           {logs.length === 0 ? (
-            <span className="text-text-muted">No console logs yet.</span>
+            <span className="text-muted-foreground">No console logs yet.</span>
           ) : (
             <div className="space-y-0.5">
               {logs.map((line, i) => (

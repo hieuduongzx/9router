@@ -129,7 +129,7 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
         <>
           <Badge variant="success">Valid</Badge>
           {method === "chat" && (
-            <span className="text-sm text-text-muted">(via inference test)</span>
+            <span className="text-sm text-muted-foreground">(via inference test)</span>
           )}
         </>
       );
@@ -137,7 +137,7 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
     return (
       <div className="flex flex-col gap-1">
         <Badge variant="error">Invalid</Badge>
-        {error && <span className="text-sm text-red-500">{error}</span>}
+        {error && <span className="text-sm text-destructive">{error}</span>}
       </div>
     );
   };

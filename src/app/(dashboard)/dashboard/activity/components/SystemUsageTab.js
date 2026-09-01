@@ -126,10 +126,10 @@ export default function SystemUsageTab({ period }) {
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
-            <h2 className="font-mono text-sm font-semibold text-text-main">Activity by account</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Operational traffic attributed through each account-owned API key.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Activity by account</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Operational traffic attributed through each account-owned API key.</p>
           </div>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">{users.length} identities</span>
+          <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{users.length} identities</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] text-left text-xs">
@@ -152,36 +152,36 @@ export default function SystemUsageTab({ period }) {
               {users.map((user) => (
                 <tr key={user.id} className="transition-colors hover:bg-bg-alt/60">
                   <td className="px-5 py-3.5">
-                    <p className="font-mono font-medium text-text-main">{user.username}</p>
-                    {user.email && <p className="mt-0.5 font-mono text-[11px] text-text-muted">{user.email}</p>}
+                    <p className="font-mono font-medium text-foreground">{user.username}</p>
+                    {user.email && <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{user.email}</p>}
                   </td>
-                  <td className="max-w-64 px-4 py-3.5 font-mono text-text-muted">{user.apiKeys.join(", ") || "—"}</td>
+                  <td className="max-w-64 px-4 py-3.5 font-mono text-muted-foreground">{user.apiKeys.join(", ") || "—"}</td>
                   <td className="px-4 py-3.5 text-right">
                     {user.activeRequests > 0 ? (
                       <span className="inline-flex items-center gap-1.5 font-mono font-semibold tabular-nums text-success">
                         <span className="size-1.5 bg-success" />
                         {user.activeRequests}
                       </span>
-                    ) : <span className="font-mono text-text-subtle">0</span>}
+                    ) : <span className="font-mono text-muted-foreground">0</span>}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-main">{formatNumber(user.requests)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.promptTokens)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-foreground">{formatNumber(user.requests)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{formatNumber(user.promptTokens)}</td>
                   <td
-                    className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted"
+                    className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground"
                     title={user.cacheCreationTokens ? `${formatNumber(user.cacheCreationTokens)} cache write tokens` : undefined}
                   >
                     {formatNumber(user.cachedTokens)}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{formatNumber(user.completionTokens)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono font-medium tabular-nums text-text-main">
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{formatNumber(user.completionTokens)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono font-medium tabular-nums text-foreground">
                     {formatNumber((Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0))}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-muted">{MONEY_FORMAT.format(Number(user.cost) || 0)}</td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-text-muted">{formatTime(user.lastRequest)}</td>
+                  <td className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{MONEY_FORMAT.format(Number(user.cost) || 0)}</td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-muted-foreground">{formatTime(user.lastRequest)}</td>
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-text-muted">No usage recorded for this period.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-muted-foreground">No usage recorded for this period.</td></tr>
               )}
             </tbody>
           </table>

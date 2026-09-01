@@ -8,6 +8,7 @@ import {
   getSkillRawUrl,
   getSkillBlobUrl,
 } from "@/shared/constants/skills";
+import { Icon } from "@/shared/components/ui/icon";
 
 function CopyButton({ value, label = "Copy link" }) {
   const { copied, copy } = useCopyToClipboard(2000);
@@ -17,9 +18,7 @@ function CopyButton({ value, label = "Copy link" }) {
       className="px-2 py-1 rounded-sm bg-primary text-white font-mono text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1"
       title={value}
     >
-      <span className="material-symbols-outlined text-[12px]">
-        {copied ? "check" : "content_copy"}
-      </span>
+      <Icon name={copied ? "check" : "content_copy"} className="size-[12px]" />
       {copied ? "Copied!" : label}
     </button>
   );
@@ -37,15 +36,15 @@ function SkillRow({ skill }) {
     >
       <div
         className={`size-9 flex items-center justify-center shrink-0 border ${
-          skill.isEntry ? "border-primary bg-primary text-white" : "border-border bg-surface-2 text-text-main"
+          skill.isEntry ? "border-primary bg-primary text-white" : "border-border bg-surface-2 text-foreground"
         }`}
       >
-        <span className="material-symbols-outlined text-[18px]">{skill.icon}</span>
+        <Icon name={skill.icon} className="size-[18px]" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-mono font-semibold text-sm text-text-main">{skill.name}</h3>
+          <h3 className="font-mono font-semibold text-sm text-foreground">{skill.name}</h3>
           {skill.isEntry && (
             <Badge variant="primary" size="sm">START HERE</Badge>
           )}
@@ -55,15 +54,15 @@ function SkillRow({ skill }) {
             </Badge>
           )}
         </div>
-        <p className="text-xs text-text-muted mt-0.5">{skill.description}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{skill.description}</p>
         <a
           href={getSkillBlobUrl(skill.id)}
           target="_blank"
           rel="noreferrer"
-          className="text-[11px] text-text-muted hover:text-primary mt-1 inline-flex items-center gap-1 break-all"
+          className="text-[11px] text-muted-foreground hover:text-primary mt-1 inline-flex items-center gap-1 break-all"
         >
           {url}
-          <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+          <Icon name="open_in_new" className="size-[12px]" />
         </a>
       </div>
 
@@ -76,8 +75,8 @@ export default function SkillsPage() {
   return (
     <div className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6">
       <Card padding="md">
-        <div className="text-xs text-text-muted mb-2">Paste this to your AI:</div>
-        <div className="px-3 py-2 border border-border bg-surface-2 font-mono text-[12px] text-text-main">
+        <div className="text-xs text-muted-foreground mb-2">Paste this to your AI:</div>
+        <div className="px-3 py-2 border border-border bg-surface-2 font-mono text-[12px] text-foreground">
           Read this skill and use it: {getSkillRawUrl("Router2k")}
         </div>
       </Card>
@@ -91,8 +90,8 @@ export default function SkillsPage() {
       <Card padding="md">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h2 className="font-mono text-sm font-semibold text-text-main">More on GitHub</h2>
-            <p className="text-xs text-text-muted mt-0.5">
+            <h2 className="font-mono text-sm font-semibold text-foreground">More on GitHub</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Browse source, README, and examples.
             </p>
           </div>
@@ -102,7 +101,7 @@ export default function SkillsPage() {
             rel="noreferrer"
             className="text-sm text-primary hover:underline inline-flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+            <Icon name="open_in_new" className="size-[16px]" />
             View on GitHub
           </a>
         </div>

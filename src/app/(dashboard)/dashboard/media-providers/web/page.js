@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
+import { Icon } from "@/shared/components/ui/icon";
 
 function getEffectiveStatus(conn) {
   const isCooldown = Object.entries(conn).some(
@@ -26,7 +27,7 @@ function ProviderCard({ provider, kind, connections }) {
   const renderStatus = () => {
     if (isNoAuth) return <Badge variant="success" size="sm">Ready</Badge>;
     if (allDisabled) return <Badge variant="default" size="sm">Disabled</Badge>;
-    if (total === 0) return <span className="text-xs text-text-muted">No connections</span>;
+    if (total === 0) return <span className="text-xs text-muted-foreground">No connections</span>;
     return (
       <>
         {connected > 0 && <Badge variant="success" size="sm" dot>{connected} Connected</Badge>}
@@ -40,7 +41,7 @@ function ProviderCard({ provider, kind, connections }) {
     <Link href={`/dashboard/media-providers/${kind}/${provider.id}`} className="group">
       <Card padding="xs" className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <div className="size-8 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-text-main">
+          <div className="size-8 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-foreground">
             <ProviderIcon
               src={`/providers/${provider.id}.png`}
               alt={provider.name}
@@ -62,7 +63,7 @@ function ProviderCard({ provider, kind, connections }) {
 
 function ComboList({ combos }) {
   if (combos.length === 0) {
-    return <p className="text-xs text-text-muted italic">No combos yet.</p>;
+    return <p className="text-xs text-muted-foreground italic">No combos yet.</p>;
   }
   return (
     <div className="flex flex-col gap-2">
@@ -70,7 +71,7 @@ function ComboList({ combos }) {
         <Link key={combo.id} href={`/dashboard/media-providers/combo/${combo.id}`}>
           <Card padding="xs" className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-[18px]">layers</span>
+              <Icon name="layers" className="text-primary size-[18px]" />
               <code className="text-sm font-mono font-medium flex-1 truncate">{combo.name}</code>
               {/* Provider icons preview */}
               <div className="flex flex-wrap items-center gap-1 sm:shrink-0">
@@ -78,7 +79,7 @@ function ComboList({ combos }) {
                   const pid = typeof entry === "string" ? entry.split("/")[0] : "";
                   const p = AI_PROVIDERS[pid];
                   return (
-                    <div key={`${entry}-${i}`} title={p?.name || entry} className="size-5 flex items-center justify-center border border-border bg-surface-2 text-text-main">
+                    <div key={`${entry}-${i}`} title={p?.name || entry} className="size-5 flex items-center justify-center border border-border bg-surface-2 text-foreground">
                       <ProviderIcon
                         src={`/providers/${pid}.png`}
                         alt={p?.name || pid}
@@ -91,11 +92,11 @@ function ComboList({ combos }) {
                   );
                 })}
                 {combo.models.length > 6 && (
-                  <span className="text-[10px] text-text-muted ml-1">+{combo.models.length - 6}</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">+{combo.models.length - 6}</span>
                 )}
               </div>
-              <span className="text-[11px] text-text-muted shrink-0">{combo.models.length}</span>
-              <span className="material-symbols-outlined text-text-muted text-[16px]">chevron_right</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">{combo.models.length}</span>
+              <Icon name="chevron_right" className="text-muted-foreground size-[16px]" />
             </div>
           </Card>
         </Link>
@@ -110,9 +111,9 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
       {/* Header — title left, Create Combo right */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="material-symbols-outlined text-primary">{icon}</span>
+          <Icon name={icon} className="text-primary" />
           <h2 className="font-mono text-sm font-semibold">{title}</h2>
-          <span className="text-xs text-text-muted">({providers.length} providers · {combos.length} combos)</span>
+          <span className="text-xs text-muted-foreground">({providers.length} providers · {combos.length} combos)</span>
         </div>
         <Button size="sm" icon="add" onClick={onCreateCombo}>Create Combo</Button>
       </div>
@@ -126,7 +127,7 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
 
       {/* Providers grid — bottom */}
       {providers.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-border text-text-muted text-sm">
+        <div className="text-center py-8 border border-dashed border-border text-muted-foreground text-sm">
           No providers.
         </div>
       ) : (

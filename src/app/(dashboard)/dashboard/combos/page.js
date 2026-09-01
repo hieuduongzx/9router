@@ -29,6 +29,8 @@ import {
   thinkingModeMeta,
 } from "@/shared/utils/comboModelConfig";
 import { comboRoutedModels, normalizeDisabledMembers } from "open-sse/services/comboMembers.js";
+import { comboPricingTarget } from "@/lib/publishedModelsCatalog";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -147,53 +149,86 @@ export default function CombosPage() {
     }
   };
 
-  const handleCreate = async (data) => {
-    try {
-      const res = await fetch("/api/combos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        // A new route starts enabled when it already has an owner and at least
-        // one enabled member, so creating one makes it immediately routable.
-        const created = await res.json().catch(() => null);
-        if (created?.id && created.modelProvider && comboRoutedModels(created).length > 0) {
-          await handleTogglePublished(created, true);
-        }
-        await fetchData();
-        setShowCreateModal(false);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to create combo");
+  /**
+   * Persist the price the route form collected, keyed by the route as it was
+   * just saved. `request` is null when the form had nothing to write (viewer
+   * cannot price, or the draft is unchanged).
+   */
+  const writeRoutePricing = async (savedCombo, request) => {
+    if (!request) return;
+    const target = comboPricingTarget(savedCombo);
+
+    // A rename or owner change moves the key, so the stale entry is dropped
+    // first — otherwise the old name keeps billing at the old rate.
+    const staleTargets = [];
+    if (request.previousTarget) staleTargets.push(request.previousTarget);
+    if (request.mode === "reset" && target) staleTargets.push(target);
+    for (const stale of staleTargets) {
+      const params = new URLSearchParams({ provider: stale.provider, model: stale.model });
+      const response = await fetch(`/api/pricing?${params}`, { method: "DELETE" });
+      if (!response.ok && request.mode === "reset") {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Unable to restore default price");
       }
-    } catch (error) {
-      console.log("Error creating combo:", error);
+    }
+
+    if (request.mode === "reset" || !target) return;
+
+    const response = await fetch("/api/pricing", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [target.provider]: { [target.model]: request.pricing } }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || "Unable to save price");
     }
   };
 
-  const handleUpdate = async (id, data) => {
-    try {
-      const res = await fetch(`/api/combos/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        await fetchData();
-        setComboTests((current) => {
-          const next = { ...current };
-          delete next[id];
-          return next;
-        });
-        setEditingCombo(null);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to update combo");
-      }
-    } catch (error) {
-      console.log("Error updating combo:", error);
+  const handleCreate = async (data, pricingRequest) => {
+    const res = await fetch("/api/combos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to create combo");
     }
+    // A new route starts enabled when it already has an owner and at least
+    // one enabled member, so creating one makes it immediately routable.
+    const created = await res.json().catch(() => null);
+    // The price is keyed by the saved name + owner, so it is written after the
+    // route exists — a failure here must not hide the route that was created.
+    await writeRoutePricing(created, pricingRequest);
+    if (created?.id && created.modelProvider && comboRoutedModels(created).length > 0) {
+      await handleTogglePublished(created, true);
+    }
+    await fetchData();
+    setShowCreateModal(false);
+  };
+
+  const handleUpdate = async (id, data, pricingRequest) => {
+    const res = await fetch(`/api/combos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to update combo");
+    }
+    const updated = await res.json().catch(() => null);
+    // Renaming a route or changing its owner moves the pricing key, so the write
+    // uses the saved record rather than the values the form started with.
+    await writeRoutePricing(updated || { ...data, id }, pricingRequest);
+    await fetchData();
+    setComboTests((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setEditingCombo(null);
   };
 
   const handleDelete = async (id) => {
@@ -399,7 +434,7 @@ export default function CombosPage() {
       {activeTab === "routes" ? (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-muted-foreground">
               Public model IDs, model behavior, advertised capabilities, pricing, and fallback strategy.
               {combos.length > 0 && (
                 <>
@@ -429,11 +464,11 @@ export default function CombosPage() {
           {combos.length === 0 ? (
             <Card>
               <div className="py-12 text-center">
-                <div className="mb-4 inline-flex size-16 items-center justify-center border border-border bg-surface-2 text-text-main">
-                  <span className="material-symbols-outlined text-3xl">layers</span>
+                <div className="mb-4 inline-flex size-16 items-center justify-center border border-border bg-surface-2 text-foreground">
+                  <Icon name="layers" className="size-7" />
                 </div>
-                <p className="mb-1 font-medium text-text-main">No model routes yet</p>
-                <p className="mb-4 text-sm text-text-muted">Create a public model route with fallback support</p>
+                <p className="mb-1 font-medium text-foreground">No model routes yet</p>
+                <p className="mb-4 text-sm text-muted-foreground">Create a public model route with fallback support</p>
                 <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto">
                   Create Route
                 </Button>
@@ -449,7 +484,7 @@ export default function CombosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1240px] table-fixed text-left text-sm">
                   <thead className="thead-data">
-                    <tr className="font-mono text-[11px] uppercase tracking-wide text-text-muted">
+                    <tr className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                       <th className="w-[64px] px-3 py-2 font-medium">On</th>
                       <th className="w-[19%] px-3 py-2 font-medium">Route</th>
                       <th className="w-[16%] px-2 py-2 font-medium">Members</th>
@@ -509,6 +544,7 @@ export default function CombosPage() {
           onSave={handleCreate}
           activeProviders={activeProviders}
           modelProviders={modelProviders}
+          canEditPricing={canEditPricing}
         />
       )}
 
@@ -518,9 +554,10 @@ export default function CombosPage() {
           isOpen={!!editingCombo}
           combo={editingCombo}
           onClose={() => setEditingCombo(null)}
-          onSave={(data) => handleUpdate(editingCombo.id, data)}
+          onSave={(data, pricingRequest) => handleUpdate(editingCombo.id, data, pricingRequest)}
           activeProviders={activeProviders}
           modelProviders={modelProviders}
+          canEditPricing={canEditPricing}
           strategy={comboStrategies[editingCombo.name] || {}}
           testState={comboTests[editingCombo.id]}
           onTest={(overrides) => handleTestCombo(editingCombo, overrides)}
@@ -619,8 +656,8 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
     <section className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-mono text-sm font-semibold text-text-main">Virtual Providers</h2>
-          <p className="mt-1 max-w-2xl text-sm text-text-muted">
+          <h2 className="font-mono text-sm font-semibold text-foreground">Virtual Providers</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Manage the public model owners shown in Dashboard / Models and returned as owned_by from /v1/models.
           </p>
         </div>
@@ -642,9 +679,9 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
 
       {providers.length === 0 ? (
         <Card className="py-12 text-center">
-          <span className="material-symbols-outlined text-4xl text-text-subtle">category</span>
-          <h3 className="mt-3 font-mono text-sm font-semibold text-text-main">No virtual providers</h3>
-          <p className="mx-auto mt-1 max-w-md text-xs text-text-muted">
+          <Icon name="category" className="size-9 text-muted-foreground" />
+          <h3 className="mt-3 font-mono text-sm font-semibold text-foreground">No virtual providers</h3>
+          <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
             Add a provider before assigning an owner to a model route.
           </p>
         </Card>
@@ -661,8 +698,8 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
                     className="size-9"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-sm font-semibold text-text-main">{provider.name}</p>
-                    <p className="truncate font-mono text-[11px] text-text-muted">
+                    <p className="truncate font-mono text-sm font-semibold text-foreground">{provider.name}</p>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground">
                       lobehub.com/icons/{provider.iconKey} · {routes} route{routes === 1 ? "" : "s"}
                     </p>
                   </div>
@@ -670,21 +707,21 @@ function ModelProvidersPanel({ providers, combos, onChanged }) {
                     <button
                       type="button"
                       onClick={() => setFormState({ provider })}
-                      className="inline-flex size-8 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                       aria-label={`Settings for ${provider.name}`}
                       title="Provider settings"
                     >
-                      <span className="material-symbols-outlined text-[18px]">settings</span>
+                      <Icon name="settings" className="size-[18px]" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeletingProvider(provider)}
                       disabled={routes > 0}
-                      className="inline-flex size-8 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-danger disabled:cursor-not-allowed disabled:opacity-35"
+                      className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-danger disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label={`Delete ${provider.name}`}
                       title={routes > 0 ? "Remove this provider from all routes before deleting it" : "Delete provider"}
                     >
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                      <Icon name="delete" className="size-[18px]" />
                     </button>
                   </div>
                 </div>
@@ -770,10 +807,10 @@ function ModelProviderFormModal({ provider, onClose, onSaved }) {
         <div className="flex items-center gap-3 border border-border bg-surface-2 px-3 py-3">
           <LobeProviderIcon iconKey={iconKey} name={name || "Provider"} className="size-10" />
           <div className="min-w-0">
-            <p className="truncate font-mono text-sm font-semibold text-text-main">
+            <p className="truncate font-mono text-sm font-semibold text-foreground">
               {name.trim() || "Provider preview"}
             </p>
-            <p className="truncate font-mono text-[11px] text-text-muted">
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
               {iconKey ? `lobehub.com/icons/${iconKey}` : "Enter a Lobe icon below"}
             </p>
           </div>
@@ -836,7 +873,7 @@ function TestStateMark({ model, result }) {
     pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
     success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
     failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
-    skipped: { icon: "remove_circle_outline", color: "text-text-subtle", label: "Skipped", spin: false },
+    skipped: { icon: "remove_circle_outline", color: "text-muted-foreground", label: "Skipped", spin: false },
   }[state];
   const detail = result?.error
     ? `${presentation.label}: ${result.error}`
@@ -849,12 +886,10 @@ function TestStateMark({ model, result }) {
       className="inline-flex min-w-0 max-w-64 items-center gap-1.5 border border-border bg-surface-1 px-2 py-1"
       title={`${model} — ${detail}`}
     >
-      <span className={`material-symbols-outlined shrink-0 text-sm ${presentation.color} ${presentation.spin ? "animate-spin" : ""}`}>
-        {presentation.icon}
-      </span>
-      <code className="truncate font-mono text-[11px] text-text-main">{model}</code>
+      <Icon name={presentation.icon} className={`shrink-0 size-3.5 ${presentation.color} ${presentation.spin ? "animate-spin" : ""}`} />
+      <code className="truncate font-mono text-[11px] text-foreground">{model}</code>
       {result?.attemptOrder && (
-        <span className="shrink-0 font-mono text-[11px] text-text-subtle">#{result.attemptOrder}</span>
+        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">#{result.attemptOrder}</span>
       )}
     </span>
   );
@@ -870,7 +905,7 @@ function RouteTestDetails({ combo, testState }) {
       <td colSpan={7} className="px-3 py-2">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
-            <span className="uppercase tracking-wide text-text-muted">{strategyLabel} test</span>
+            <span className="uppercase tracking-wide text-muted-foreground">{strategyLabel} test</span>
             {testState.testing ? (
               <span className="text-primary">Running strategy path…</span>
             ) : testState.error ? (
@@ -891,7 +926,7 @@ function RouteTestDetails({ combo, testState }) {
             ))}
             {testState.judge && (
               <>
-                <span className="self-center font-mono text-[11px] uppercase tracking-wide text-text-subtle">Judge</span>
+                <span className="self-center text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Judge</span>
                 <TestStateMark model={testState.judge.model} result={testState.judge} />
               </>
             )}
@@ -911,30 +946,28 @@ function RouteProfileCell({ combo }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <div className="flex min-w-0 items-baseline gap-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">Thinking</span>
-        <span className={`truncate font-mono text-[11px] font-semibold ${thinking.value === "auto" ? "text-text-muted" : "text-text-main"}`}>
+        <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Thinking</span>
+        <span className={`truncate font-mono text-[11px] font-semibold ${thinking.value === "auto" ? "text-muted-foreground" : "text-foreground"}`}>
           {thinking.label}
         </span>
       </div>
       <div
-        className="flex min-w-0 items-center gap-1 text-text-muted"
+        className="flex min-w-0 items-center gap-1 text-muted-foreground"
         title={activeCapabilities.length > 0
           ? `Advertised capabilities: ${activeCapabilities.map(([, label]) => label).join(", ")}`
           : "No advertised capabilities"}
       >
         {activeCapabilities.slice(0, 4).map(([key, label, icon]) => (
-          <span key={key} className="material-symbols-outlined text-sm" aria-label={label}>
-            {icon}
-          </span>
+          <Icon name={icon} className="size-3.5" key={key} aria-label={label} />
         ))}
         {activeCapabilities.length === 0 && (
-          <span className="font-mono text-[11px] text-text-subtle">No Caps</span>
+          <span className="font-mono text-[11px] text-muted-foreground">No Caps</span>
         )}
         {activeCapabilities.length > 4 && (
-          <span className="font-mono text-[11px] text-text-subtle">+{activeCapabilities.length - 4}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">+{activeCapabilities.length - 4}</span>
         )}
         {overrideCount > 0 && (
-          <span className="ml-1 font-mono text-[11px] uppercase tracking-wide text-primary">
+          <span className="ml-1 text-xs font-medium text-muted-foreground tracking-wide text-primary">
             {overrideCount} override{overrideCount === 1 ? "" : "s"}
           </span>
         )}
@@ -949,12 +982,12 @@ function CapacityAdapterSection({ capacityAdapter, onChange, activeProviders, ge
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium">Vision Adapter</p>
-          <p className="text-xs text-text-muted mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Your model can&apos;t read image/audio? Auto-switches to a model in the pool below.
           </p>
-          <ul className="mt-1.5 text-[11px] text-text-muted flex flex-col gap-0.5">
-            <li><span className="font-medium text-text-main">Vision</span> — images (png, jpg, webp, …)</li>
-            <li><span className="font-medium text-text-main">Audio</span> — audio input</li>
+          <ul className="mt-1.5 text-[11px] text-muted-foreground flex flex-col gap-0.5">
+            <li><span className="font-medium text-foreground">Vision</span> — images (png, jpg, webp, …)</li>
+            <li><span className="font-medium text-foreground">Audio</span> — audio input</li>
           </ul>
         </div>
       </div>
@@ -981,15 +1014,15 @@ function RoutePriceCell({ combo, canEdit, onEdit }) {
   const custom = combo.pricingSource === "custom";
 
   const body = !priceable ? (
-    <span className="font-mono text-[11px] text-text-subtle">Needs provider</span>
+    <span className="font-mono text-[11px] text-muted-foreground">Needs provider</span>
   ) : free ? (
     <span className="font-mono text-[11px] font-semibold text-success">Free</span>
   ) : combo.pricing ? (
-    <span className="font-mono text-[11px] tabular-nums text-text-main">
-      {formatRate(combo.pricing.input)} <span className="text-text-subtle">/</span> {formatRate(combo.pricing.output)}
+    <span className="font-mono text-[11px] tabular-nums text-foreground">
+      {formatRate(combo.pricing.input)} <span className="text-muted-foreground">/</span> {formatRate(combo.pricing.output)}
     </span>
   ) : (
-    <span className="font-mono text-[11px] text-text-subtle">Not set</span>
+    <span className="font-mono text-[11px] text-muted-foreground">Not set</span>
   );
 
   const marker = custom && priceable && (
@@ -1020,7 +1053,7 @@ function RoutePriceCell({ combo, canEdit, onEdit }) {
     >
       {body}
       {marker}
-      <span className="material-symbols-outlined shrink-0 text-[14px] text-text-subtle group-hover:text-text-muted">edit</span>
+      <Icon name="edit" className="shrink-0 size-[14px] text-muted-foreground group-hover:text-muted-foreground" />
     </button>
   );
 }
@@ -1083,21 +1116,21 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
     <Modal isOpen onClose={onClose} title={`Pricing — ${combo.name}`} footer={null}>
       <div className="flex flex-col gap-4">
         <div className="border border-border bg-surface-2 px-3 py-2">
-          <p className="font-mono text-[11px] text-text-muted">
+          <p className="font-mono text-[11px] text-muted-foreground">
             Billed as{" "}
-            <code className="text-text-main">
+            <code className="text-foreground">
               {combo.pricingTarget?.provider}/{combo.pricingTarget?.model}
             </code>
           </p>
-          <p className="mt-1 text-[11px] text-text-muted">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Rates are USD per one million tokens. Renaming the route or changing its provider starts a new price entry.
           </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 border border-border px-3 py-2">
           <span className="min-w-0">
-            <span className="block font-mono text-xs font-semibold text-text-main">Free</span>
-            <span className="block text-[11px] text-text-muted">Bill this route at zero on every rate.</span>
+            <span className="block font-mono text-xs font-semibold text-foreground">Free</span>
+            <span className="block text-[11px] text-muted-foreground">Bill this route at zero on every rate.</span>
           </span>
           <Toggle
             size="sm"
@@ -1113,7 +1146,7 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
             <div key={field}>
               <label
                 htmlFor={`price-${field}`}
-                className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+                className="mb-1 block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground"
               >
                 {label}
               </label>
@@ -1127,7 +1160,7 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
                 value={draft[field] ?? ""}
                 onChange={(event) => updateField(field, event.target.value)}
                 placeholder="0"
-                className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-text-main outline-none focus:border-primary/40 disabled:opacity-60"
+                className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-foreground outline-none focus:border-primary/40 disabled:opacity-60"
               />
             </div>
           ))}
@@ -1225,10 +1258,10 @@ function ComboTableRow({
               className="size-7"
             />
             <span className="min-w-0">
-              <code className="block truncate font-mono text-sm font-medium text-text-main" title={combo.name}>
+              <code className="block truncate font-mono text-sm font-medium text-foreground" title={combo.name}>
                 {combo.name}
               </code>
-              <span className={`block truncate font-mono text-[11px] uppercase tracking-wide ${combo.modelProvider ? "text-text-muted" : "text-danger"}`}>
+              <span className={`block truncate text-xs font-medium text-muted-foreground tracking-wide ${combo.modelProvider ? "text-muted-foreground" : "text-danger"}`}>
                 {combo.modelProvider || "Provider not set"}
               </span>
             </span>
@@ -1242,18 +1275,18 @@ function ComboTableRow({
         >
           {firstModel ? (
             <div className="flex min-w-0 items-center gap-1.5">
-              <code className="block min-w-0 truncate font-mono text-[11px] text-text-main">
+              <code className="block min-w-0 truncate font-mono text-[11px] text-foreground">
                 {firstModel}
               </code>
               {overflowModels > 0 && (
-                <span className="shrink-0 font-mono text-[11px] text-text-muted">+{overflowModels}</span>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">+{overflowModels}</span>
               )}
               {skippedMembers > 0 && (
-                <span className="shrink-0 font-mono text-[11px] text-text-subtle">{skippedMembers} off</span>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{skippedMembers} off</span>
               )}
             </div>
           ) : (
-            <span className="font-mono text-xs text-text-subtle">—</span>
+            <span className="font-mono text-xs text-muted-foreground">—</span>
           )}
         </td>
         <td className="px-2 py-2 align-middle">
@@ -1286,18 +1319,18 @@ function ComboTableRow({
                   title={judge ? `Judge: ${judge}` : `Auto judge: ${firstModel || "first model"}`}
                   aria-label={`Select judge for ${combo.name}`}
                 >
-                  <span className="material-symbols-outlined shrink-0 text-sm">gavel</span>
+                  <Icon name="gavel" className="shrink-0 size-3.5" />
                   <span className="truncate">{judge || "Auto"}</span>
                 </button>
                 {judge && (
                   <button
                     type="button"
                     onClick={() => onSetStrategy({ judgeModel: "" })}
-                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
                     title="Reset judge to Auto"
                     aria-label={`Reset judge for ${combo.name}`}
                   >
-                    <span className="material-symbols-outlined text-sm">close</span>
+                    <Icon name="close" className="size-3.5" />
                   </button>
                 )}
               </>
@@ -1315,43 +1348,39 @@ function ComboTableRow({
                   ? "text-success hover:bg-success/10"
                   : testState?.ok === false
                     ? "text-danger hover:bg-danger/10"
-                    : "text-text-muted hover:bg-primary/10 hover:text-primary"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
               }`}
               title={`Test ${current} route`}
               aria-label={`Test ${combo.name}`}
             >
-              <span className={`material-symbols-outlined text-base ${testState?.testing ? "animate-spin" : ""}`}>
-                {testIcon}
-              </span>
+              <Icon name={testIcon} className={`size-4 ${testState?.testing ? "animate-spin" : ""}`} />
             </button>
             <button
               type="button"
               onClick={() => onCopy(combo.name, `combo-${combo.id}`)}
-              className="inline-flex size-7 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Copy model route ID"
               aria-label={`Copy model route ID ${combo.name}`}
             >
-              <span className="material-symbols-outlined text-base">
-                {copied === `combo-${combo.id}` ? "check" : "content_copy"}
-              </span>
+              <Icon name={copied === `combo-${combo.id}` ? "check" : "content_copy"} className="size-4" />
             </button>
             <button
               type="button"
               onClick={onEdit}
-              className="inline-flex size-7 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Edit route"
               aria-label={`Edit ${combo.name}`}
             >
-              <span className="material-symbols-outlined text-base">edit</span>
+              <Icon name="edit" className="size-4" />
             </button>
             <button
               type="button"
               onClick={onDelete}
-              className="inline-flex size-7 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
               title="Delete route"
               aria-label={`Delete ${combo.name}`}
             >
-              <span className="material-symbols-outlined text-base">delete</span>
+              <Icon name="delete" className="size-4" />
             </button>
           </div>
         </td>
@@ -1396,38 +1425,38 @@ function CapacityAdapterCap({ cap, entry, onChange, activeProviders, getCaps }) 
             aria-label={`Enable ${cap.label} adapter`}
           />
           <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-primary text-[18px]">{cap.icon}</span>
+            <Icon name={cap.icon} className="text-primary size-[18px]" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <code className="font-mono text-sm font-medium">{cap.label}</code>
-              <span className="text-[10px] text-text-muted">— {cap.desc}</span>
+              <span className="text-[10px] text-muted-foreground">— {cap.desc}</span>
             </div>
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
               {models.length === 0 ? (
-                <span className="text-xs text-text-muted italic">No models</span>
+                <span className="text-xs text-muted-foreground italic">No models</span>
               ) : (
                 models.slice(0, 3).map((model, index) => (
                   <code
                     key={`${model}-${index}`}
-                    className="group/chip inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-text-muted dark:bg-white/5"
+                    className="group/chip inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-muted-foreground dark:bg-white/5"
                   >
                     <span>{model}</span>
                     <CapacityBadges caps={getCaps?.(model)} />
-                    <button onClick={() => handleMove(index, -1)} disabled={index === 0} className={`leading-none opacity-0 group-hover/chip:opacity-100 ${index === 0 ? "text-text-muted/20" : "text-text-muted hover:text-primary"}`}>
-                      <span className="material-symbols-outlined text-[12px]">arrow_upward</span>
+                    <button onClick={() => handleMove(index, -1)} disabled={index === 0} className={`leading-none opacity-0 group-hover/chip:opacity-100 ${index === 0 ? "text-muted-foreground/20" : "text-muted-foreground hover:text-primary"}`}>
+                      <Icon name="arrow_upward" className="size-[12px]" />
                     </button>
-                    <button onClick={() => handleMove(index, 1)} disabled={index === models.length - 1} className={`leading-none opacity-0 group-hover/chip:opacity-100 ${index === models.length - 1 ? "text-text-muted/20" : "text-text-muted hover:text-primary"}`}>
-                      <span className="material-symbols-outlined text-[12px]">arrow_downward</span>
+                    <button onClick={() => handleMove(index, 1)} disabled={index === models.length - 1} className={`leading-none opacity-0 group-hover/chip:opacity-100 ${index === models.length - 1 ? "text-muted-foreground/20" : "text-muted-foreground hover:text-primary"}`}>
+                      <Icon name="arrow_downward" className="size-[12px]" />
                     </button>
-                    <button onClick={() => handleRemove(index)} className="leading-none opacity-0 group-hover/chip:opacity-100 text-text-muted hover:text-red-500">
-                      <span className="material-symbols-outlined text-[12px]">close</span>
+                    <button onClick={() => handleRemove(index)} className="leading-none opacity-0 group-hover/chip:opacity-100 text-muted-foreground hover:text-destructive">
+                      <Icon name="close" className="size-[12px]" />
                     </button>
                   </code>
                 ))
               )}
               {models.length > 3 && (
-                <span className="text-[10px] text-text-muted">+{models.length - 3} more</span>
+                <span className="text-[10px] text-muted-foreground">+{models.length - 3} more</span>
               )}
             </div>
           </div>
@@ -1435,7 +1464,7 @@ function CapacityAdapterCap({ cap, entry, onChange, activeProviders, getCaps }) 
 
         {/* Actions: Round-robin toggle + Add Model */}
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3 sm:shrink-0">
-          <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
             <Toggle
               checked={roundRobin}
               onChange={(v) => patch({ roundRobin: v })}
@@ -1473,7 +1502,7 @@ function CapacityAdapterCap({ cap, entry, onChange, activeProviders, getCaps }) 
   );
 }
 
-function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResult, onToggleEnabled, onEdit, onMoveUp, onMoveDown, onRemove }) {
+function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResult, quickTestResult, onToggleEnabled, onEdit, onMoveUp, onMoveDown, onQuickTest, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1487,8 +1516,13 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
     pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
     success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
     failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
-    skipped: { icon: "remove_circle_outline", color: "text-text-subtle", label: "Skipped", spin: false },
+    skipped: { icon: "remove_circle_outline", color: "text-muted-foreground", label: "Skipped", spin: false },
   }[testResult.state];
+  const quickTestPresentation = quickTestResult && {
+    pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
+    success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
+    failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
+  }[quickTestResult.state];
   const commit = () => {
     const trimmed = draft.trim();
     if (trimmed && trimmed !== model) onEdit(trimmed);
@@ -1512,7 +1546,7 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
         {...attributes}
         {...listeners}
         type="button"
-        className="cursor-grab touch-none p-0.5 rounded text-text-muted hover:text-primary active:cursor-grabbing shrink-0"
+        className="cursor-grab touch-none p-0.5 rounded text-muted-foreground hover:text-primary active:cursor-grabbing shrink-0"
         title="Drag to reorder"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -1523,7 +1557,7 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
       </button>
 
       {/* Index badge */}
-      <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0">{index + 1}</span>
+      <span className="text-[10px] font-medium text-muted-foreground w-3 text-center shrink-0">{index + 1}</span>
 
       {/* Member on/off — keeps the member (and its order) but takes it out of routing */}
       <Toggle
@@ -1535,12 +1569,7 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
         ariaLabel={`${enabled ? "Disable" : "Enable"} ${model}`}
       />
       {testPresentation && (
-        <span
-          className={`material-symbols-outlined shrink-0 text-sm ${testPresentation.color} ${testPresentation.spin ? "animate-spin" : ""}`}
-          title={testResult.error || `${testPresentation.label}${testResult.latencyMs != null ? ` in ${testResult.latencyMs}ms` : ""}`}
-        >
-          {testPresentation.icon}
-        </span>
+        <Icon name={testPresentation.icon} className={`shrink-0 size-3.5 ${testPresentation.color} ${testPresentation.spin ? "animate-spin" : ""}`} title={testResult.error || `${testPresentation.label}${testResult.latencyMs != null ? ` in ${testResult.latencyMs}ms` : ""}`} />
       )}
 
       {/* Inline editable model value */}
@@ -1551,11 +1580,11 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={handleKeyDown}
-          className="min-w-0 flex-1 rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-text-main outline-none dark:bg-black/20"
+          className="min-w-0 flex-1 rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-foreground outline-none dark:bg-black/20"
         />
       ) : (
         <div
-          className={`min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs hover:bg-black/5 dark:hover:bg-white/5 ${enabled ? "text-text-main" : "text-text-muted line-through decoration-text-subtle"}`}
+          className={`min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs hover:bg-black/5 dark:hover:bg-white/5 ${enabled ? "text-foreground" : "text-muted-foreground line-through decoration-text-subtle"}`}
           onClick={() => setEditing(true)}
           title="Click to edit"
         >
@@ -1568,28 +1597,46 @@ function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResu
         <button
           onClick={onMoveUp}
           disabled={isFirst}
-          className={`p-0.5 rounded ${isFirst ? "text-text-muted/20 cursor-not-allowed" : "text-text-muted hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
+          className={`p-0.5 rounded ${isFirst ? "text-muted-foreground/20 cursor-not-allowed" : "text-muted-foreground hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
           title="Move up"
         >
-          <span className="material-symbols-outlined text-[12px]">arrow_upward</span>
+          <Icon name="arrow_upward" className="size-[12px]" />
         </button>
         <button
           onClick={onMoveDown}
           disabled={isLast}
-          className={`p-0.5 rounded ${isLast ? "text-text-muted/20 cursor-not-allowed" : "text-text-muted hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
+          className={`p-0.5 rounded ${isLast ? "text-muted-foreground/20 cursor-not-allowed" : "text-muted-foreground hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
           title="Move down"
         >
-          <span className="material-symbols-outlined text-[12px]">arrow_downward</span>
+          <Icon name="arrow_downward" className="size-[12px]" />
         </button>
       </div>
+
+      {onQuickTest && (
+        <button
+          type="button"
+          onClick={onQuickTest}
+          disabled={quickTestResult?.state === "pending"}
+          className={`shrink-0 rounded p-0.5 transition-colors disabled:cursor-wait ${quickTestPresentation ? quickTestPresentation.color : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}
+          title={quickTestResult?.error || (quickTestResult?.latencyMs != null
+            ? `${quickTestPresentation.label} in ${quickTestResult.latencyMs}ms`
+            : `Test ${model}`)}
+          aria-label={`Test ${model}`}
+        >
+          <Icon
+            name={quickTestPresentation?.icon || "play_arrow"}
+            className={`size-[13px] ${quickTestPresentation?.spin ? "animate-spin" : ""}`}
+          />
+        </button>
+      )}
 
       {/* Remove */}
       <button
         onClick={onRemove}
-        className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all"
+        className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-all"
         title="Remove"
       >
-        <span className="material-symbols-outlined text-[12px]">close</span>
+        <Icon name="close" className="size-[12px]" />
       </button>
     </div>
   );
@@ -1605,6 +1652,7 @@ function ComboFormModal({
   testState,
   activeProviders,
   modelProviders = [],
+  canEditPricing = false,
   kindFilter = null,
 }) {
   // Initialize state with combo values - key prop on parent handles reset on remount
@@ -1629,6 +1677,15 @@ function ComboFormModal({
   const [testStrategy, setTestStrategy] = useState(strategy.fallbackStrategy || "fallback");
   const [testJudge, setTestJudge] = useState(strategy.judgeModel || "");
   const [modalTestState, setModalTestState] = useState(testState || null);
+  const [quickTestStates, setQuickTestStates] = useState({});
+  // Price lives on the same form as the route it belongs to: rates are keyed by
+  // owner + public name, so both are edited in one save.
+  const [priceDraft, setPriceDraft] = useState(() => draftFromPricing(combo?.pricing || {}));
+  const [priceFree, setPriceFree] = useState(() => isFreePricing(combo?.pricing));
+  const [priceTouched, setPriceTouched] = useState(false);
+  const [priceReset, setPriceReset] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
 
   // Everything downstream (Caps, thinking levels, tests) describes what the route
   // can actually serve, so all of it reads the enabled members only.
@@ -1767,6 +1824,36 @@ function ComboFormModal({
     setModels(newModels);
   };
 
+  /**
+   * Turn the price fields into an instruction for the parent, or null when the
+   * catalog should be left alone. Rates are keyed by owner + public name, so a
+   * rename or an owner change has to re-write an existing custom price under the
+   * new key and drop the old entry.
+   */
+  const buildPricingRequest = (savedName, savedProvider) => {
+    if (!canEditPricing) return null;
+    const previousTarget = comboPricingTarget(combo);
+    const movedFrom = previousTarget
+      && (previousTarget.provider !== savedProvider.toLowerCase() || previousTarget.model !== savedName)
+      ? previousTarget
+      : null;
+
+    if (priceReset) return { mode: "reset", previousTarget: movedFrom };
+    if (priceTouched) {
+      return {
+        mode: "set",
+        pricing: parseDraft(priceDraft, { basePricing: combo?.pricing || {}, free: priceFree }),
+        previousTarget: movedFrom,
+      };
+    }
+    // Untouched price: only act when the key moved and there is a custom rate
+    // that would otherwise be left behind on the old key.
+    if (movedFrom && combo?.pricingSource === "custom" && combo.pricing) {
+      return { mode: "set", pricing: combo.pricing, previousTarget: movedFrom };
+    }
+    return null;
+  };
+
   const handleSave = async () => {
     if (!validateName(name)) return;
     const normalizedProvider = modelProvider.trim();
@@ -1775,16 +1862,64 @@ function ComboFormModal({
       return;
     }
     setProviderError("");
+    setSaveError("");
+
+    let pricingRequest = null;
+    try {
+      pricingRequest = buildPricingRequest(name.trim(), normalizedProvider);
+    } catch (reason) {
+      setSaveError(reason.message || "Unable to save price");
+      return;
+    }
+
     setSaving(true);
-    await onSave({
-      name: name.trim(),
-      models,
-      modelProvider: normalizedProvider,
-      thinkingMode,
-      capabilityOverrides,
-      disabledMembers: normalizeDisabledMembers(disabledMembers, models),
+    try {
+      await onSave({
+        name: name.trim(),
+        models,
+        modelProvider: normalizedProvider,
+        thinkingMode,
+        capabilityOverrides,
+        disabledMembers: normalizeDisabledMembers(disabledMembers, models),
+      }, pricingRequest);
+    } catch (reason) {
+      setSaveError(reason.message || "Failed to save route");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updatePriceField = (field, value) => {
+    setSaveError("");
+    setPriceTouched(true);
+    setPriceReset(false);
+    setPriceDraft((current) => {
+      const merged = { ...current, [field]: value };
+      // Typing a real rate leaves Free; zeroing everything back re-enters it.
+      if (Number(value) > 0) setPriceFree(false);
+      else if (draftLooksFree(merged)) setPriceFree(true);
+      return merged;
     });
-    setSaving(false);
+  };
+
+  const togglePriceFree = (next) => {
+    setSaveError("");
+    setPriceTouched(true);
+    setPriceReset(false);
+    setPriceFree(next);
+    setPriceDraft(next
+      ? draftFromPricing(freePricing())
+      : draftFromPricing(combo?.defaultPricing || combo?.pricing || {}));
+  };
+
+  // Queue a reset instead of writing immediately: the price and the route are
+  // saved together, so Cancel must leave the catalog untouched.
+  const requestPriceReset = () => {
+    setSaveError("");
+    setPriceTouched(false);
+    setPriceReset(true);
+    setPriceDraft(draftFromPricing(combo?.defaultPricing || {}));
+    setPriceFree(isFreePricing(combo?.defaultPricing));
   };
 
   const handleCapabilityChange = (key, enabled) => {
@@ -1824,6 +1959,26 @@ function ComboFormModal({
     }
   };
 
+  const handleQuickTest = async (uid, model) => {
+    setQuickTestStates((current) => ({ ...current, [uid]: { state: "pending" } }));
+    try {
+      const result = await onTest({ models: [model], strategy: "fallback", judgeModel: "" });
+      const modelResult = result?.results?.[0];
+      setQuickTestStates((current) => ({
+        ...current,
+        [uid]: modelResult || {
+          state: result?.ok ? "success" : "failed",
+          error: result?.error || result?.message || "Model test failed",
+        },
+      }));
+    } catch (error) {
+      setQuickTestStates((current) => ({
+        ...current,
+        [uid]: { state: "failed", error: error?.message || "Model test failed" },
+      }));
+    }
+  };
+
   const isEdit = !!combo;
   const modalResultsByIndex = new Map((modalTestState?.results || []).map((result) => [result.index, result]));
 
@@ -1845,14 +2000,14 @@ function ComboFormModal({
               placeholder="my-combo"
               error={nameError}
             />
-            <p className="text-[10px] text-text-muted mt-0.5">
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               Only letters, numbers, -, _ and . allowed
             </p>
           </div>
 
           {/* Public model ownership */}
           <div>
-            <label className="mb-1.5 block font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
               Model Provider <span className="text-danger">*</span>
             </label>
             <Select
@@ -1872,7 +2027,7 @@ function ComboFormModal({
             {providerError ? (
               <p className="mt-1 font-mono text-xs text-danger">{providerError}</p>
             ) : (
-              <p className="mt-1 text-xs text-text-muted">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {modelProviders.length > 0
                   ? "Shown as owned_by in /v1/models."
                   : "Create a provider in the Providers tab first."}
@@ -1885,7 +2040,7 @@ function ComboFormModal({
             <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
               <label className="text-sm font-medium">Models</label>
               {models.length > 0 && (
-                <span className="font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                   {routedModels.length} of {models.length} routed
                 </span>
               )}
@@ -1893,8 +2048,8 @@ function ComboFormModal({
 
             {models.length === 0 ? (
               <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 bg-black/[0.01] dark:bg-white/[0.01]">
-                <span className="material-symbols-outlined text-text-muted text-xl mb-1">layers</span>
-                <p className="text-xs text-text-muted">No models added yet</p>
+                <Icon name="layers" className="text-muted-foreground size-5 mb-1" />
+                <p className="text-xs text-muted-foreground">No models added yet</p>
               </div>
             ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
@@ -1922,10 +2077,12 @@ function ComboFormModal({
                               : modalResultsByIndex.get(routedIndex)
                             : null
                         }
+                        quickTestResult={quickTestStates[uid]}
                         onToggleEnabled={(next) => handleToggleMember(model, next)}
                         onEdit={(newVal) => handleEditModel(index, newVal)}
                         onMoveUp={() => handleMoveUp(index)}
                         onMoveDown={() => handleMoveDown(index)}
+                        onQuickTest={isEdit && onTest ? () => handleQuickTest(uid, model) : null}
                         onRemove={() => handleRemoveModel(index)}
                       />
                     );
@@ -1940,7 +2097,7 @@ function ComboFormModal({
               onClick={() => setShowModelSelect(true)}
               className="w-full mt-2 py-2 border border-dashed border-black/10 dark:border-white/10 rounded-sm text-xs text-primary font-medium hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1"
             >
-              <span className="material-symbols-outlined text-[16px]">add</span>
+              <Icon name="add" className="size-[16px]" />
               Add Model
             </button>
           </div>
@@ -1948,10 +2105,10 @@ function ComboFormModal({
           <section className="border-y border-border py-3" aria-labelledby="model-behavior-heading">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <span>
-                <span id="model-behavior-heading" className="block font-mono text-[11px] font-semibold uppercase tracking-wide text-text-main">
+                <span id="model-behavior-heading" className="block text-xs font-medium text-muted-foreground tracking-wide text-foreground">
                   Model behavior
                 </span>
-                <span className="block text-xs text-text-muted">
+                <span className="block text-xs text-muted-foreground">
                   Defaults and advertised Caps belong to this route, not its provider connection.
                 </span>
               </span>
@@ -1959,7 +2116,7 @@ function ComboFormModal({
                 <button
                   type="button"
                   onClick={() => setCapabilityOverrides({})}
-                  className="self-start rounded-sm px-2 py-1 font-mono text-[11px] uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
+                  className="self-start rounded-sm px-2 py-1 text-xs font-medium text-muted-foreground tracking-wide text-primary transition-colors hover:bg-primary/10"
                 >
                   Reset Caps to automatic
                 </button>
@@ -1974,8 +2131,8 @@ function ComboFormModal({
                   onChange={(event) => setThinkingMode(event.target.value)}
                   options={thinkingOptions.map((option) => ({ value: option.value, label: option.label }))}
                 />
-                <p className="mt-1 text-xs leading-relaxed text-text-muted">{selectedThinking.description}</p>
-                <p className="mt-2 font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{selectedThinking.description}</p>
+                <p className="mt-2 text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                   Client request wins · {thinkingProfile.reasoningModels} reasoning member{thinkingProfile.reasoningModels === 1 ? "" : "s"}
                 </p>
                 {thinkingMode === "none" && thinkingProfile.cannotDisable > 0 && (
@@ -1987,8 +2144,8 @@ function ComboFormModal({
 
               <div className="min-w-0 border border-border">
                 <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2">
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Caps exposed by this model</span>
-                  <span className="font-mono text-[11px] text-text-subtle">Dashboard / Models · /v1/models</span>
+                  <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Caps exposed by this model</span>
+                  <span className="font-mono text-[11px] text-muted-foreground">Dashboard / Models · /v1/models</span>
                 </div>
                 <div className="grid sm:grid-cols-2">
                   {MODEL_CAPABILITIES.map(([key, label, icon], index) => {
@@ -2000,12 +2157,10 @@ function ComboFormModal({
                         className={`flex min-w-0 items-center justify-between gap-3 px-3 py-2 ${index < MODEL_CAPABILITIES.length - 2 ? "border-b border-border" : ""} ${index % 2 === 0 ? "sm:border-r sm:border-border" : ""}`}
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className={`material-symbols-outlined text-base ${enabled ? "text-primary" : "text-text-subtle"}`}>
-                            {icon}
-                          </span>
+                          <Icon name={icon} className={`size-4 ${enabled ? "text-primary" : "text-muted-foreground"}`} />
                           <span className="min-w-0">
-                            <span className="block truncate text-xs font-medium text-text-main">{label}</span>
-                            <span className="block font-mono text-[11px] uppercase tracking-wide text-text-subtle">
+                            <span className="block truncate text-xs font-medium text-foreground">{label}</span>
+                            <span className="block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                               {overridden ? `Override ${enabled ? "on" : "off"}` : `Inherited ${enabled ? "on" : "off"}`}
                             </span>
                           </span>
@@ -2022,21 +2177,93 @@ function ComboFormModal({
                 </div>
               </div>
             </div>
-            <p className="mt-2 text-[11px] text-text-subtle">
+            <p className="mt-2 text-[11px] text-muted-foreground">
               Inherited Caps come from the enabled members only. Caps change public model metadata; routing still
               checks each member&apos;s actual capabilities.
             </p>
           </section>
 
+          {canEditPricing && (
+            <section className="border-b border-border pb-3" aria-labelledby="route-pricing-heading">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <span className="min-w-0">
+                  <span id="route-pricing-heading" className="block text-xs font-medium tracking-wide text-foreground">
+                    Pricing
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    USD per one million tokens, billed as{" "}
+                    <code className="font-mono text-foreground">
+                      {(modelProvider.trim() || "provider").toLowerCase()}/{name.trim() || "route"}
+                    </code>
+                    . Saved together with the route.
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2 self-start">
+                  {priceReset && (
+                    <span className="font-mono text-[11px] text-primary">Default restored on save</span>
+                  )}
+                  {!priceReset && combo?.pricingSource === "custom" && (
+                    <button
+                      type="button"
+                      onClick={requestPriceReset}
+                      className="rounded-sm px-2 py-1 text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/10"
+                    >
+                      Restore default
+                    </button>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border border-border px-3 py-2">
+                <span className="min-w-0">
+                  <span className="block font-mono text-xs font-semibold text-foreground">Free</span>
+                  <span className="block text-[11px] text-muted-foreground">Bill this route at zero on every rate.</span>
+                </span>
+                <Toggle
+                  size="sm"
+                  checked={priceFree}
+                  disabled={saving}
+                  onChange={togglePriceFree}
+                  ariaLabel={`Set ${name || "this route"} free`}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {PRICING_FIELDS.map(([field, label]) => (
+                  <div key={field}>
+                    <label
+                      htmlFor={`route-price-${field}`}
+                      className="mb-1 block text-xs font-medium tracking-wide text-muted-foreground"
+                    >
+                      {label}
+                    </label>
+                    <input
+                      id={`route-price-${field}`}
+                      type="number"
+                      min="0"
+                      step="0.000001"
+                      inputMode="decimal"
+                      disabled={saving || priceFree}
+                      value={priceDraft[field] ?? ""}
+                      onChange={(event) => updatePriceField(field, event.target.value)}
+                      placeholder="0"
+                      className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-foreground outline-none focus:border-primary/40 disabled:opacity-60"
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {isEdit && onTest && (
             <div className="border-y border-border py-3">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <span>
-                  <span className="block text-sm font-medium text-text-main">Test route</span>
-                  <span className="block text-xs text-text-muted">Run the current model list through one strategy path.</span>
+                  <span className="block text-sm font-medium text-foreground">Test route</span>
+                  <span className="block text-xs text-muted-foreground">Run the current model list through one strategy path.</span>
                 </span>
                 {modalTestState && !modalTestState.testing && (
-                  <span className={`font-mono text-[11px] uppercase tracking-wide ${modalTestState.ok ? "text-success" : "text-danger"}`}>
+                  <span className={`text-xs font-medium text-muted-foreground tracking-wide ${modalTestState.ok ? "text-success" : "text-danger"}`}>
                     {modalTestState.ok ? "Passed" : "Failed"}
                   </span>
                 )}
@@ -2061,7 +2288,7 @@ function ComboFormModal({
                     className="inline-flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-sm border border-dashed border-primary/40 px-3 font-mono text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5"
                     title={testJudge ? `Judge: ${testJudge}` : `Auto judge: ${models[0] || "first model"}`}
                   >
-                    <span className="material-symbols-outlined text-sm">gavel</span>
+                    <Icon name="gavel" className="size-3.5" />
                     <span className="truncate">{testJudge || "Auto judge"}</span>
                   </button>
                 )}
@@ -2088,8 +2315,15 @@ function ComboFormModal({
             </div>
           )}
 
+          {saveError && (
+            <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+              {saveError}
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+          <div className="grid gap-2 pt-1 sm:grid-cols-2">
+
             <Button onClick={onClose} variant="ghost" fullWidth size="sm">
               Cancel
             </Button>

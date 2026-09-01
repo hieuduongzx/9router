@@ -6,46 +6,43 @@ import { Card, Button, Modal } from "@/shared/components";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getProviderAlias } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 // ── ModelRow ───────────────────────────────────────────────────
 export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCustom, isFree, onDeleteAlias, onTest, isTesting }) {
-  const borderColor = testStatus === "ok" ? "border-green-500/40" : testStatus === "error" ? "border-red-500/40" : "border-border";
+  const borderColor = testStatus === "ok" ? "border-success/40" : testStatus === "error" ? "border-destructive/40" : "border-border";
   const iconColor = testStatus === "ok" ? "#22c55e" : testStatus === "error" ? "#ef4444" : undefined;
 
   return (
     <div className={`group px-3 py-2 rounded-sm border ${borderColor} hover:bg-sidebar/50`}>
       <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-base" style={iconColor ? { color: iconColor } : undefined}>
-          {testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"}
-        </span>
+        <Icon name={testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"} className="size-4" style={iconColor ? { color: iconColor } : undefined} />
         <div className="flex flex-col gap-1">
-          <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded-sm">{fullModel}</code>
-          {model.name && <span className="text-[9px] text-text-muted/70 italic pl-1">{model.name}</span>}
+          <code className="text-xs text-muted-foreground font-mono bg-sidebar px-1.5 py-0.5 rounded-sm">{fullModel}</code>
+          {model.name && <span className="text-[9px] text-muted-foreground/70 italic pl-1">{model.name}</span>}
         </div>
         {onTest && (
           <div className="relative group/btn">
-            <button onClick={onTest} disabled={isTesting} className={`p-0.5 hover:bg-sidebar rounded-sm text-text-muted hover:text-primary transition-opacity ${isTesting ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-              <span className="material-symbols-outlined text-sm" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined}>
-                {isTesting ? "progress_activity" : "science"}
-              </span>
+            <button onClick={onTest} disabled={isTesting} className={`p-0.5 hover:bg-sidebar rounded-sm text-muted-foreground hover:text-primary transition-opacity ${isTesting ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+              <Icon name={isTesting ? "progress_activity" : "science"} className="size-3.5" style={isTesting ? { animation: "spin 1s linear infinite" } : undefined} />
             </button>
-            <span className="pointer-events-none absolute mt-1 top-5 left-1/2 -translate-x-1/2 text-[10px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
+            <span className="pointer-events-none absolute mt-1 top-5 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
               {isTesting ? "Testing..." : "Test"}
             </span>
           </div>
         )}
         <div className="relative group/btn">
-          <button onClick={() => onCopy(fullModel, `model-${model.id}`)} className="p-0.5 hover:bg-sidebar rounded-sm text-text-muted hover:text-primary">
-            <span className="material-symbols-outlined text-sm">{copied === `model-${model.id}` ? "check" : "content_copy"}</span>
+          <button onClick={() => onCopy(fullModel, `model-${model.id}`)} className="p-0.5 hover:bg-sidebar rounded-sm text-muted-foreground hover:text-primary">
+            <Icon name={copied === `model-${model.id}` ? "check" : "content_copy"} className="size-3.5" />
           </button>
-          <span className="pointer-events-none absolute mt-1 top-5 left-1/2 -translate-x-1/2 text-[10px] text-text-muted whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
+          <span className="pointer-events-none absolute mt-1 top-5 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity">
             {copied === `model-${model.id}` ? "Copied!" : "Copy"}
           </span>
         </div>
-        {isFree && <span className="text-[10px] font-mono font-bold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-sm">FREE</span>}
+        {isFree && <span className="text-[10px] font-mono font-bold text-success bg-success/10 px-1.5 py-0.5 rounded-sm">FREE</span>}
         {isCustom && (
-          <button onClick={onDeleteAlias} className="p-0.5 hover:bg-red-500/10 rounded-sm text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" title="Remove custom model">
-            <span className="material-symbols-outlined text-sm">close</span>
+          <button onClick={onDeleteAlias} className="p-0.5 hover:bg-destructive/10 rounded-sm text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity ml-auto" title="Remove custom model">
+            <Icon name="close" className="size-3.5" />
           </button>
         )}
       </div>
@@ -80,7 +77,7 @@ function AddCustomModelModal({ isOpen, onSave, onClose }) {
     <Modal isOpen={isOpen} title="Add Custom Model" onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div>
-          <label className="text-xs text-text-muted mb-1 block">Model ID</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Model ID</label>
           <input
             className="w-full px-3 py-2 text-sm border border-border rounded-sm bg-background font-mono focus:outline-none focus:border-primary"
             value={modelId}
@@ -221,7 +218,7 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-mono text-sm font-semibold">Models{kindFilter ? ` — ${kindFilter.toUpperCase()}` : ""}</h2>
         </div>
-        {testError && <p className="text-xs text-red-500 mb-3 break-words">{testError}</p>}
+        {testError && <p className="text-xs text-destructive mb-3 break-words">{testError}</p>}
 
         <div className="flex flex-wrap gap-3">
           {displayModels.map((model) => {
@@ -263,9 +260,9 @@ export default function ModelsCard({ providerId, kindFilter, providerAliasOverri
 
           <button
             onClick={() => setShowAddCustomModel(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-sm border border-dashed border-black/15 dark:border-white/15 text-xs text-text-muted hover:text-primary hover:border-primary/40 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-sm border border-dashed border-black/15 dark:border-white/15 text-xs text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
           >
-            <span className="material-symbols-outlined text-sm">add</span>
+            <Icon name="add" className="size-3.5" />
             Add Model
           </button>
         </div>

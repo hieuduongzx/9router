@@ -22,6 +22,7 @@ import {
   ledgerLabel,
   maskKey,
 } from "../components/userFormat";
+import { Icon } from "@/shared/components/ui/icon";
 
 /** Accounts are long-lived, so a month of history is the useful default here. */
 const DEFAULT_PERIOD = "30d";
@@ -40,9 +41,9 @@ function CopyButton({ value, copiedId, onCopy, label }) {
       onClick={() => onCopy(value, label)}
       aria-label={`Copy ${label}`}
       title={`Copy ${label}`}
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
     >
-      <span className="material-symbols-outlined text-[15px]">{copiedId === label ? "check" : "content_copy"}</span>
+      <Icon name={copiedId === label ? "check" : "content_copy"} className="size-[15px]" />
     </button>
   );
 }
@@ -50,8 +51,8 @@ function CopyButton({ value, copiedId, onCopy, label }) {
 function InfoRow({ label, children }) {
   return (
     <div className="bg-surface px-5 py-3.5">
-      <dt className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{label}</dt>
-      <dd className="mt-1 flex min-w-0 items-center gap-1.5 break-all text-sm text-text-main">{children}</dd>
+      <dt className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-1 flex min-w-0 items-center gap-1.5 break-all text-sm text-foreground">{children}</dd>
     </div>
   );
 }
@@ -182,19 +183,19 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       <div className="border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-base font-semibold text-text-main">
+            <span className="flex size-12 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-base font-semibold text-foreground">
               {initials(user.username)}
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-text-main">{user.username}</h1>
+                <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-foreground">{user.username}</h1>
                 <Badge variant={user.role === "admin" ? "info" : "default"}>{user.role}</Badge>
                 <Badge variant={user.isActive ? "success" : "error"} dot>{user.isActive ? "Active" : "Suspended"}</Badge>
                 {isCurrent && <Badge variant="outline">You</Badge>}
                 {user.mustChangePassword && <Badge variant="warning">Password reset pending</Badge>}
               </div>
-              <p className="mt-1 truncate text-sm text-text-muted">{user.email}</p>
-              <p className="mt-1 font-mono text-[11px] text-text-muted">
+              <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">
                 Joined {formatDateTime(user.createdAt)}
                 {lastRequestAt ? ` · last request ${getRelativeTime(lastRequestAt)}` : " · no requests yet"}
               </p>
@@ -253,8 +254,8 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         <Card padding="none" className="min-w-0">
           <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
             <div>
-              <h2 className="font-mono text-sm font-semibold text-text-main">Account information</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Identity and security metadata visible to administrators.</p>
+              <h2 className="font-mono text-sm font-semibold text-foreground">Account information</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Identity and security metadata visible to administrators.</p>
             </div>
             <Button variant="outline" size="sm" icon="edit" onClick={() => setEditOpen(true)}>Edit</Button>
           </div>
@@ -282,24 +283,24 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
               <span>{user.mustChangePassword ? "Must be changed at next sign-in" : "Encrypted · cannot be viewed"}</span>
             </InfoRow>
           </dl>
-          <div className="border-t border-border-subtle px-5 py-3 text-xs text-text-muted">
+          <div className="border-t border-border-subtle px-5 py-3 text-xs text-muted-foreground">
             Passwords are stored as one-way hashes. An admin can reset a password, but an existing password can never be displayed.
           </div>
         </Card>
 
         <Card padding="none" className="min-w-0">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Access &amp; security</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Role, sign-in access, and credential actions.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Access &amp; security</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Role, sign-in access, and credential actions.</p>
           </div>
           <div className="space-y-4 px-5 py-4">
             <label className="block">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Role</span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Role</span>
               <select
                 value={user.role}
                 disabled={saving || isCurrent}
                 onChange={(event) => patchUser({ role: event.target.value })}
-                className="mt-1.5 h-9 w-full rounded-sm border border-border bg-surface px-3 font-mono text-sm text-text-main focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
+                className="mt-1.5 h-9 w-full rounded-sm border border-border bg-surface px-3 font-mono text-sm text-foreground focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -307,7 +308,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
             </label>
 
             <div>
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Dashboard access</span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Dashboard access</span>
               <button
                 type="button"
                 disabled={saving || isCurrent}
@@ -315,16 +316,16 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                 className={`mt-1.5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-sm border font-mono text-xs font-semibold uppercase tracking-wide transition-colors disabled:opacity-60 ${
                   user.isActive
                     ? "border-success/25 bg-success/10 text-success"
-                    : "border-border bg-surface-2 text-text-muted"
+                    : "border-border bg-surface-2 text-muted-foreground"
                 }`}
               >
-                <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-text-muted"}`} />
+                <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-muted-foreground"}`} />
                 {user.isActive ? "Active · click to suspend" : "Suspended · click to reactivate"}
               </button>
             </div>
 
             {isCurrent && (
-              <p className="border border-border bg-bg-alt/60 px-3 py-2 text-xs text-text-muted">
+              <p className="border border-border bg-bg-alt/60 px-3 py-2 text-xs text-muted-foreground">
                 This is your own account — role, access, and removal are locked to prevent losing administrator access.
               </p>
             )}
@@ -353,8 +354,8 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       <Card padding="none">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
-            <h2 className="font-mono text-sm font-semibold text-text-main">API keys</h2>
-            <p className="mt-0.5 text-xs text-text-muted">
+            <h2 className="font-mono text-sm font-semibold text-foreground">API keys</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {apiKeys.length
                 ? `${activeKeys} active of ${apiKeys.length} · usage shown for ${periodLabel.toLowerCase()}`
                 : "Keys owned by this account."}
@@ -363,9 +364,9 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         </div>
         {apiKeys.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <span className="material-symbols-outlined text-3xl text-text-muted">key_off</span>
-            <p className="mt-2 text-sm font-medium text-text-main">No API keys</p>
-            <p className="mt-1 text-xs text-text-muted">This account cannot call the gateway until it creates a key.</p>
+            <Icon name="key_off" className="size-7 text-muted-foreground" />
+            <p className="mt-2 text-sm font-medium text-foreground">No API keys</p>
+            <p className="mt-1 text-xs text-muted-foreground">This account cannot call the gateway until it creates a key.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -388,19 +389,19 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                   return (
                     <tr key={key.id} className="hover:bg-bg-alt/50">
                       <td className="px-5 py-3">
-                        <p className="truncate text-sm font-medium text-text-main">{keyName}</p>
+                        <p className="truncate text-sm font-medium text-foreground">{keyName}</p>
                         <div className="mt-1 flex items-center gap-1">
-                          <code className="min-w-0 break-all font-mono text-[11px] text-text-muted" title={isVisible ? key.key : undefined}>
+                          <code className="min-w-0 break-all font-mono text-[11px] text-muted-foreground" title={isVisible ? key.key : undefined}>
                             {isVisible ? key.key : maskKey(key.key)}
                           </code>
                           <button
                             type="button"
                             onClick={() => toggleKeyVisibility(key.id)}
-                            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+                            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                             title={isVisible ? "Hide key" : "Show key"}
                             aria-label={isVisible ? `Hide ${keyName}` : `Show ${keyName}`}
                           >
-                            <span className="material-symbols-outlined text-[15px]">{isVisible ? "visibility_off" : "visibility"}</span>
+                            <Icon name={isVisible ? "visibility_off" : "visibility"} className="size-[15px]" />
                           </button>
                           <CopyButton value={key.key} copiedId={copied} onCopy={copy} label={keyName} />
                         </div>
@@ -410,16 +411,16 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                           {key.isActive ? "Active" : "Disabled"}
                         </Badge>
                       </td>
-                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-text-main">
-                        {usage ? NUMBER_FORMAT.format(usage.requests) : <span className="text-text-muted">—</span>}
+                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">
+                        {usage ? NUMBER_FORMAT.format(usage.requests) : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-text-main">
-                        {usage ? COMPACT_FORMAT.format((usage.promptTokens || 0) + (usage.completionTokens || 0)) : <span className="text-text-muted">—</span>}
+                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">
+                        {usage ? COMPACT_FORMAT.format((usage.promptTokens || 0) + (usage.completionTokens || 0)) : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-text-main">
-                        {usage ? COST_FORMAT.format(usage.cost || 0) : <span className="text-text-muted">—</span>}
+                      <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">
+                        {usage ? COST_FORMAT.format(usage.cost || 0) : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-5 py-3 font-mono text-xs text-text-muted">{formatDateTime(key.createdAt)}</td>
+                      <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{formatDateTime(key.createdAt)}</td>
                     </tr>
                   );
                 })}
@@ -433,16 +434,16 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       {tab === "credit" && (
       <Card padding="none">
         <div className="border-b border-border px-5 py-3.5">
-          <h2 className="font-mono text-sm font-semibold text-text-main">Credit history</h2>
-          <p className="mt-0.5 text-xs text-text-muted">
+          <h2 className="font-mono text-sm font-semibold text-foreground">Credit history</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Top-ups, deductions, and signup credit. Per-request usage charges are tracked under usage, not here.
           </p>
         </div>
         {ledger.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <span className="material-symbols-outlined text-3xl text-text-muted">receipt_long</span>
-            <p className="mt-2 text-sm font-medium text-text-main">No credit activity</p>
-            <p className="mt-1 text-xs text-text-muted">Adjustments made from this page will appear here.</p>
+            <Icon name="receipt_long" className="size-7 text-muted-foreground" />
+            <p className="mt-2 text-sm font-medium text-foreground">No credit activity</p>
+            <p className="mt-1 text-xs text-muted-foreground">Adjustments made from this page will appear here.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -461,18 +462,18 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                   const positive = (entry.amountCents || 0) > 0;
                   return (
                     <tr key={entry.id} className="hover:bg-bg-alt/50">
-                      <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-text-muted">{formatDateTime(entry.createdAt)}</td>
+                      <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</td>
                       <td className="px-3 py-3">
                         <Badge size="sm" variant={positive ? "success" : "error"}>{entry.type || "adjustment"}</Badge>
                       </td>
                       <td className="px-3 py-3">
-                        <p className="text-sm text-text-main">{ledgerLabel(entry)}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-text-muted">{entry.source || "—"}</p>
+                        <p className="text-sm text-foreground">{ledgerLabel(entry)}</p>
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{entry.source || "—"}</p>
                       </td>
                       <td className={`px-3 py-3 text-right font-mono text-sm font-semibold tabular-nums ${positive ? "text-success" : "text-danger"}`}>
                         {formatSignedCredit(entry.amountCents)}
                       </td>
-                      <td className="px-5 py-3 text-right font-mono text-sm tabular-nums text-text-main">
+                      <td className="px-5 py-3 text-right font-mono text-sm tabular-nums text-foreground">
                         {formatCredit(entry.balanceAfterCents)}
                       </td>
                     </tr>
@@ -483,7 +484,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
           </div>
         )}
         {data?.ledger?.total > ledger.length && (
-          <div className="border-t border-border-subtle px-5 py-3 text-xs text-text-muted">
+          <div className="border-t border-border-subtle px-5 py-3 text-xs text-muted-foreground">
             Showing the {ledger.length} most recent of {data.ledger.total} entries.
           </div>
         )}
@@ -495,51 +496,51 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       <div className="grid gap-5 lg:grid-cols-2">
         <Card padding="none" className="min-w-0">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Usage by model</h2>
-            <p className="mt-0.5 text-xs text-text-muted">{periodLabel} · sorted by request volume</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Usage by model</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{periodLabel} · sorted by request volume</p>
           </div>
           <div className="max-h-[420px] divide-y divide-border-subtle overflow-auto">
             {models.slice(0, 30).map((model, index) => (
               <div key={`${model.rawModel}-${model.provider}-${index}`} className="flex justify-between gap-4 px-5 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-text-main">{model.rawModel || "Unknown"}</p>
-                  <p className="truncate text-xs text-text-muted">{model.provider || "Unknown provider"}</p>
+                  <p className="truncate text-sm font-medium text-foreground">{model.rawModel || "Unknown"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{model.provider || "Unknown provider"}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-mono text-sm tabular-nums text-text-main">{NUMBER_FORMAT.format(model.requests)} req</p>
-                  <p className="font-mono text-[11px] tabular-nums text-text-muted">
+                  <p className="font-mono text-sm tabular-nums text-foreground">{NUMBER_FORMAT.format(model.requests)} req</p>
+                  <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
                     {COMPACT_FORMAT.format((model.promptTokens || 0) + (model.completionTokens || 0))} tokens · {COST_FORMAT.format(model.cost || 0)}
                   </p>
                 </div>
               </div>
             ))}
-            {!models.length && <p className="px-5 py-12 text-center text-sm text-text-muted">No usage in this period.</p>}
+            {!models.length && <p className="px-5 py-12 text-center text-sm text-muted-foreground">No usage in this period.</p>}
           </div>
         </Card>
 
         <Card padding="none" className="min-w-0">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Recent activity</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Latest requests made with this account&apos;s keys</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Recent activity</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Latest requests made with this account&apos;s keys</p>
           </div>
           <div className="max-h-[420px] divide-y divide-border-subtle overflow-auto">
             {(stats?.recentRequests || []).map((request, index) => (
               <div key={`${request.timestamp}-${index}`} className="flex justify-between gap-4 px-5 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-text-main">{request.model}</p>
-                  <p className="truncate text-xs text-text-muted">
+                  <p className="truncate text-sm font-medium text-foreground">{request.model}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     {request.provider} · <span title={formatDateTime(request.timestamp)}>{getRelativeTime(request.timestamp)}</span>
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-mono text-sm tabular-nums text-text-main">
+                  <p className="font-mono text-sm tabular-nums text-foreground">
                     {NUMBER_FORMAT.format((request.promptTokens || 0) + (request.completionTokens || 0))} tokens
                   </p>
-                  <p className="font-mono text-[11px] text-text-muted">{request.status}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{request.status}</p>
                 </div>
               </div>
             ))}
-            {!stats?.recentRequests?.length && <p className="px-5 py-12 text-center text-sm text-text-muted">No recent activity.</p>}
+            {!stats?.recentRequests?.length && <p className="px-5 py-12 text-center text-sm text-muted-foreground">No recent activity.</p>}
           </div>
         </Card>
       </div>

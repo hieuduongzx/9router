@@ -9,6 +9,7 @@ import Card from "@/shared/components/Card";
 import Input from "@/shared/components/Input";
 import StatTile from "@/shared/components/StatTile";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 const EMPTY_PASSWORDS = { current: "", next: "", confirm: "" };
 const EMPTY_PROFILE = { username: "", email: "", currentPassword: "" };
@@ -80,9 +81,7 @@ function StatusMessage({ status }) {
           : "border-danger/25 bg-danger/10 text-danger"
       }`}
     >
-      <span className="material-symbols-outlined mt-px text-[17px]">
-        {status.type === "success" ? "check_circle" : "error"}
-      </span>
+      <Icon name={status.type === "success" ? "check_circle" : "error"} className="mt-px size-[17px]" />
       <span>{status.message}</span>
     </div>
   );
@@ -368,9 +367,9 @@ function AccountPage() {
   if (loadError || !account) {
     return (
       <div className="mx-auto flex min-h-72 w-full max-w-xl flex-col items-center justify-center border border-border bg-surface px-6 text-center">
-        <span className="material-symbols-outlined text-3xl text-danger">account_circle_off</span>
-        <h2 className="mt-3 font-mono text-sm font-semibold text-text-main">Account unavailable</h2>
-        <p className="mt-1 max-w-md text-sm text-text-muted">{loadError || "Your account could not be loaded."}</p>
+        <Icon name="account_circle_off" className="size-7 text-danger" />
+        <h2 className="mt-3 font-mono text-sm font-semibold text-foreground">Account unavailable</h2>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">{loadError || "Your account could not be loaded."}</p>
         <Button className="mt-5" variant="outline" onClick={() => loadProfile()}>Try again</Button>
       </div>
     );
@@ -381,17 +380,17 @@ function AccountPage() {
       <section className="overflow-hidden border border-border bg-surface">
         <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-base font-semibold text-text-main">
+            <span className="flex size-12 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-base font-semibold text-foreground">
               {String(displayName).trim().charAt(0).toUpperCase() || "A"}
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-text-main">{displayName}</h1>
+                <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-foreground">{displayName}</h1>
                 <Badge variant={identity?.role === "admin" ? "primary" : "neutral"}>
                   {identity?.role || account.role || "user"}
                 </Badge>
               </div>
-              <p className="mt-1 truncate text-sm text-text-muted">{displayEmail}</p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{displayEmail}</p>
             </div>
           </div>
           <div className="tile-grid grid-cols-1 shrink-0 sm:w-60">
@@ -411,10 +410,10 @@ function AccountPage() {
               className={`inline-flex h-9 items-center gap-2 rounded-sm px-3 font-mono text-sm font-medium transition-colors ${
                 active
                   ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+              <Icon name={tab.icon} className="size-[18px]" />
               {tab.label}
             </button>
           );
@@ -424,10 +423,10 @@ function AccountPage() {
       {activeTab === "profile" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
           <Card padding="lg" className="min-w-0">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Identity</h2>
-            <p className="mt-1 text-sm text-text-muted">Update the username and email on this account.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Identity</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Update the username and email on this account.</p>
             {isOidc ? (
-              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
+              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-muted-foreground">
                 This session is managed by your identity provider. Profile fields are read-only here.
               </div>
             ) : (
@@ -469,8 +468,8 @@ function AccountPage() {
             <Card padding="md">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-mono text-sm font-semibold text-text-main">Wallet snapshot</p>
-                  <p className="mt-1 text-xs text-text-muted">Open the wallet tab for full credit history.</p>
+                  <p className="font-mono text-sm font-semibold text-foreground">Wallet snapshot</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Open the wallet tab for full credit history.</p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setTab("wallet")}>Open wallet</Button>
               </div>
@@ -485,14 +484,14 @@ function AccountPage() {
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.75fr)] lg:items-start">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-primary">account_balance</span>
-                  <h2 className="font-mono text-sm font-semibold text-text-main">Top up with SePay</h2>
+                  <Icon name="account_balance" className="size-[20px] text-primary" />
+                  <h2 className="font-mono text-sm font-semibold text-foreground">Top up with SePay</h2>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm text-text-muted">
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                   Scan the QR code or transfer the exact amount from your Vietnamese bank account. Credit is added after SePay verifies the incoming transfer.
                 </p>
                 {wallet.sepay?.enabled ? (
-                  <p className="mt-2 font-mono text-xs text-text-subtle">Rate: {Number(wallet.sepay.vndPerUsd).toLocaleString("vi-VN")} VND = $1.00</p>
+                  <p className="mt-2 font-mono text-xs text-muted-foreground">Rate: {Number(wallet.sepay.vndPerUsd).toLocaleString("vi-VN")} VND = $1.00</p>
                 ) : (
                   <p className="mt-2 text-xs text-warning">SePay top-ups are not configured. Ask an administrator to set the Webhooks variables.</p>
                 )}
@@ -522,11 +521,11 @@ function AccountPage() {
                   <img src={topupPayment.qrUrl} alt="SePay bank transfer QR code" width="300" height="300" className="size-[300px] object-contain" />
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div><dt className="text-xs text-text-muted">Bank</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.bankCode}</dd></div>
-                  <div><dt className="text-xs text-text-muted">Account number</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.bankAccount}</dd></div>
-                  <div><dt className="text-xs text-text-muted">Account name</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{topupPayment.accountName}</dd></div>
-                  <div><dt className="text-xs text-text-muted">Exact amount</dt><dd className="mt-0.5 font-mono font-semibold text-text-main">{Number(topupPayment.amountVnd).toLocaleString("vi-VN")} VND</dd></div>
-                  <div className="sm:col-span-2"><dt className="text-xs text-text-muted">Transfer content</dt><dd className="mt-0.5 flex items-center gap-2"><code className="min-w-0 break-all font-mono font-semibold text-primary">{topupPayment.transferContent}</code><button type="button" className="shrink-0 border border-border px-2 py-1 text-xs text-text-muted hover:text-text-main" onClick={() => copy(topupPayment.transferContent)} title="Copy transfer content">Copy</button></dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Bank</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{topupPayment.bankCode}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Account number</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{topupPayment.bankAccount}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Account name</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{topupPayment.accountName}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Exact amount</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{Number(topupPayment.amountVnd).toLocaleString("vi-VN")} VND</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Transfer content</dt><dd className="mt-0.5 flex items-center gap-2"><code className="min-w-0 break-all font-mono font-semibold text-primary">{topupPayment.transferContent}</code><button type="button" className="shrink-0 border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => copy(topupPayment.transferContent)} title="Copy transfer content">Copy</button></dd></div>
                 </dl>
               </div>
             )}
@@ -535,19 +534,19 @@ function AccountPage() {
           {wallet.topups.length > 0 && (
             <Card padding="none" className="overflow-hidden">
               <div className="border-b border-border px-4 py-3">
-                <h2 className="font-mono text-sm font-semibold text-text-main">SePay payments</h2>
-                <p className="text-xs text-text-muted">Pending and completed bank transfer top-ups for this account.</p>
+                <h2 className="font-mono text-sm font-semibold text-foreground">SePay payments</h2>
+                <p className="text-xs text-muted-foreground">Pending and completed bank transfer top-ups for this account.</p>
               </div>
               <div className="divide-y divide-border-subtle">
                 {wallet.topups.map((topup) => (
                   <div key={topup.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-xs font-semibold text-text-main">{topup.invoiceNumber}</p>
-                      <p className="mt-0.5 text-xs text-text-muted">{formatDateTime(topup.createdAt)} · {Number(topup.amountVnd || 0).toLocaleString("vi-VN")} VND</p>
+                      <p className="truncate font-mono text-xs font-semibold text-foreground">{topup.invoiceNumber}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(topup.createdAt)} · {Number(topup.amountVnd || 0).toLocaleString("vi-VN")} VND</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${topup.status === "paid" ? "bg-success/10 text-success" : topup.status === "pending" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}>{topup.status}</span>
-                      <span className="font-mono text-sm font-semibold text-text-main">{CREDIT_FORMAT.format((topup.creditCents || 0) / 100)}</span>
+                      <span className={`px-2 py-0.5 text-xs font-medium text-muted-foreground ${topup.status === "paid" ? "bg-success/10 text-success" : topup.status === "pending" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}>{topup.status}</span>
+                      <span className="font-mono text-sm font-semibold text-foreground">{CREDIT_FORMAT.format((topup.creditCents || 0) / 100)}</span>
                     </div>
                   </div>
                 ))}
@@ -557,8 +556,8 @@ function AccountPage() {
           <Card padding="none" className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
-                <h2 className="font-mono text-sm font-semibold text-text-main">Wallet history</h2>
-                <p className="text-xs text-text-muted">
+                <h2 className="font-mono text-sm font-semibold text-foreground">Wallet history</h2>
+                <p className="text-xs text-muted-foreground">
                   Top-ups, admin adjustments, coupons, and signup bonuses. API spend is tracked under Usage, not here.
                 </p>
               </div>
@@ -571,9 +570,9 @@ function AccountPage() {
               <div className="h-48 animate-pulse bg-surface-2" />
             ) : wallet.entries.length === 0 ? (
               <div className="px-4 py-12 text-center">
-                <span className="material-symbols-outlined text-3xl text-text-subtle">receipt_long</span>
-                <p className="mt-2 text-sm font-medium text-text-main">No wallet activity yet</p>
-                <p className="mt-1 text-xs text-text-muted">
+                <Icon name="receipt_long" className="size-7 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium text-foreground">No wallet activity yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   Admin top-ups, deductions, and signup credits will appear here.
                 </p>
               </div>
@@ -595,32 +594,32 @@ function AccountPage() {
                       const negative = (entry.amountCents || 0) < 0;
                       return (
                         <tr key={entry.id} className="hover:bg-bg-alt/50">
-                          <td className="px-4 py-3 font-mono text-xs text-text-muted whitespace-nowrap">
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
                             {formatDateTime(entry.createdAt)}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium text-muted-foreground tracking-wide ${
                               positive
                                 ? "bg-success/10 text-success"
                                 : negative
                                   ? "bg-danger/10 text-danger"
-                                  : "bg-surface-2 text-text-muted"
+                                  : "bg-surface-2 text-muted-foreground"
                             }`}>
                               {entry.type || "adjustment"}
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <p className="text-sm text-text-main">{ledgerLabel(entry)}</p>
-                            <p className="mt-0.5 font-mono text-[11px] text-text-subtle">
+                            <p className="text-sm text-foreground">{ledgerLabel(entry)}</p>
+                            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                               {[entry.source, entry.meta?.invoiceNumber].filter(Boolean).join(" · ") || "—"}
                             </p>
                           </td>
                           <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${
-                            positive ? "text-success" : negative ? "text-danger" : "text-text-main"
+                            positive ? "text-success" : negative ? "text-danger" : "text-foreground"
                           }`}>
                             {formatSignedCents(entry.amountCents)}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-text-main">
+                          <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">
                             {CREDIT_FORMAT.format((entry.balanceAfterCents || 0) / 100)}
                           </td>
                         </tr>
@@ -637,10 +636,10 @@ function AccountPage() {
       {activeTab === "security" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
           <Card padding="lg">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Password</h2>
-            <p className="mt-1 text-sm text-text-muted">Change the password used for dashboard sign-in.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Password</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Change the password used for dashboard sign-in.</p>
             {isOidc ? (
-              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-text-muted">
+              <div className="mt-5 border border-border bg-bg-alt/60 px-4 py-3 text-sm text-muted-foreground">
                 Password changes are managed by your OIDC provider.
               </div>
             ) : (
@@ -673,24 +672,22 @@ function AccountPage() {
           </Card>
 
           <Card padding="lg">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Quick links</h2>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Quick links</h2>
             <div className="mt-4 space-y-2">
-              <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
-                <span className="material-symbols-outlined text-[18px] text-text-muted">vpn_key</span>
+              <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
+                <Icon name="vpn_key" className="size-[18px] text-muted-foreground" />
                 Manage API keys
               </Link>
-              <Link href="/dashboard/usage" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-text-main hover:bg-surface-2">
-                <span className="material-symbols-outlined text-[18px] text-text-muted">bar_chart</span>
+              <Link href="/dashboard/usage" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
+                <Icon name="bar_chart" className="size-[18px] text-muted-foreground" />
                 View usage
               </Link>
               <button
                 type="button"
                 onClick={() => copy(displayEmail, "email")}
-                className="flex w-full items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-left text-sm text-text-main hover:bg-surface-2"
+                className="flex w-full items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-left text-sm text-foreground hover:bg-surface-2"
               >
-                <span className="material-symbols-outlined text-[18px] text-text-muted">
-                  {copied === "email" ? "check" : "mail"}
-                </span>
+                <Icon name={copied === "email" ? "check" : "mail"} className="size-[18px] text-muted-foreground" />
                 Copy account email
               </button>
             </div>

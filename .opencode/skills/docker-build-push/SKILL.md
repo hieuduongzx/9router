@@ -10,7 +10,7 @@ description: >
 
 Project: **9router** (repo package `9router-app`).  
 Docker Hub image: **`amritazx/9router`**.  
-Default host port: **20128**. Data volume: **`$HOME/.9router` → `/app/data`**.
+Default host port: **20128**. VPS env file and data volume: **`/root/.9router/.env`** and **`/root/.9router` → `/app/data`**.
 
 ## Defaults (do not invent new names)
 
@@ -93,15 +93,17 @@ Tell the user:
 ```bash
 docker pull amritazx/9router:latest
 docker rm -f 9router 2>/dev/null || true
+
 docker run -d \
   -p 20128:20128 \
-  -v "$HOME/.9router:/app/data" \
+  --env-file /root/.9router/.env \
+  -v "/root/.9router:/app/data" \
   -e DATA_DIR=/app/data \
   --name 9router \
   amritazx/9router:latest
 ```
 
-Windows host data path alternative: `%APPDATA%\9router` → still mount to `/app/data` with `DATA_DIR=/app/data`.
+This is the canonical VPS run command. Do not replace it with `$HOME/.9router` or omit `--env-file`; the VPS keeps its environment and persistent data together under `/root/.9router`.
 
 ## Optional: version bump before release
 
@@ -124,7 +126,7 @@ Only if the user asks to bump version:
 ## What NOT to do
 
 - Do not push to `decolua/9router` unless the user explicitly asks.
-- Do not change `DATA_DIR` / volume path conventions without asking.
+- Do not change the VPS `DATA_DIR`, env-file, or volume path conventions without asking.
 - Do not skip the version tag (always push **both** `latest` and `$VERSION`).
 - Do not rewrite git history as part of this skill.
 

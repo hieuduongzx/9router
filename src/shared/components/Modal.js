@@ -1,110 +1,73 @@
 "use client";
 
-import { useEffect } from "react";
-import { cn } from "@/shared/utils/cn";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import Button from "./Button";
-import Tooltip from "./Tooltip";
+import { cn } from "@/shared/utils/cn";
 
+const SIZES = {
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  lg: "sm:max-w-lg",
+  xl: "sm:max-w-xl",
+  "2xl": "sm:max-w-2xl",
+  full: "sm:max-w-4xl",
+};
+
+/**
+ * Legacy Modal API over the Radix dialog.
+ *
+ * The old implementation handled Escape and scroll-lock by hand but had no focus
+ * trap, no `role="dialog"`, and no return-focus — a keyboard user could tab
+ * behind an open modal. Radix supplies all of that; this wrapper only translates
+ * the `isOpen`/`onClose`/`title`/`footer` prop shape used by ~40 call sites.
+ *
+ * `showTrafficLights` is accepted and ignored: the macOS dot row it drew was
+ * decorative (two of the three dots were inert) and the dialog now has a single
+ * real close affordance.
+ */
 export default function Modal({
   isOpen,
   onClose,
   title,
+  description,
   children,
   footer,
   size = "md",
   closeOnOverlay = true,
-  showTrafficLights = true,
+  showTrafficLights,
   className,
+  bodyClassName,
 }) {
-  const sizes = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-xl",
-    full: "max-w-4xl",
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && isOpen) onClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  void showTrafficLights;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px] fade-in"
-        onClick={closeOnOverlay ? onClose : undefined}
-      />
-
-      {/* Modal content */}
-      <div
-        className={cn(
-          "relative w-full border border-border bg-surface",
-          "fade-in",
-          sizes[size],
-          className
-        )}
+    <Dialog open={Boolean(isOpen)} onOpenChange={(open) => !open && onClose?.()}>
+      <DialogContent
+        className={cn("gap-0 p-0", SIZES[size] || SIZES.md, className)}
+        onInteractOutside={closeOnOverlay ? undefined : (event) => event.preventDefault()}
       >
-        {/* Header */}
-        {(title || showTrafficLights) && (
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2">
-              {showTrafficLights && (
-                <div className="mr-1 hidden items-center gap-1.5 md:flex">
-                  <Tooltip text="Close" position="top" color="#FF5F56">
-                    <button
-                      onClick={onClose}
-                      aria-label="Close"
-                      title="Close"
-                      className="group/dot flex size-3 items-center justify-center rounded-full bg-[#FF5F56] transition-all hover:brightness-90"
-                    >
-                      <span className="text-[8px] font-bold leading-none text-white opacity-0 transition-opacity group-hover/dot:opacity-100">✕</span>
-                    </button>
-                  </Tooltip>
-                  <div className="size-3 cursor-not-allowed rounded-full bg-muted-foreground/20" />
-                  <div className="size-3 cursor-not-allowed rounded-full bg-muted-foreground/20" />
-                </div>
-              )}
-              {title && (
-                <h2 className="truncate font-mono text-base font-semibold tracking-tight text-text-main">{title}</h2>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main md:hidden"
-            >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
-        )}
+        <DialogHeader className="border-b px-5 py-4 pr-12">
+          {/* Always rendered: Radix needs a title for the dialog's accessible name. */}
+          <DialogTitle className={title ? "text-base" : "sr-only"}>{title || "Dialog"}</DialogTitle>
+          {description ? <DialogDescription>{description}</DialogDescription> : null}
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="custom-scrollbar max-h-[calc(85vh-100px)] overflow-y-auto p-6">{children}</div>
+        <div className={cn("custom-scrollbar max-h-[70vh] overflow-y-auto p-5", bodyClassName)}>
+          {children}
+        </div>
 
-        {/* Footer */}
-        {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+        {footer ? (
+          <DialogFooter className="border-t px-5 py-3.5 sm:justify-end">{footer}</DialogFooter>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -127,7 +90,7 @@ export function ConfirmModal({
       size="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>
           <Button variant={variant} onClick={onConfirm} loading={loading}>
@@ -136,7 +99,7 @@ export function ConfirmModal({
         </>
       }
     >
-      <p className="text-text-muted">{message}</p>
+      <p className="text-sm text-muted-foreground">{message}</p>
     </Modal>
   );
 }

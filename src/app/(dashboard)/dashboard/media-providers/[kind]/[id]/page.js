@@ -13,6 +13,7 @@ import { EmbeddingExampleCard } from "./components/EmbeddingExampleCard";
 import { TtsExampleCard } from "./components/TtsExampleCard";
 import { GenericExampleCard } from "./components/GenericExampleCard";
 import { SttExampleCard } from "./components/SttExampleCard";
+import { Icon } from "@/shared/components/ui/icon";
 
 // MediaProviderDetailPage
 export default function MediaProviderDetailPage() {
@@ -62,7 +63,7 @@ export default function MediaProviderDetailPage() {
   if (!isCustom && !builtInProvider) return notFound();
   if (isCustom && !customLoading && !customNode) return notFound();
   if (isCustom && customLoading) {
-    return <div className="text-text-muted text-sm py-12 text-center">Loading...</div>;
+    return <div className="text-muted-foreground text-sm py-12 text-center">Loading...</div>;
   }
 
   const kinds = isCustom ? ["embedding"] : (provider.serviceKinds ?? ["llm"]);
@@ -74,15 +75,15 @@ export default function MediaProviderDetailPage() {
       <div>
         <Link
           href={`/dashboard/media-providers/${kind}`}
-          className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary transition-colors mb-4"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
-          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          <Icon name="arrow_back" className="size-[18px]" />
           {kindConfig.label}
         </Link>
 
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <div className="size-12 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-text-main">
+          <div className="size-12 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-foreground">
             <ProviderIcon
               src={`/providers/${provider.id}.png`}
               alt={provider.name}
@@ -102,7 +103,7 @@ export default function MediaProviderDetailPage() {
                   rel="noopener noreferrer"
                   className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                  <Icon name="open_in_new" className="size-3.5" />
                   Get API Key
                 </a>
               )}
@@ -131,23 +132,23 @@ export default function MediaProviderDetailPage() {
 
       {/* Kind-specific notice (e.g. codex/image requires Plus) */}
       {!isCustom && provider.kindNotice?.[kind] && (
-        <div className="flex items-start gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400">
-          <span className="material-symbols-outlined text-[20px] mt-0.5">warning</span>
+        <div className="flex items-start gap-3 px-4 py-3 bg-warning/10 border border-warning/30 text-warning dark:text-warning">
+          <Icon name="warning" className="size-[20px] mt-0.5" />
           <p className="text-sm">{provider.kindNotice[kind]}</p>
         </div>
       )}
 
       {/* Provider notice text (only when there's actual text content) */}
       {!isCustom && provider.notice?.text && !provider.deprecated && (
-        <div className="flex flex-col gap-2 border border-blue-500/30 bg-blue-500/10 px-3 py-2 sm:flex-row sm:items-center">
-          <span className="material-symbols-outlined text-[16px] text-blue-500 shrink-0">info</span>
-          <p className="min-w-0 flex-1 text-xs leading-relaxed text-blue-600 dark:text-blue-400">{provider.notice.text}</p>
+        <div className="flex flex-col gap-2 border border-info/30 bg-info/10 px-3 py-2 sm:flex-row sm:items-center">
+          <Icon name="info" className="size-[16px] text-info shrink-0" />
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-info dark:text-info">{provider.notice.text}</p>
           {provider.notice.apiKeyUrl && (
             <a
               href={provider.notice.apiKeyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex justify-center rounded-sm bg-blue-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 sm:py-0.5"
+              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-info sm:py-0.5"
             >
               Get API Key →
             </a>

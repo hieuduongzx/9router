@@ -66,8 +66,8 @@ export default function CreditAdjustModal({ user, onClose, onUpdated }) {
     >
       <div className="space-y-4">
         <div className="border border-border bg-bg-alt/60 px-4 py-3">
-          <p className="text-xs text-text-muted">Current balance</p>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-text-main">
+          <p className="text-xs text-muted-foreground">Current balance</p>
+          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-foreground">
             {formatCredit(user.creditCents)}
           </p>
         </div>

@@ -132,6 +132,8 @@ const ADMIN_DASHBOARD_PATHS = [
   "/admin/api-keys",
   "/admin/usage",
   "/admin/activity",
+  "/admin/router",
+  // Legacy path, kept so the redirect to /admin/router stays reachable.
   "/admin/combos",
   "/admin/models",
   "/admin/skills",

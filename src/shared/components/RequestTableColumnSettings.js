@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import PropTypes from "prop-types";
 import Toggle from "./Toggle";
 import { cn } from "@/shared/utils/cn";
+import { Icon } from "@/shared/components/ui/icon";
 
 export const REQUEST_TABLE_COLUMN_STORAGE_KEY = "9router.requestTable.columns";
 
@@ -160,10 +161,10 @@ export default function RequestTableColumnSettings({ table, className }) {
         aria-controls={menuId}
         aria-haspopup="true"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 font-mono text-xs font-medium text-text-muted hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+        className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 font-mono text-xs font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
         title="Choose which columns to show"
       >
-        <span className="material-symbols-outlined text-[16px]" aria-hidden>tune</span>
+        <Icon name="tune" className="size-[16px]" aria-hidden />
         Columns
       </button>
       {open && (
@@ -173,7 +174,7 @@ export default function RequestTableColumnSettings({ table, className }) {
           aria-label="Table columns"
           className="absolute right-0 z-20 mt-1 w-56 rounded-sm border border-border bg-surface p-2 shadow-lg"
         >
-          <p className="px-1 pb-2 font-mono text-[10px] uppercase tracking-wide text-text-muted">Visible columns</p>
+          <p className="px-1 pb-2 text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Visible columns</p>
           <ul className="flex flex-col gap-1">
             {columns.map((column) => (
               <li key={column.id} role="none">

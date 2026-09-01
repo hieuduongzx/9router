@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { readPresets, upsertPreset, deletePreset, subscribePresets, stripSlash } from "./cliEndpointPresets";
+import { Icon } from "@/shared/components/ui/icon";
 
 const CUSTOM_VALUE = "__custom__";
 const SAVE_VALUE = "__save__";
@@ -168,8 +169,8 @@ export default function BaseUrlSelect({
           {canSave && <option value={SAVE_VALUE}>+ Save current as...</option>}
         </select>
         {isSaved && (
-          <button type="button" onClick={handleDeleteSaved} className="p-1 text-text-muted hover:text-red-500 rounded transition-colors shrink-0" title="Delete saved endpoint">
-            <span className="material-symbols-outlined text-[14px]">delete</span>
+          <button type="button" onClick={handleDeleteSaved} className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors shrink-0" title="Delete saved endpoint">
+            <Icon name="delete" className="size-[14px]" />
           </button>
         )}
       </div>

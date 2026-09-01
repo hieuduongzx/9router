@@ -27,6 +27,7 @@ import {
   formatDateTime,
   initials,
 } from "./components/userFormat";
+import { Icon } from "@/shared/components/ui/icon";
 
 const SORT_OPTIONS = [
   { value: "recent", label: "Newest first" },
@@ -40,7 +41,7 @@ const SORT_OPTIONS = [
 /** Accounts are long-lived, so a month of history is the useful default here. */
 const DEFAULT_PERIOD = "30d";
 const EMPTY_DRAFT = { username: "", email: "", password: "", role: "user", credit: "" };
-const FILTER_SELECT_CLASS = "h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main focus-visible:border-primary focus-visible:outline-none";
+const FILTER_SELECT_CLASS = "h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground focus-visible:border-primary focus-visible:outline-none";
 
 export default function UsersPageClient() {
   const router = useRouter();
@@ -266,8 +267,8 @@ export default function UsersPageClient() {
       <div className="border border-border bg-surface">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Accounts</h2>
-            <p className="mt-0.5 text-xs text-text-muted">
+            <h2 className="font-mono text-sm font-semibold text-foreground">Accounts</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {visibleUsers.length === users.length
                 ? `${users.length} account${users.length === 1 ? "" : "s"}`
                 : `${visibleUsers.length} of ${users.length} accounts`}
@@ -276,13 +277,13 @@ export default function UsersPageClient() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
-              <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-text-muted">search</span>
+              <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-[16px] text-muted-foreground" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search username, email, ID"
                 aria-label="Search accounts"
-                className="h-8 w-full rounded-sm border border-border bg-surface pl-8 pr-3 font-mono text-xs text-text-main placeholder:font-sans focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                className="h-8 w-full rounded-sm border border-border bg-surface pl-8 pr-3 font-mono text-xs text-foreground placeholder:font-sans focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
               />
             </div>
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} aria-label="Filter by role" className={FILTER_SELECT_CLASS}>
@@ -310,11 +311,11 @@ export default function UsersPageClient() {
 
         {visibleUsers.length === 0 ? (
           <div className="px-4 py-14 text-center">
-            <span className="material-symbols-outlined text-3xl text-text-muted">group_off</span>
-            <p className="mt-2 text-sm font-medium text-text-main">
+            <Icon name="group_off" className="size-7 text-muted-foreground" />
+            <p className="mt-2 text-sm font-medium text-foreground">
               {filtersActive ? "No accounts match these filters" : "No accounts yet"}
             </p>
-            <p className="mt-1 text-xs text-text-muted">
+            <p className="mt-1 text-xs text-muted-foreground">
               {filtersActive ? "Clear the search or filters to see every account." : "Create the first account to grant dashboard access."}
             </p>
             {filtersActive && (
@@ -353,12 +354,12 @@ export default function UsersPageClient() {
                       <tr key={user.id} className={`transition-colors hover:bg-bg-alt/50 ${busy ? "opacity-60" : ""}`}>
                         <td className="px-4 py-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-xs font-semibold text-text-main">
+                            <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-xs font-semibold text-foreground">
                               {initials(user.username)}
                             </span>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-text-main hover:text-primary">
+                                <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground hover:text-primary">
                                   {user.username}
                                 </Link>
                                 {isCurrent && <Badge size="sm" variant="info">You</Badge>}
@@ -368,7 +369,7 @@ export default function UsersPageClient() {
                                   </span>
                                 )}
                               </div>
-                              <p className="truncate text-xs text-text-muted">{user.email}</p>
+                              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                             </div>
                           </div>
                         </td>
@@ -378,7 +379,7 @@ export default function UsersPageClient() {
                             disabled={busy || isCurrent}
                             aria-label={`Role for ${user.username}`}
                             onChange={(event) => updateUser(user.id, { role: event.target.value })}
-                            className="h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
+                            className="h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -390,13 +391,13 @@ export default function UsersPageClient() {
                             disabled={busy || isCurrent}
                             onClick={() => updateUser(user.id, { isActive: !user.isActive })}
                             title={isCurrent ? "You cannot change your own access" : user.isActive ? "Suspend account" : "Reactivate account"}
-                            className={`inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition-colors disabled:opacity-60 ${
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium text-muted-foreground tracking-wide transition-colors disabled:opacity-60 ${
                               user.isActive
                                 ? "border-success/25 bg-success/10 text-success"
-                                : "border-border bg-surface-2 text-text-muted"
+                                : "border-border bg-surface-2 text-muted-foreground"
                             }`}
                           >
-                            <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-text-muted"}`} />
+                            <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-muted-foreground"}`} />
                             {user.isActive ? "Active" : "Suspended"}
                           </button>
                         </td>
@@ -406,36 +407,36 @@ export default function UsersPageClient() {
                             disabled={busy}
                             onClick={() => { setError(""); setCreditTarget(user); }}
                             title="Adjust credit"
-                            className="font-mono text-sm font-semibold tabular-nums text-text-main underline-offset-4 hover:text-primary hover:underline disabled:opacity-60"
+                            className="font-mono text-sm font-semibold tabular-nums text-foreground underline-offset-4 hover:text-primary hover:underline disabled:opacity-60"
                           >
                             {formatCredit(user.creditCents)}
                           </button>
                         </td>
-                        <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-text-main">
+                        <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">
                           {user.apiKeyCount ? (
                             <span title={`${user.activeApiKeyCount} active of ${user.apiKeyCount}`}>
                               {user.activeApiKeyCount}
-                              <span className="text-text-muted">/{user.apiKeyCount}</span>
+                              <span className="text-muted-foreground">/{user.apiKeyCount}</span>
                             </span>
                           ) : (
-                            <span className="text-text-muted">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <p className="font-mono text-sm tabular-nums text-text-main">{NUMBER_FORMAT.format(user.requestsInPeriod || 0)}</p>
-                          <p className="font-mono text-[11px] tabular-nums text-text-muted">{COST_FORMAT.format(user.costInPeriod || 0)}</p>
+                          <p className="font-mono text-sm tabular-nums text-foreground">{NUMBER_FORMAT.format(user.requestsInPeriod || 0)}</p>
+                          <p className="font-mono text-[11px] tabular-nums text-muted-foreground">{COST_FORMAT.format(user.costInPeriod || 0)}</p>
                         </td>
                         <td className="px-3 py-3">
-                          <p className="text-xs text-text-main" title={formatDateTime(user.lastUsedAt)}>
+                          <p className="text-xs text-foreground" title={formatDateTime(user.lastUsedAt)}>
                             {user.lastUsedAt ? getRelativeTime(user.lastUsedAt) : "Never"}
                           </p>
-                          <p className="font-mono text-[11px] text-text-muted">Joined {formatDate(user.createdAt)}</p>
+                          <p className="font-mono text-[11px] text-muted-foreground">Joined {formatDate(user.createdAt)}</p>
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Link
                               href={`/dashboard/users/${user.id}`}
-                              className="inline-flex h-8 items-center rounded-sm border border-border px-2.5 font-mono text-xs text-text-main transition-colors hover:bg-surface-2"
+                              className="inline-flex h-8 items-center rounded-sm border border-border px-2.5 font-mono text-xs text-foreground transition-colors hover:bg-surface-2"
                             >
                               Details
                             </Link>
@@ -458,18 +459,18 @@ export default function UsersPageClient() {
                   <div key={user.id} className={`px-4 py-4 ${busy ? "opacity-60" : ""}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-sm font-semibold text-text-main">
+                        <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-sm font-semibold text-foreground">
                           {initials(user.username)}
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-text-main">
+                            <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground">
                               {user.username}
                             </Link>
                             {isCurrent && <Badge size="sm" variant="info">You</Badge>}
                             {user.mustChangePassword && <Badge size="sm" variant="warning">Reset</Badge>}
                           </div>
-                          <p className="truncate text-xs text-text-muted">{user.email}</p>
+                          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                         </div>
                       </div>
                       <ActionMenu items={buildMenu(user)} label={`Actions for ${user.username}`} />
@@ -477,14 +478,14 @@ export default function UsersPageClient() {
 
                     <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                       <div>
-                        <dt className="text-text-muted">Role</dt>
+                        <dt className="text-muted-foreground">Role</dt>
                         <dd className="mt-0.5">
                           <select
                             value={user.role}
                             disabled={busy || isCurrent}
                             aria-label={`Role for ${user.username}`}
                             onChange={(event) => updateUser(user.id, { role: event.target.value })}
-                            className="h-8 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs text-text-main disabled:opacity-60"
+                            className="h-8 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground disabled:opacity-60"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -492,43 +493,43 @@ export default function UsersPageClient() {
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-text-muted">Status</dt>
+                        <dt className="text-muted-foreground">Status</dt>
                         <dd className="mt-0.5">
                           <button
                             type="button"
                             disabled={busy || isCurrent}
                             onClick={() => updateUser(user.id, { isActive: !user.isActive })}
-                            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-sm border font-mono text-[11px] font-semibold uppercase tracking-wide disabled:opacity-60 ${
+                            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-sm border text-xs font-medium text-muted-foreground tracking-wide disabled:opacity-60 ${
                               user.isActive
                                 ? "border-success/25 bg-success/10 text-success"
-                                : "border-border bg-surface-2 text-text-muted"
+                                : "border-border bg-surface-2 text-muted-foreground"
                             }`}
                           >
-                            <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-text-muted"}`} />
+                            <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-muted-foreground"}`} />
                             {user.isActive ? "Active" : "Suspended"}
                           </button>
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-text-muted">Credit</dt>
-                        <dd className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-text-main">{formatCredit(user.creditCents)}</dd>
+                        <dt className="text-muted-foreground">Credit</dt>
+                        <dd className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">{formatCredit(user.creditCents)}</dd>
                       </div>
                       <div>
-                        <dt className="text-text-muted">Requests · {periodLabel}</dt>
-                        <dd className="mt-0.5 font-mono text-sm tabular-nums text-text-main">
+                        <dt className="text-muted-foreground">Requests · {periodLabel}</dt>
+                        <dd className="mt-0.5 font-mono text-sm tabular-nums text-foreground">
                           {NUMBER_FORMAT.format(user.requestsInPeriod || 0)}
-                          <span className="ml-1 text-[11px] text-text-muted">{COST_FORMAT.format(user.costInPeriod || 0)}</span>
+                          <span className="ml-1 text-[11px] text-muted-foreground">{COST_FORMAT.format(user.costInPeriod || 0)}</span>
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-text-muted">API keys</dt>
-                        <dd className="mt-0.5 font-mono text-sm tabular-nums text-text-main">
+                        <dt className="text-muted-foreground">API keys</dt>
+                        <dd className="mt-0.5 font-mono text-sm tabular-nums text-foreground">
                           {user.apiKeyCount ? `${user.activeApiKeyCount}/${user.apiKeyCount}` : "—"}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-text-muted">Last active</dt>
-                        <dd className="mt-0.5 text-sm text-text-main">{user.lastUsedAt ? getRelativeTime(user.lastUsedAt) : "Never"}</dd>
+                        <dt className="text-muted-foreground">Last active</dt>
+                        <dd className="mt-0.5 text-sm text-foreground">{user.lastUsedAt ? getRelativeTime(user.lastUsedAt) : "Never"}</dd>
                       </div>
                     </dl>
                   </div>
@@ -576,11 +577,11 @@ export default function UsersPageClient() {
           />
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Role</span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Role</span>
               <select
                 value={draft.role}
                 onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value }))}
-                className="h-9 rounded-sm border border-border bg-surface px-3 font-mono text-sm text-text-main focus-visible:border-primary focus-visible:outline-none"
+                className="h-9 rounded-sm border border-border bg-surface px-3 font-mono text-sm text-foreground focus-visible:border-primary focus-visible:outline-none"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -634,3 +635,4 @@ export default function UsersPageClient() {
     </div>
   );
 }
+

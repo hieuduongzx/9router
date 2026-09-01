@@ -27,6 +27,7 @@ import {
   CHART_TOOLTIP_LABEL,
   CHART_TOOLTIP_STYLE,
 } from "@/shared/utils/chartTheme";
+import { Icon } from "@/shared/components/ui/icon";
 
 const COLOR_INPUT = CHART_COLORS.input;
 const COLOR_OUTPUT = CHART_COLORS.output;
@@ -101,7 +102,7 @@ function AdminDashboardSkeleton() {
 
 function LegendChip({ color, label, line = false }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
       <span
         aria-hidden
         className={cn("shrink-0", line ? "h-0.5 w-3.5" : "size-2")}
@@ -115,7 +116,7 @@ function LegendChip({ color, label, line = false }) {
 function CardHead({ title, children }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-      <h2 className="font-mono text-sm font-semibold text-text-main">{title}</h2>
+      <h2 className="font-mono text-sm font-semibold text-foreground">{title}</h2>
       <div className="flex shrink-0 items-center gap-3">{children}</div>
     </div>
   );
@@ -124,8 +125,8 @@ function CardHead({ title, children }) {
 function EmptyState({ title, hint, className }) {
   return (
     <div className={cn("flex flex-col items-center justify-center px-6 py-10 text-center", className)}>
-      <p className="font-mono text-sm font-medium text-text-main">{title}</p>
-      <p className="mt-1 max-w-xs text-xs text-text-muted">{hint}</p>
+      <p className="font-mono text-sm font-medium text-foreground">{title}</p>
+      <p className="mt-1 max-w-xs text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -204,16 +205,16 @@ export default function AdminDashboardClient() {
       {/* Admin Header */}
       <div className="flex items-center gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center border border-border bg-primary/10">
-          <span className="material-symbols-outlined text-[20px] text-primary">admin_panel_settings</span>
+          <Icon name="admin_panel_settings" className="size-[20px] text-primary" />
         </span>
         <div>
-          <h1 className="font-mono text-lg font-semibold tracking-tight text-text-main">Admin Dashboard</h1>
-          <p className="text-sm text-text-muted">System-wide overview and management</p>
+          <h1 className="font-mono text-lg font-semibold tracking-tight text-foreground">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground">System-wide overview and management</p>
         </div>
       </div>
 
       {error && (
-        <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-text-main" role="status">
+        <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground" role="status">
           {error}
         </div>
       )}
@@ -228,7 +229,7 @@ export default function AdminDashboardClient() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex size-7 items-center justify-center border border-border bg-surface text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
+                className="flex size-7 items-center justify-center border border-border bg-surface text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
                 aria-label="Refresh dashboard"
                 title="Refresh dashboard"
               >
@@ -278,7 +279,7 @@ export default function AdminDashboardClient() {
           </div>
           <Link
             href="/admin/activity"
-            className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted transition-colors hover:text-text-main"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Activity
             <ArrowRight aria-hidden size={12} strokeWidth={2.5} />
@@ -374,11 +375,11 @@ export default function AdminDashboardClient() {
             <Card padding="md" className="transition-colors group-hover:border-primary/30">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
-                  <Users aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+                  <Users aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
                 </span>
                 <div>
-                  <p className="font-mono text-sm font-semibold text-text-main">Manage Accounts</p>
-                  <p className="text-xs text-text-muted">{activeUsers} active users</p>
+                  <p className="font-mono text-sm font-semibold text-foreground">Manage Accounts</p>
+                  <p className="text-xs text-muted-foreground">{activeUsers} active users</p>
                 </div>
               </div>
             </Card>
@@ -387,11 +388,11 @@ export default function AdminDashboardClient() {
             <Card padding="md" className="transition-colors group-hover:border-primary/30">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
-                  <Server aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+                  <Server aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
                 </span>
                 <div>
-                  <p className="font-mono text-sm font-semibold text-text-main">Providers</p>
-                  <p className="text-xs text-text-muted">{activeProviders} connected</p>
+                  <p className="font-mono text-sm font-semibold text-foreground">Providers</p>
+                  <p className="text-xs text-muted-foreground">{activeProviders} connected</p>
                 </div>
               </div>
             </Card>
@@ -400,11 +401,11 @@ export default function AdminDashboardClient() {
             <Card padding="md" className="transition-colors group-hover:border-primary/30">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
-                  <Activity aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+                  <Activity aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
                 </span>
                 <div>
-                  <p className="font-mono text-sm font-semibold text-text-main">Activity</p>
-                  <p className="text-xs text-text-muted">System logs</p>
+                  <p className="font-mono text-sm font-semibold text-foreground">Activity</p>
+                  <p className="text-xs text-muted-foreground">System logs</p>
                 </div>
               </div>
             </Card>
@@ -413,11 +414,11 @@ export default function AdminDashboardClient() {
             <Card padding="md" className="transition-colors group-hover:border-primary/30">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
-                  <DollarSign aria-hidden size={16} strokeWidth={2.25} className="text-text-muted" />
+                  <DollarSign aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
                 </span>
                 <div>
-                  <p className="font-mono text-sm font-semibold text-text-main">Settings</p>
-                  <p className="text-xs text-text-muted">System config</p>
+                  <p className="font-mono text-sm font-semibold text-foreground">Settings</p>
+                  <p className="text-xs text-muted-foreground">System config</p>
                 </div>
               </div>
             </Card>

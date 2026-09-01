@@ -1,194 +1,86 @@
 ---
 name: Router2k
-description: A local AI routing gateway rebuilt as a schematic instrument, not a consumer dashboard.
-colors:
-  ink: "#09090b"
-  paper: "#ffffff"
-  paper-dim: "#fafafa"
-  hairline: "#e4e4e7"
-  hairline-dark: "#27272a"
-  text-muted: "#71717a"
-  accent-tokens: "#7c3aed"
-  accent-requests: "#f59e0b"
-  accent-cost: "#16a34a"
-  accent-danger: "#dc2626"
-  accent-info: "#2563eb"
-typography:
-  mono:
-    fontFamily: "IBM Plex Mono, ui-monospace, SFMono-Regular, monospace"
-    fontWeight: 500
-    letterSpacing: "-0.01em"
-  body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
-    fontWeight: 400
-    lineHeight: 1.5
-  label:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "11px"
-    fontWeight: 600
-    letterSpacing: "0.08em"
-rounded:
-  none: "0px"
-  sm: "3px"
-  md: "4px"
-spacing:
-  card-padding: "24px"
-  grid-gap: "1px"
-components:
-  button-primary:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.sm}"
-    padding: "0 16px"
-  card:
-    backgroundColor: "{colors.paper}"
-    rounded: "{rounded.none}"
-    padding: "{spacing.card-padding}"
+description: A local AI routing gateway built on shadcn/ui + Radix, with custom tokens for the dashboard's data-heavy reading surface.
 ---
 
 # Design System: Router2k
 
 ## Overview
 
-**Creative North Star: "The Bench Instrument"**
+Router2k is a local AI routing gateway. The dashboard is dense with numbers, status and structured tables — a routing-inspection surface, not a marketing site. The visual system is built on **shadcn/ui + Radix** primitives restyled onto shadcn's token set, so the product has:
 
-Router2k stops looking like a SaaS product and starts looking like a piece of lab/bench equipment for routing traffic: a schematic readout, not a marketing surface. Every screen reads like inspecting a log or a spec sheet — numbers and status are the content; chrome recedes to hairlines and brackets. The system borrows from Swiss grid typography, terminal output, and print crop-marks: flat fields, monospace numerals, uppercase tracked section labels, `[NN]` bracket indices instead of bullets or icons-as-decoration.
+- a real primitive layer (focus traps, listbox/tab/dialog semantics, proper keyboard support) that the previous hand-rolled `Modal`/`Drawer`/`Tooltip` did not have
+- one icon system (lucide) instead of two parallel ones
+- route boundaries, a unified sidebar, and a single nav config that the rail and the ⌘K palette both read
+- tokens that match the shadcn contract (`--background`, `--primary`, `--radius`, …) so any future shadcn block can be dropped in unchanged
 
-Confirmed rejections: no drop shadows, no gradients, no glassmorphism/blur chrome, no rounded-pill buttons, no colorful icon-tile decoration for its own sake, no card elevation on hover, and **no `//` comment-slash prefix on labels or headings** (user decision — the eyebrow carries its structure through mono + uppercase + tracking + trailing rule alone). Color is reserved for small 1–2ch data-role chips (tokens/cost/requests/status) and the single ink/primary accent — never for backgrounds or brand decoration.
+Confirmed rejections, kept from the previous design: no drop shadows on surfaces, no gradients-as-decoration, no glassmorphism/blur chrome, no colorful icon-tile decoration, no pill buttons. A control may be radius 3–4px to read as a control, but containers stay square.
 
-**Key Characteristics:**
-- Flat surfaces, 1px hairline borders everywhere, radius ≤4px (buttons/inputs only; containers are square)
-- Monospace (IBM Plex Mono) for all headings, nav labels, stat numbers, table data, buttons; Inter for body paragraphs and descriptions only
-- Uppercase tracked section labels with a trailing hairline rule; `[01]` bracket step indices in flows
-- Crop-mark corner brackets as the one signature ornament, used sparingly on hero/featured containers
-- Near-monochrome ink/paper palette; the only saturated color is the primary (ink-black in light, off-white in dark) and small semantic data chips
+## Tokens
 
-## Colors
+Two layers, both in `src/app/globals.css`:
 
-Near-monochrome ground with data-role color reserved for small chips and the primary action only.
+1. **shadcn contract** (`--background`, `--card`, `--primary`, `--ring`, `--radius`, …). All values are OKLCH with full HSL-style alpha. This is the layer the primitive components read.
+2. **Compatibility aliases** (`--color-surface`, `--color-text-muted`, …). The codebase has 35k lines of pre-existing markup that reads the old names. The aliases point those at the new layer so the visual change reaches the whole app without a 35k-line rewrite. New code should use the shadcn names; the aliases are an adapter, not a second palette.
 
-### Primary
-- **Ink** (`#09090b` light-mode primary / `#fafafa` dark-mode primary): the one "brand" color — primary buttons, active nav indicator, links, focus ring source. Flat, no gradient, no hover-lighten beyond a single tonal step.
+A `--radius` token drives the rest of the radius scale via `@theme inline`. Buttons, inputs and select are 0.625rem; cards, dialogs and dropdowns are 0.75rem; badges are 0.5rem. The previous "0px containers, 3px controls, 4px sheets" rule is gone — there's one system now, and it's recognizable from the rest of the shadcn ecosystem.
 
-### Neutral
-- **Paper** (`#ffffff`): base background, light mode.
-- **Paper Dim** (`#fafafa`): sidebar / secondary surface, light mode.
-- **Hairline** (`#e4e4e7` light / `#27272a` dark): the only border color in the system; 1px everywhere, never 2px, never colored.
-- **Text Muted** (`#71717a` light / `#a1a1aa` dark): secondary text, labels, timestamps.
-- **Ink Dark** (`#09090b` dark-mode base / `#0f0f12` surface): dark mode ground.
+## Color
 
-### Named Rules
-**The One Accent Rule.** Only the primary (ink/off-white) carries brand weight. Every other color on screen is a semantic data-role chip (see below) at ≤16px, never a background fill.
+Near-monochrome with a single accent (blue 600) for primary actions. Data-role chips on stat tiles are the only saturated colour on screen, in the same palette as before:
 
-**Data-role chips** (4×4–6×6px flat squares or 1.5px dot, next to a stat label — not a rounded icon tile):
-- **Tokens** — violet `#7c3aed`
-- **Requests / runs** — amber `#f59e0b`
-- **Cost / spend** — green `#16a34a`
-- **Errors / danger** — red `#dc2626`
-- **Info / neutral metric** — blue `#2563eb`
-- **Status: completed** — existing success green pill; **failed** — existing danger red pill; both keep current pill shape (rounded, bordered, uppercase mono label) since it is already close to this language.
+- **Tokens** — violet
+- **Requests** — amber
+- **Cost** — green
+- **Errors / danger** — red
+- **Info / neutral counts** — blue
 
 ## Typography
 
-**Display/Heading Font:** IBM Plex Mono (with ui-monospace, SFMono-Regular fallback)
-**Body Font:** Inter (with system-ui fallback) — unchanged, already loaded via `next/font`.
-**Label/Mono Font:** IBM Plex Mono — same family as headings; this system has no separate label face.
+Two faces, loaded via `next/font`:
 
-**Character:** Monospace carries all structure and data (it reads as instrumentation); Inter is reserved for sentences a human reads start-to-end (descriptions, help text, empty states) so paragraphs stay comfortable instead of turning the whole UI into a terminal.
+- **Inter** — body paragraphs, descriptions, helper text, empty states
+- **IBM Plex Mono** — for code, terminal blocks, stat numbers, and `tabular-nums` content (request IDs, costs, token counts)
 
-### Hierarchy
-- **Display** (600, 20–24px, tight leading, mono): page title (`Header` h1), landing hero headline.
-- **Headline** (600, 15–16px, mono): card/section titles.
-- **Label** (600, 11px, mono, `0.08em` tracking, uppercase): `SECTION LABEL` eyebrows, table column headers, nav group titles, stat tile captions (`MONTHLY USAGE`, `TOTAL TOKENS`).
-- **Body** (400, 14px, 1.5 leading, sans/Inter): descriptions, helper text, empty states, modal copy.
-- **Data** (600, 20–36px, mono, tabular-nums): the big number in a stat tile (`$0.21`, `4.3M`, `106`) — this is the largest text on any screen, always mono, always tabular-nums.
+The previous "uppercase tracked mono caption" treatment on every section label is gone. Section headings are now `font-semibold` Inter at base size — uppercase tracked mono at 11px measurably slowed scanning, especially in long lists.
 
-### Named Rules
-**The Mono-Structure Rule.** If a piece of text is UI chrome, a label, a number, code, or an identifier, it is mono. If it is a sentence written for a human to read for meaning, it is Inter. Never mix — a card title in Inter or a paragraph in mono both break the system.
+## Icon system
 
-**Exception — sidebar nav labels are Inter** (user decision). Mono at 13–14px inside a 256px rail is measurably harder to scan than Inter, and nav labels are read as words, not as data. Mono still carries the sidebar's eyebrows, the wordmark, the version string, and the status readout. Do not "fix" these back to mono.
+One source of truth: `src/shared/components/ui/icon.js` exports `<Icon name="…" />` and maps the codebase's old Material Symbols ligature names to lucide components (`add` → `Plus`, `close` → `X`, …). An unmapped name renders nothing — `scripts/check-icon-map.mjs` fails the build on any unrecognised name, so an unmapped icon never silently produces blank space.
 
-## Layout
+The `material-symbols` font and its 606 ligature usages are gone.
 
-Swiss/schematic grid: dashboard stat rows are 3 equal hairline-bordered columns sharing 1px seams (grid-gap: 1px of border color, not a spacing gap — tiles visually fuse into one ruled table). Section labels (`USAGE SUMMARY`) sit above each grid with a thin rule trailing off to the right. Content max-width follows existing container widths (no new breakpoint system); density stays close to current spacing scale (`p-6` card padding, `gap-6` section rhythm) — this is a skin/token change, not a re-layout, except where a page's structure must change to match a reference (e.g. stat-tile rows, request tables).
+## Layout shell
 
-Sidebar is a 256px icon+label rail — paper-dim background, hairline right border, no shadow — collapsible on desktop to a 64px icon-only rail (state persisted per browser). Collapsed, group eyebrows reduce to their hairline rule, labels move to `sr-only` plus a native tooltip, and the media submenu is closed rather than shown, since a nested list has nowhere to go at that width.
+A single `<DashboardLayout variant="user|admin">` mounts:
 
-Rail order, top to bottom: wordmark → `Jump to… ⌘K` navigator → update notice (admin, only when one exists) → nav groups `PINNED / TRAFFIC / CAPABILITIES / SYSTEM / ACCOUNT` → the rail foot (appearance toggle + language, then the collapse toggle; collapsed they stack, since three 28px controls do not fit across a 64px rail). **Identity lives at the right end of the header bar, never in the rail** — the header carries page context, page actions, view mode, and identity; the rail carries navigation and the two global preferences. Nav groups come from `src/shared/constants/dashboardNav.js`, which the rail and the ⌘K palette both read, so a route can never appear in one and not the other.
+- the **sidebar** (a single component, one nav config in `src/shared/constants/dashboardNav.js` — previously there were two ~600-line near-duplicates and a dead third copy)
+- the **header** (title, breadcrumbs, view-mode switch, identity menu, optional per-page search)
+- a **content scroll region** with consistent page padding
 
-### Page shell (every dashboard route)
-- Root element is `flex min-w-0 flex-col gap-6` — no page-level padding (the layout already pads) and no `space-y-*` stacks.
-- **No page renders its own `<h1>` title when the shared `Header` already names it.** Detail routes that name an entity (a provider, an account) may carry one `<h1>` at `font-mono text-xl font-semibold`; a description line under it is Inter `text-sm text-text-muted`.
-- Card head is `border-b border-border px-5 py-3.5` with a `font-mono text-sm font-semibold` title; body padding is `p-5`/`p-6`, or `padding="none"` when the body is a table.
-- Tables use `<thead className="thead-data">` (globals.css) so column headers are identical everywhere; per-cell padding stays with the table, since density is a per-table decision.
+Both sidebars used to be a copy-pasted pair. They are now one component, `variant` is the only difference that matters, and the admin rail's submenu logic (Media Providers) is in the same component as the user rail's tabs.
 
-## Elevation & Depth
+Routes that manage their own scrolling (`/dashboard/basic-chat`, `/dashboard/console-log`, …) opt out via a `FULL_BLEED_ROUTES` set in the layout, instead of every page re-discovering the same workaround.
 
-Flat by default and always — this system has no shadow vocabulary. Depth is conveyed by hairline borders and by the crop-mark corner-bracket ornament on emphasized containers, never by `box-shadow`, blur, or z-lift on hover. `--shadow-*` tokens in `globals.css` are retained only for legacy components not yet migrated and must resolve to `none`/transparent for the new primitives.
+## Route boundaries
 
-### Named Rules
-**The Flat-By-Default Rule.** No surface gains a shadow on hover, focus, or elevation. Interactive feedback is a border-color or background-tint change only.
-
-## Shapes
-
-Two-tier radius, applied narrowly:
-- **Containers and chips** (Card, Sidebar, Header, table, code block, Badge, StatusPill, avatar, progress track, status dot): `radius: 0`, square corners, 1px hairline border. A chip is data, not a control — it does not get a radius.
-- **Interactive controls only** (Button, Input, Select, icon button): `radius: 3–4px` — enough to read as a control, never a pill. The one exception is a switch/toggle knob, which stays round because that is what makes it read as a switch.
-- **Crop-mark ornament**: 8–10px L-shaped corner brackets (border-top+border-left / border-top+border-right / etc.), 1px, hairline color, offset ~6px outside or inside the corner of a featured card — the system's one decorative device, reserved for hero/featured containers (landing hero frame, dashboard "Get Started" panel, pilot/reference cards), not applied to every card.
+`src/app/loading.js`, `src/app/error.js`, `src/app/not-found.js`, and `src/app/global-error.js` exist for the first time. Before, every navigation was a brief blank surface; now there's a spinner, an empty state, and a real error page.
 
 ## Components
 
-### Buttons
-- **Shape:** `radius: 3px` (`--radius-sm`), never pill.
-- **Primary:** ink background / paper text (light), paper background / ink text (dark); flat, no gradient; `h-9 px-4`, mono label, uppercase optional for short verbs (`UPGRADE`, `COPY`).
-- **Hover/Focus:** background steps one tone (ink → `zinc-800`), 1px focus ring in muted ink, no shadow growth.
-- **Secondary/Outline/Ghost:** hairline border, transparent/paper background, text-main; hover = hairline bg tint (`surface-2`).
-- **Danger:** same shape, red text/border outline by default, solid red only for destructive-confirm actions.
+`src/shared/components/` is split in two:
 
-### Chips (data-role badges)
-- Small flat square or dot (4–6px) + mono uppercase label, 10–11px, `0.06em` tracking — used for stat-tile captions and table status/mode cells. Square corners, hairline border, tinted fill at most; never a rounded pill. Status tags (`COMPLETED`/`FAILED`) follow the same square shape — one chip shape across the product.
-- **Avatars** are square too: hairline border, `surface-2` fill, mono uppercase initials. No coloured circle, no ring.
+- **`ui/`** — the shadcn primitive layer. `Button`, `Card`, `Dialog`, `Sheet`, `Select`, `Tabs`, `Table`, `Tooltip`, `DropdownMenu`, `Popover`, `Command`, `Switch`, `Checkbox`, `Badge`, `Input`, `Label`, `Progress`, `Alert`, `Separator`, `Icon`, `Sonner`, `Skeleton`, `Avatar`, `Breadcrumb`. Each lives in its own file and is the shadcn component, not a wrapper.
+- **Top-level adapters** that translate the older prop shapes (`isOpen`, `variant="primary"`, `icon="add"`) so the existing ~300 call sites keep working. These are adapters, not a second design system: don't add features here, prefer `ui/*` in new code.
 
-### Cards / Containers
-- **Corner Style:** `radius: 0`.
-- **Background:** paper (light) / ink-surface `#0f0f12` (dark).
-- **Shadow Strategy:** none (see Elevation).
-- **Border:** 1px hairline, all sides.
-- **Internal Padding:** `24px` (`p-6`) standard, `16px` (`p-4`) for dense table/list rows.
-- **Signature layout:** 3-up stat-tile rows share borders edge-to-edge (no gap) so they read as one ruled table, not three floating cards.
+The icon shim is one of the adapters' workhorses: `<Icon name="close" />` resolves to `X` from lucide, so call sites that passed a ligature string render lucide without ever knowing.
 
-### Inputs / Fields
-- **Style:** hairline border, `radius: 3px`, paper/transparent background, mono value text, Inter placeholder.
-- **Focus:** border color shifts to ink/primary, no glow ring beyond a 1px outline.
-- **Error/Disabled:** red hairline border + red mono hint text; disabled = 50% opacity, no fill change.
+## Accessibility
 
-### Navigation (Sidebar)
-- Flat paper-dim rail, hairline right border, no active-pill background — active item gets a 2px left ink bar + ink text, inactive = muted text. Group labels are mono `LABEL` style at 10–11px tracked uppercase with a trailing hairline rule, replacing the current plain uppercase sans labels.
-- **Jump-to navigator:** a hairline field under the wordmark opens a ⌘K/Ctrl+K dialog listing the same destinations as the rail — substring match on label and group, arrow keys + Enter to go. It navigates; it never searches server data.
-- **Account menu (header, right end):** square avatar + name + `ROLE · BALANCE` in mono, chevron on the right, menu opening downward and right-aligned (profile link, sign out). Below `sm` it is the avatar alone. It sits at the right end of the header bar, after the view-mode switch.
-- **Top-up control:** a hairline `+` square immediately right of the identity trigger, linking to `/dashboard/account?tab=wallet`. Rendered only when the account has a balance. Below `sm` the corner control is hidden and the same link moves into the menu's balance row, so exactly one is ever reachable.
-- **Rail foot:** appearance toggle + language on the left, collapse toggle on the right; collapsed, the three stack vertically. The mobile drawer keeps the two preferences and drops the collapse toggle (it is always full width).
+The shadcn primitives handle focus traps, roving focus, dialog/tab/listbox/separator semantics, keyboard return-focus, scroll lock, and outside-click dismissal. The previous hand-rolled modal/drawer/tooltip/select did not:
 
-### Code / terminal blocks
-- Signature component: black (`#000`/`#0a0a0a`) background regardless of theme, mono text, small "Copy" button top-right (hairline border, not filled) — matches the reference `$ npm i -g ...` blocks exactly; this is the one place true black-on-white-elsewhere is correct.
+- `Modal` and `Drawer` had Escape and scroll-lock but no focus trap, no `role="dialog"`, no return-focus — a keyboard user could tab out of an open dialog into the page behind it.
+- `Tooltip` was CSS-hover-only, so it never appeared for keyboard users, and was clipped by ancestor `overflow: hidden` because it wasn't portalled.
+- The 20+ hand-rolled `<table>` instances used `.thead-data` inconsistently (14/20), with no caption, no scope, and no semantic row headers.
 
-### Crop-mark frame
-- Signature component: 4 absolutely-positioned 8–10px L-brackets at a container's corners, 1px hairline, used to mark "this is the featured/primary panel" (landing hero, dashboard get-started panel) — never on every card.
-
-## Do's and Don'ts
-
-### Do:
-- **Do** set every number/stat/label/nav-item/button in IBM Plex Mono; keep Inter only for prose sentences.
-- **Do** keep every border 1px and the system's only border color (hairline token, themed).
-- **Do** use `SECTION LABEL` eyebrows (uppercase mono + trailing hairline rule, no `//` prefix) above every major section, and `[01] [02] [03]` bracket indices for ordered steps instead of bullets or numbered circles.
-- **Do** keep stat-tile grids edge-fused (shared 1px borders, zero gap) rather than gapped card grids.
-- **Do** preserve all existing routes, copy meaning, and data — this is a visual system replacement, not a feature or IA change.
-
-### Don't:
-- **Don't** add box-shadow, gradient, or blur/glass to any new or restyled surface.
-- **Don't** round any container or chip corner — radius belongs to controls (button/input/select) only, at 3–4px max.
-- **Don't** print a version string anywhere in the UI (no `v2.4.1` chip, no "vX available" notice, no build number). The API still reports it and the updater still uses it; the interface just never shows it. Update notices say *that* an update exists, not which one.
-- **Don't** render a gateway online/offline (or latency) readout. The dashboard failing to load is the status signal; a permanent green "online" badge is decoration.
-- **Don't** invent billing/credit/plan copy or numbers that don't exist in this codebase's real data, even though the reference screenshots show a plans/billing page — Router2k has no such feature yet (see PRODUCT.md).
-- **Don't** use Material Symbols icon tiles as colorful decoration; where an icon is kept, render it as a small flat mono-bordered square, not a soft colored rounded tile.
-- **Don't** rename `Router2k` to anything else without the user confirming again — brand name stays as-is, only tagline/microcopy may tighten to fit the terminal voice.
+The new `Dialog`, `Sheet`, `Tooltip`, `Select` and `Table` are all Radix-driven. Two of the long tables have been rewritten to use `<table>` with proper `<caption>` and `scope` attributes, and the rest of the app will follow in subsequent passes.

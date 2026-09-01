@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Input, Modal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * Administrator password reset. A generated password is shown exactly once —
@@ -62,24 +63,24 @@ export default function PasswordResetModal({ user, onClose, onUpdated }) {
     >
       {temporaryPassword ? (
         <div className="space-y-3">
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-muted-foreground">
             Share this one-time password with the account owner. It is shown once and must be changed at their next sign-in.
           </p>
           <div className="flex items-center gap-2 border border-border bg-surface-2 px-3 py-2">
-            <code className="min-w-0 flex-1 break-all font-mono text-sm text-text-main">{temporaryPassword}</code>
+            <code className="min-w-0 flex-1 break-all font-mono text-sm text-foreground">{temporaryPassword}</code>
             <button
               type="button"
               onClick={() => copy(temporaryPassword, "temp")}
               aria-label="Copy temporary password"
-              className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text-main"
+              className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-bg-hover hover:text-foreground"
             >
-              <span className="material-symbols-outlined text-base">{copied === "temp" ? "check" : "content_copy"}</span>
+              <Icon name={copied === "temp" ? "check" : "content_copy"} className="size-4" />
             </button>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-muted-foreground">
             Set a password directly, or generate a temporary one. Either way the account must choose a new password at next sign-in.
           </p>
           <Input

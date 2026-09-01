@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
@@ -228,7 +229,7 @@ export default function ComboDetailPage() {
     return out;
   }
 
-  if (loading) return <div className="text-text-muted text-sm">Loading...</div>;
+  if (loading) return <div className="text-muted-foreground text-sm">Loading...</div>;
   if (!combo) return notFound();
 
   const kindLabel = KIND_LABELS[combo.kind] || MEDIA_PROVIDER_KINDS.find((k) => k.id === combo.kind)?.label || "Combo";
@@ -244,18 +245,18 @@ export default function ComboDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <Link href={backHref} className="text-text-muted hover:text-primary">
-            <span className="material-symbols-outlined">arrow_back</span>
+          <Link href={backHref} className="text-muted-foreground hover:text-primary">
+            <Icon name="arrow_back" />
           </Link>
-          <div className="size-10 flex items-center justify-center border border-border bg-surface-2 text-text-main">
-            <span className="material-symbols-outlined">layers</span>
+          <div className="size-10 flex items-center justify-center border border-border bg-surface-2 text-foreground">
+            <Icon name="layers" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-text-muted">{kindLabel} Combo</p>
+            <p className="text-xs text-muted-foreground">{kindLabel} Combo</p>
             <code className="text-lg font-semibold font-mono">{combo.name}</code>
           </div>
         </div>
-        <Button variant="outline" icon="delete" onClick={handleDelete} className="text-red-500 border-red-200 hover:bg-red-50">
+        <Button variant="outline" icon="delete" onClick={handleDelete} className="text-destructive border-destructive/30 hover:bg-destructive/5">
           Delete
         </Button>
       </div>
@@ -266,12 +267,12 @@ export default function ComboDetailPage() {
         <div className="flex flex-col gap-4">
           <div>
             <Input label="Combo Name" value={name} onChange={(e) => { setName(e.target.value); validateName(e.target.value); }} onBlur={handleSaveName} error={nameError} />
-            <p className="text-[10px] text-text-muted mt-0.5">Only letters, numbers, -, _ and .</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Only letters, numbers, -, _ and .</p>
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Round Robin</p>
-              <p className="text-xs text-text-muted">Rotate providers across requests instead of strict fallback order.</p>
+              <p className="text-xs text-muted-foreground">Rotate providers across requests instead of strict fallback order.</p>
             </div>
             <Toggle checked={roundRobin} onChange={handleToggleRoundRobin} />
           </div>
@@ -283,12 +284,12 @@ export default function ComboDetailPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
           <div>
             <h2 className="font-mono text-sm font-semibold">Providers</h2>
-            <p className="text-xs text-text-muted">Tried in order (top-down) or rotated when round-robin is on.</p>
+            <p className="text-xs text-muted-foreground">Tried in order (top-down) or rotated when round-robin is on.</p>
           </div>
           <Button size="sm" icon="add" onClick={() => setShowPicker(true)}>Add Provider</Button>
         </div>
         {providers.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-border text-text-muted text-sm">
+          <div className="text-center py-6 border border-dashed border-border text-muted-foreground text-sm">
             No providers yet.
           </div>
         ) : (
@@ -298,7 +299,7 @@ export default function ComboDetailPage() {
               const p = AI_PROVIDERS[providerId];
               return (
                 <div key={`${entry}-${idx}`} className="flex items-center gap-3 p-2 bg-black/[0.02] dark:bg-white/[0.02]">
-                  <span className="text-xs text-text-muted w-5 text-center">{idx + 1}</span>
+                  <span className="text-xs text-muted-foreground w-5 text-center">{idx + 1}</span>
                   <ProviderIcon
                     src={`/providers/${providerId}.png`}
                     alt={p?.name || providerId}
@@ -309,17 +310,17 @@ export default function ComboDetailPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="font-mono text-sm font-medium truncate">{p?.name || providerId}</div>
-                    {model && <code className="text-[10px] text-text-muted font-mono truncate block">{model}</code>}
+                    {model && <code className="text-[10px] text-muted-foreground font-mono truncate block">{model}</code>}
                   </div>
                   <div className="flex items-center gap-0.5">
-                    <button onClick={() => handleMove(idx, -1)} disabled={idx === 0} className={`p-1 rounded-sm ${idx === 0 ? "text-text-muted/20" : "text-text-muted hover:text-primary hover:bg-black/5"}`} title="Move up">
-                      <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+                    <button onClick={() => handleMove(idx, -1)} disabled={idx === 0} className={`p-1 rounded-sm ${idx === 0 ? "text-muted-foreground/20" : "text-muted-foreground hover:text-primary hover:bg-black/5"}`} title="Move up">
+                      <Icon name="arrow_upward" className="size-[16px]" />
                     </button>
-                    <button onClick={() => handleMove(idx, 1)} disabled={idx === providers.length - 1} className={`p-1 rounded-sm ${idx === providers.length - 1 ? "text-text-muted/20" : "text-text-muted hover:text-primary hover:bg-black/5"}`} title="Move down">
-                      <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+                    <button onClick={() => handleMove(idx, 1)} disabled={idx === providers.length - 1} className={`p-1 rounded-sm ${idx === providers.length - 1 ? "text-muted-foreground/20" : "text-muted-foreground hover:text-primary hover:bg-black/5"}`} title="Move down">
+                      <Icon name="arrow_downward" className="size-[16px]" />
                     </button>
-                    <button onClick={() => handleRemoveProvider(idx)} className="p-1 rounded-sm text-text-muted hover:text-red-500 hover:bg-red-500/10" title="Remove">
-                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    <button onClick={() => handleRemoveProvider(idx)} className="p-1 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Remove">
+                      <Icon name="close" className="size-[16px]" />
                     </button>
                   </div>
                 </div>
@@ -342,18 +343,18 @@ export default function ComboDetailPage() {
             {curlExample}
           </pre>
           {testError && (
-            <p className="mt-3 text-xs text-red-500 break-words">{testError}</p>
+            <p className="mt-3 text-xs text-destructive break-words">{testError}</p>
           )}
           {testResult && (
             <div className="mt-3 flex flex-col gap-3">
               {testResult.latencyMs != null && (
-                <span className="text-[11px] text-text-muted">⚡ {testResult.latencyMs}ms</span>
+                <span className="text-[11px] text-muted-foreground">⚡ {testResult.latencyMs}ms</span>
               )}
               {testResult.imageUrl && (
                 <div>
                   <div className="flex items-center justify-end mb-1.5">
-                    <a href={testResult.imageUrl} download="image.png" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors">
-                      <span className="material-symbols-outlined text-[14px]">download</span>
+                    <a href={testResult.imageUrl} download="image.png" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+                      <Icon name="download" className="size-[14px]" />
                       Download
                     </a>
                   </div>
@@ -363,8 +364,8 @@ export default function ComboDetailPage() {
               {testResult.audioUrl && (
                 <div>
                   <div className="flex items-center justify-end mb-1.5">
-                    <a href={testResult.audioUrl} download="speech.mp3" className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors">
-                      <span className="material-symbols-outlined text-[14px]">download</span>
+                    <a href={testResult.audioUrl} download="speech.mp3" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+                      <Icon name="download" className="size-[14px]" />
                       Download
                     </a>
                   </div>
@@ -385,7 +386,7 @@ export default function ComboDetailPage() {
       <Card>
         <h2 className="font-mono text-sm font-semibold mb-3">Usage Logs</h2>
         {logs.length === 0 ? (
-          <p className="text-xs text-text-muted italic">No usage yet.</p>
+          <p className="text-xs text-muted-foreground italic">No usage yet.</p>
         ) : (
           <pre className="text-[11px] font-mono bg-black/[0.03] dark:bg-white/[0.03] p-3 overflow-auto max-h-[400px] whitespace-pre-wrap">
             {logs.join("\n")}

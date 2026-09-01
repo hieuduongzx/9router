@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import PropTypes from "prop-types";
 import { cn } from "@/shared/utils/cn";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * ⌘K navigator over the dashboard rail. Deliberately nav-only: it jumps to the
@@ -89,7 +90,7 @@ function PaletteDialog({ onClose, items }) {
         className="relative w-full max-w-lg border border-border bg-surface"
       >
         <div className="flex items-center gap-2 border-b border-border px-3">
-          <span className="material-symbols-outlined text-[18px] text-text-muted">search</span>
+          <Icon name="search" className="size-[18px] text-muted-foreground" />
           <input
             ref={inputRef}
             value={query}
@@ -99,9 +100,9 @@ function PaletteDialog({ onClose, items }) {
             }}
             placeholder="Jump to..."
             aria-label="Jump to page"
-            className="h-11 min-w-0 flex-1 bg-transparent font-mono text-sm text-text-main outline-none placeholder:text-text-subtle"
+            className="h-11 min-w-0 flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="shrink-0 border border-border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+          <kbd className="shrink-0 border border-border px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             Esc
           </kbd>
         </div>
@@ -119,19 +120,19 @@ function PaletteDialog({ onClose, items }) {
                   onClick={() => go(item.href)}
                   className={cn(
                     "flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
-                    index === activeIndex ? "bg-surface-2 text-text-main" : "text-text-muted"
+                    index === activeIndex ? "bg-surface-2 text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {Icon ? <Icon aria-hidden size={15} strokeWidth={2.25} className="shrink-0" /> : null}
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
                     {item.group}
                   </span>
                 </button>
               );
             })
           ) : (
-            <p className="px-3 py-6 text-center text-sm text-text-muted">No matching page</p>
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching page</p>
           )}
         </div>
       </div>

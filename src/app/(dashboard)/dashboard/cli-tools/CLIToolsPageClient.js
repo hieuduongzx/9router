@@ -5,6 +5,7 @@ import { CardSkeleton } from "@/shared/components";
 import { CLI_TOOLS, MITM_TOOLS } from "@/shared/constants/cliTools";
 import { MitmLinkCard } from "./components";
 import ToolSummaryCard from "./components/ToolSummaryCard";
+import { Icon } from "@/shared/components/ui/icon";
 
 const ALL_STATUSES_URL = "/api/cli-tools/all-statuses";
 
@@ -52,8 +53,8 @@ export default function CLIToolsPageClient({ machineId }) {
       </div>
       <div className="flex flex-col gap-3 sm:gap-4">
         <div className="flex items-center gap-2 px-1">
-          <span className="material-symbols-outlined text-[18px] text-primary">security</span>
-          <h2 className="font-mono text-sm font-semibold text-text-main">MITM Tools</h2>
+          <Icon name="security" className="size-[18px] text-primary" />
+          <h2 className="font-mono text-sm font-semibold text-foreground">MITM Tools</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {mitmTools.map(([toolId, tool]) => (

@@ -101,7 +101,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
           <h2 className="text-xl font-semibold">Pricing Configuration</h2>
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text text-2xl leading-none"
+            className="text-muted-foreground hover:text-text text-2xl leading-none"
           >
             ×
           </button>
@@ -110,13 +110,13 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
           {loading ? (
-            <div className="text-center py-8 text-text-muted">Loading pricing data...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading pricing data...</div>
           ) : (
             <div className="space-y-6">
               {/* Instructions */}
               <div className="bg-bg-alt border border-border rounded-sm p-3 text-sm">
                 <p className="font-medium mb-1">Pricing Rates Format</p>
-                <p className="text-text-muted">
+                <p className="text-muted-foreground">
                   All rates are in <strong>dollars per million tokens</strong> ($/1M tokens).
                   Example: Input rate of 2.50 means $2.50 per 1,000,000 input tokens.
                 </p>
@@ -168,7 +168,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
               })}
 
               {allProviders.length === 0 && (
-                <div className="text-center py-8 text-text-muted">
+                <div className="text-center py-8 text-muted-foreground">
                   No pricing data available
                 </div>
               )}
@@ -180,7 +180,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
         <div className="p-4 border-t border-border flex items-center justify-between gap-2">
           <button
             onClick={handleReset}
-            className="px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded border border-red-500/20 transition-colors"
+            className="px-4 py-2 text-sm text-destructive hover:bg-destructive/10 rounded border border-destructive/20 transition-colors"
             disabled={saving}
           >
             Reset to Defaults
@@ -188,7 +188,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-text-muted hover:text-text border border-border rounded transition-colors"
+              className="px-4 py-2 text-sm text-muted-foreground hover:text-text border border-border rounded transition-colors"
               disabled={saving}
             >
               Cancel

@@ -1,26 +1,41 @@
 "use client";
 
+import { Button as UIButton } from "./ui/button";
+import { Icon } from "./ui/icon";
 import { cn } from "@/shared/utils/cn";
 
-const variants = {
-  primary:
-    "bg-primary text-[hsl(var(--primary-foreground))] hover:bg-primary/85 focus-visible:ring-2 focus-visible:ring-primary/30",
-  secondary:
-    "bg-surface-2 text-text-main border border-border hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-primary/20",
-  outline:
-    "border border-border bg-transparent text-text-main hover:bg-surface-2 hover:text-text-main focus-visible:ring-2 focus-visible:ring-primary/20",
-  ghost:
-    "text-text-muted hover:bg-surface-2 hover:text-text-main",
-  danger:
-    "border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/30",
-  success:
-    "bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
+/**
+ * Legacy Button API kept as an adapter over the shadcn button.
+ *
+ * ~300 call sites pass this codebase's own vocabulary (`variant="primary"`,
+ * `icon="add"`, `loading`, `fullWidth`). Rather than touch every one, the names
+ * are translated here; `ui/button` stays the canonical shadcn component for new
+ * code. `danger`/`error` both map to `destructive` because both spellings are
+ * already in use.
+ */
+const VARIANTS = {
+  primary: "default",
+  default: "default",
+  secondary: "secondary",
+  outline: "outline",
+  ghost: "ghost",
+  link: "link",
+  danger: "destructive",
+  destructive: "destructive",
+  error: "destructive",
+  success: "success",
+  warning: "default",
+  info: "default",
 };
 
-const sizes = {
-  sm: "h-8 px-3 text-xs rounded-sm",
-  md: "h-9 px-4 text-sm rounded-sm",
-  lg: "h-10 px-6 text-sm rounded-sm",
+const SIZES = {
+  xs: "xs",
+  sm: "sm",
+  md: "default",
+  default: "default",
+  lg: "lg",
+  xl: "lg",
+  icon: "icon",
 };
 
 export default function Button({
@@ -36,27 +51,16 @@ export default function Button({
   ...props
 }) {
   return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-mono font-medium tracking-tight transition-colors",
-        "focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
-        variants[variant],
-        sizes[size],
-        fullWidth && "w-full",
-        className
-      )}
+    <UIButton
+      variant={VARIANTS[variant] || "default"}
+      size={SIZES[size] || "default"}
       disabled={disabled || loading}
+      className={cn(fullWidth && "w-full", className)}
       {...props}
     >
-      {loading ? (
-        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-      ) : icon ? (
-        <span className="material-symbols-outlined text-[18px]">{icon}</span>
-      ) : null}
+      {loading ? <Icon name="progress_activity" /> : icon ? <Icon name={icon} /> : null}
       {children}
-      {iconRight && !loading && (
-        <span className="material-symbols-outlined text-[18px]">{iconRight}</span>
-      )}
-    </button>
+      {iconRight && !loading ? <Icon name={iconRight} /> : null}
+    </UIButton>
   );
 }

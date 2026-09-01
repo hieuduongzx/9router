@@ -41,14 +41,14 @@ export default function PassthroughModelsSection({ providerAlias, modelAliases, 
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-text-muted">
+      <p className="text-sm text-muted-foreground">
         OpenRouter supports any model. Add models and create aliases for quick access.
       </p>
 
       {/* Add new model */}
       <div className="flex items-end gap-2">
         <div className="flex-1">
-          <label htmlFor="new-model-input" className="text-xs text-text-muted mb-1 block">Model ID (from OpenRouter)</label>
+          <label htmlFor="new-model-input" className="text-xs text-muted-foreground mb-1 block">Model ID (from OpenRouter)</label>
           <input
             id="new-model-input"
             type="text"

@@ -36,7 +36,7 @@ function AllocationCard({ title, rows, labelKey }) {
   return (
     <Card padding="none" className="min-w-0 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-        <h2 className="font-mono text-sm font-semibold text-text-main">{title}</h2>
+        <h2 className="font-mono text-sm font-semibold text-foreground">{title}</h2>
         <SegmentedControl
           size="sm"
           options={[{ value: "tokens", label: "Theo Token" }, { value: "cost", label: "Theo Chi phí thực tế" }]}
@@ -57,25 +57,25 @@ function AllocationCard({ title, rows, labelKey }) {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-sm font-semibold text-text-main">{mode === "cost" ? `$${total.toFixed(2)}` : COMPACT_FORMAT.format(total)}</span>
-                <span className="text-[10px] text-text-muted">{mode === "cost" ? "USD" : "token"}</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{mode === "cost" ? `$${total.toFixed(2)}` : COMPACT_FORMAT.format(total)}</span>
+                <span className="text-[10px] text-muted-foreground">{mode === "cost" ? "USD" : "token"}</span>
               </div>
             </>
-          ) : <div className="flex h-full items-center justify-center text-xs text-text-muted">Không có dữ liệu</div>}
+          ) : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Không có dữ liệu</div>}
         </div>
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full min-w-[360px] text-left text-[11px]">
-            <thead className="border-b border-border text-[10px] uppercase tracking-wide text-text-muted">
+            <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
               <tr><th className="px-2 py-2">{labelKey === "endpoint" ? "Endpoint" : labelKey === "accountName" ? "Nhóm" : "Model"}</th><th className="px-2 py-2 text-right">Yêu cầu</th><th className="px-2 py-2 text-right">Token</th><th className="px-2 py-2 text-right">Thực tế</th></tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {rows.slice(0, 6).map((row) => <tr key={`${row[labelKey]}-${row.requests}`}>
-                <td className="max-w-[170px] truncate px-2 py-2 font-mono text-text-main" title={row[labelKey]}>{row[labelKey]}</td>
-                <td className="px-2 py-2 text-right font-mono tabular-nums text-text-muted">{NUMBER_FORMAT.format(row.requests || 0)}</td>
-                <td className="px-2 py-2 text-right font-mono tabular-nums text-text-main">{COMPACT_FORMAT.format((Number(row.promptTokens) || 0) + (Number(row.completionTokens) || 0))}</td>
-                <td className="px-2 py-2 text-right font-mono tabular-nums text-text-main">${(Number(row.cost) || 0).toFixed(4)}</td>
+                <td className="max-w-[170px] truncate px-2 py-2 font-mono text-foreground" title={row[labelKey]}>{row[labelKey]}</td>
+                <td className="px-2 py-2 text-right font-mono tabular-nums text-muted-foreground">{NUMBER_FORMAT.format(row.requests || 0)}</td>
+                <td className="px-2 py-2 text-right font-mono tabular-nums text-foreground">{COMPACT_FORMAT.format((Number(row.promptTokens) || 0) + (Number(row.completionTokens) || 0))}</td>
+                <td className="px-2 py-2 text-right font-mono tabular-nums text-foreground">${(Number(row.cost) || 0).toFixed(4)}</td>
               </tr>)}
-              {!rows.length && <tr><td colSpan={4} className="px-2 py-8 text-center text-text-muted">Không có dữ liệu</td></tr>}
+              {!rows.length && <tr><td colSpan={4} className="px-2 py-8 text-center text-muted-foreground">Không có dữ liệu</td></tr>}
             </tbody>
           </table>
         </div>

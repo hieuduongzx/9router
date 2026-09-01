@@ -24,6 +24,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
 import AddCompatibleModal from "./components/AddCompatibleModal";
 import ProviderSettingsLightbox from "./components/ProviderSettingsLightbox";
+import { Icon } from "@/shared/components/ui/icon";
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -45,7 +46,7 @@ function getStatusDisplay(connected, error, errorCode) {
     );
   }
   if (parts.length === 0) {
-    return <span className="text-text-muted">No connections</span>;
+    return <span className="text-muted-foreground">No connections</span>;
   }
   return parts;
 }
@@ -421,31 +422,27 @@ export default function ProvidersPage() {
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <label className="group relative min-w-0 flex-1">
             <span className="sr-only">Search providers</span>
-            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted transition-colors group-focus-within:text-primary">
-              search
-            </span>
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-[18px] text-muted-foreground transition-colors group-focus-within:text-primary" />
             <input
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search providers by name..."
-              className="h-10 w-full appearance-none rounded-sm border border-border bg-bg pl-10 pr-10 font-mono text-sm text-text-main outline-none transition-[border-color,box-shadow,background-color] placeholder:text-text-muted/70 hover:border-text-muted/60 focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/15"
+              className="h-10 w-full appearance-none rounded-sm border border-border bg-bg pl-10 pr-10 font-mono text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/70 hover:border-muted-foreground/60 focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/15"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 aria-label="Clear provider search"
               >
-                <span className="material-symbols-outlined text-[17px]">
-                  close
-                </span>
+                <Icon name="close" className="size-[17px]" />
               </button>
             )}
           </label>
           <div className="flex h-10 shrink-0 items-center justify-between gap-3 border border-border bg-bg px-3 sm:justify-start">
-            <span className="font-mono text-xs font-medium text-text-muted">
+            <span className="font-mono text-xs font-medium text-muted-foreground">
               Active only
             </span>
             <Toggle
@@ -460,7 +457,7 @@ export default function ProvidersPage() {
             className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
             aria-live="polite"
           >
-            <span className="font-mono text-xs tabular-nums text-text-muted">
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
               {matchingProviderCount} {hasSearchQuery || activeOnly ? "matches" : "providers"}
             </span>
           </div>
@@ -469,10 +466,8 @@ export default function ProvidersPage() {
 
       {!hasAnyResult && (
         <div className="text-center py-8 border border-dashed border-border">
-          <span className="material-symbols-outlined text-[32px] text-text-muted mb-2">
-            search_off
-          </span>
-          <p className="text-text-muted text-sm">
+          <Icon name="search_off" className="size-[32px] text-muted-foreground mb-2" />
+          <p className="text-muted-foreground text-sm">
             {activeOnly ? "No active providers match the current filter" : "No providers match your search"}
           </p>
         </div>
@@ -506,8 +501,8 @@ export default function ProvidersPage() {
         </div>
         {compatibleProviders.length === 0 &&
         anthropicCompatibleProviders.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-2 border border-dashed border-border text-text-muted text-sm">
-            <span className="material-symbols-outlined text-[18px]">extension</span>
+          <div className="flex items-center justify-center gap-2 py-2 border border-dashed border-border text-muted-foreground text-sm">
+            <Icon name="extension" className="size-[18px]" />
             <span>
               {activeOnly
                 ? "No active custom providers"
@@ -550,16 +545,12 @@ export default function ProvidersPage() {
               className={`flex w-full items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-medium font-mono transition-colors sm:w-auto sm:py-1.5 ${
                 testingMode === "oauth"
                   ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                  : "bg-bg border-border text-text-muted hover:text-text-main hover:border-primary/40"
+                  : "bg-bg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               }`}
               title="Test all OAuth connections"
               aria-label="Test all OAuth connections"
             >
-              <span
-                className={`material-symbols-outlined text-[14px]${testingMode === "oauth" ? " animate-spin" : ""}`}
-              >
-                play_arrow
-              </span>
+              <Icon name="play_arrow" className={`size-[14px] ${testingMode === "oauth" ? " animate-spin" : ""}`} />
               {testingMode === "oauth" ? "Testing..." : "Test All"}
             </button>
           </div>
@@ -596,16 +587,12 @@ export default function ProvidersPage() {
             className={`flex w-full items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-medium font-mono transition-colors sm:w-auto sm:py-1.5 ${
               testingMode === "free"
                 ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                : "bg-bg border-border text-text-muted hover:text-text-main hover:border-primary/40"
+                : "bg-bg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
             }`}
             title="Test all Free connections"
             aria-label="Test all Free provider connections"
           >
-            <span
-              className={`material-symbols-outlined text-[14px]${testingMode === "free" ? " animate-spin" : ""}`}
-            >
-              play_arrow
-            </span>
+            <Icon name="play_arrow" className={`size-[14px] ${testingMode === "free" ? " animate-spin" : ""}`} />
             {testingMode === "free" ? "Testing..." : "Test All"}
           </button>
         </div>
@@ -659,16 +646,12 @@ export default function ProvidersPage() {
             className={`flex w-full items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-medium font-mono transition-colors sm:w-auto sm:py-1.5 ${
               testingMode === "apikey"
                 ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                : "bg-bg border-border text-text-muted hover:text-text-main hover:border-primary/40"
+                : "bg-bg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
             }`}
             title="Test all API Key connections"
             aria-label="Test all API Key connections"
           >
-            <span
-              className={`material-symbols-outlined text-[14px]${testingMode === "apikey" ? " animate-spin" : ""}`}
-            >
-              play_arrow
-            </span>
+            <Icon name="play_arrow" className={`size-[14px] ${testingMode === "apikey" ? " animate-spin" : ""}`} />
             {testingMode === "apikey" ? "Testing..." : "Test All"}
           </button>
         </div>
@@ -690,7 +673,7 @@ export default function ProvidersPage() {
             onClick={() => setShowAllApikey(true)}
             className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/40 px-3 py-2.5 text-sm font-medium font-mono text-primary transition-colors hover:border-primary hover:bg-primary/5"
           >
-            <span className="material-symbols-outlined text-[16px]">expand_more</span>
+            <Icon name="expand_more" className="size-[16px]" />
             Show all {apikeyEntries.length} providers
           </button>
         )}
@@ -761,10 +744,10 @@ export default function ProvidersPage() {
               <h3 className="font-mono font-semibold">Test Results</h3>
               <button
                 onClick={() => setTestResults(null)}
-                className="p-1 rounded-sm hover:bg-bg text-text-muted hover:text-text-main transition-colors"
+                className="p-1 rounded-sm hover:bg-bg text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Close test results"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="size-[18px]" />
               </button>
             </div>
             <div className="p-5">
@@ -782,10 +765,10 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, onOpen 
   const isNoAuth = !!provider.noAuth;
 
   const dotColors = {
-    free: "bg-green-500",
-    oauth: "bg-blue-500",
-    apikey: "bg-amber-500",
-    compatible: "bg-orange-500",
+    free: "bg-success",
+    oauth: "bg-info",
+    apikey: "bg-warning",
+    compatible: "bg-muted",
   };
   const dotLabels = {
     free: "Free",
@@ -831,9 +814,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, onOpen 
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">
-                        pause_circle
-                      </span>
+                      <Icon name="pause_circle" className="size-[12px]" />
                       Disabled
                     </span>
                   </Badge>
@@ -843,7 +824,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, onOpen 
                   <>
                     {getStatusDisplay(connected, error, errorCode)}
                     {errorTime && (
-                      <span className="text-text-muted">{errorTime}</span>
+                      <span className="text-muted-foreground">{errorTime}</span>
                     )}
                   </>
                 )}
@@ -909,10 +890,10 @@ function ApiKeyProviderCard({
   );
 
   const dotColors = {
-    free: "bg-green-500",
-    oauth: "bg-blue-500",
-    apikey: "bg-amber-500",
-    compatible: "bg-orange-500",
+    free: "bg-success",
+    oauth: "bg-info",
+    apikey: "bg-warning",
+    compatible: "bg-muted",
   };
   const dotLabels = {
     free: "Free",
@@ -967,9 +948,7 @@ function ApiKeyProviderCard({
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">
-                        pause_circle
-                      </span>
+                      <Icon name="pause_circle" className="size-[12px]" />
                       Disabled
                     </span>
                   </Badge>
@@ -989,7 +968,7 @@ function ApiKeyProviderCard({
                       </Badge>
                     )}
                     {errorTime && (
-                      <span className="text-text-muted">{errorTime}</span>
+                      <span className="text-muted-foreground">{errorTime}</span>
                     )}
                   </>
                 )}
@@ -1045,10 +1024,8 @@ function ProviderTestResultsView({ results }) {
   if (results.error && !results.results) {
     return (
       <div className="text-center py-6">
-        <span className="material-symbols-outlined text-red-500 text-[32px] mb-2 block">
-          error
-        </span>
-        <p className="text-sm text-red-400">{results.error}</p>
+        <Icon name="error" className="text-destructive size-[32px] mb-2 block" />
+        <p className="text-sm text-destructive">{results.error}</p>
       </div>
     );
   }
@@ -1068,16 +1045,16 @@ function ProviderTestResultsView({ results }) {
     <div className="flex min-w-0 flex-col gap-3">
       {summary && (
         <div className="flex flex-wrap items-center gap-2 text-xs mb-1 sm:gap-3">
-          <span className="text-text-muted">{modeLabel} Test</span>
-          <span className="px-2 py-0.5 rounded-sm bg-emerald-500/15 text-emerald-400 font-mono font-medium">
+          <span className="text-muted-foreground">{modeLabel} Test</span>
+          <span className="px-2 py-0.5 rounded-sm bg-success/15 text-success font-mono font-medium">
             {summary.passed} passed
           </span>
           {summary.failed > 0 && (
-            <span className="px-2 py-0.5 rounded-sm bg-red-500/15 text-red-400 font-mono font-medium">
+            <span className="px-2 py-0.5 rounded-sm bg-destructive/15 text-destructive font-mono font-medium">
               {summary.failed} failed
             </span>
           )}
-          <span className="text-text-muted sm:ml-auto">
+          <span className="text-muted-foreground sm:ml-auto">
             {summary.total} tested
           </span>
         </div>
@@ -1087,29 +1064,25 @@ function ProviderTestResultsView({ results }) {
           key={r.connectionId || i}
           className="flex min-w-0 flex-wrap items-center gap-2 border border-border bg-black/[0.03] px-3 py-2 text-xs dark:bg-white/[0.03] sm:flex-nowrap"
         >
-          <span
-            className={`material-symbols-outlined text-[16px] ${r.valid ? "text-emerald-500" : "text-red-500"}`}
-          >
-            {r.valid ? "check_circle" : "error"}
-          </span>
+          <Icon name={r.valid ? "check_circle" : "error"} className={`size-[16px] ${r.valid ? "text-success" : "text-destructive"}`} />
           <div className="min-w-0 flex-[1_1_160px]">
             <span className="block truncate font-mono font-medium sm:inline">
               {r.connectionName}
             </span>
-            <span className="block truncate text-text-muted sm:ml-1.5 sm:inline">
+            <span className="block truncate text-muted-foreground sm:ml-1.5 sm:inline">
               ({r.provider})
             </span>
           </div>
           {r.latencyMs !== undefined && (
-            <span className="shrink-0 text-text-muted font-mono tabular-nums">
+            <span className="shrink-0 text-muted-foreground font-mono tabular-nums">
               {r.latencyMs}ms
             </span>
           )}
           <span
             className={`shrink-0 text-[10px] uppercase font-bold font-mono px-1.5 py-0.5 rounded-sm ${
               r.valid
-                ? "bg-emerald-500/15 text-emerald-400"
-                : "bg-red-500/15 text-red-400"
+                ? "bg-success/15 text-success"
+                : "bg-destructive/15 text-destructive"
             }`}
           >
             {r.valid ? "OK" : r.diagnosis?.type || "ERROR"}
@@ -1117,7 +1090,7 @@ function ProviderTestResultsView({ results }) {
         </div>
       ))}
       {items.length === 0 && (
-        <div className="text-center py-4 text-text-muted text-sm">
+        <div className="text-center py-4 text-muted-foreground text-sm">
           No active connections found for this group.
         </div>
       )}

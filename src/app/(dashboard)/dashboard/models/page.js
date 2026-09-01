@@ -7,6 +7,7 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import LobeProviderIcon from "@/shared/components/LobeProviderIcon";
 import { formatRate, isFreePricing } from "@/shared/utils/modelPricing";
 import { MODEL_CAPABILITIES as CAPABILITIES } from "@/shared/utils/comboModelConfig";
+import { Icon } from "@/shared/components/ui/icon";
 const MAX_VISIBLE_CAPS = 3;
 
 const SORT_OPTIONS = [
@@ -138,7 +139,7 @@ export default function ModelsPage() {
     <div className="flex min-w-0 flex-col gap-6 pb-8">
       <section className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         {/* Title lives in the shared Header; only the sub-line stays here. */}
-        <p className="max-w-2xl text-sm text-text-muted">
+        <p className="max-w-2xl text-sm text-muted-foreground">
           Public API model list. Configure route thinking, Caps, and prices in{" "}
           <Link href="/dashboard/combos" className="font-medium text-primary hover:underline">
             Model Routes
@@ -159,7 +160,7 @@ export default function ModelsPage() {
             label: (
               <span className="inline-flex items-center gap-1.5">
                 <span>All</span>
-                <span className="text-text-subtle">[{models.length}]</span>
+                <span className="text-muted-foreground">[{models.length}]</span>
               </span>
             ),
           },
@@ -173,7 +174,7 @@ export default function ModelsPage() {
                   className="size-5 border-0 bg-transparent"
                 />
                 <span>{provider.name}</span>
-                <span className="text-text-subtle">[{provider.count}]</span>
+                <span className="text-muted-foreground">[{provider.count}]</span>
               </span>
             ),
           })),
@@ -211,7 +212,7 @@ export default function ModelsPage() {
       </div>
 
       {filtersActive && (
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-muted-foreground">
           <span>{visibleModels.length} matches</span>
           <button
             type="button"
@@ -241,29 +242,23 @@ export default function ModelsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] table-fixed text-left text-sm">
               <thead className="thead-data">
-                <tr className="font-mono text-[11px] uppercase tracking-wide text-text-muted">
+                <tr className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                   <th className="w-[28%] px-3 py-2 font-medium">
-                    <button type="button" onClick={() => toggleSort("id")} className="inline-flex items-center gap-1 hover:text-text-main">
+                    <button type="button" onClick={() => toggleSort("id")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Model
-                      <span className="material-symbols-outlined text-[14px]">
-                        {sort.key === "id" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"}
-                      </span>
+                      <Icon name={sort.key === "id" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
                   <th className="w-[10%] px-2 py-2 font-medium">
-                    <button type="button" onClick={() => toggleSort("context")} className="inline-flex items-center gap-1 hover:text-text-main">
+                    <button type="button" onClick={() => toggleSort("context")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Context
-                      <span className="material-symbols-outlined text-[14px]">
-                        {sort.key === "context" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"}
-                      </span>
+                      <Icon name={sort.key === "context" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
                   <th className="w-[13%] px-2 py-2 font-medium" title="USD per one million tokens">
-                    <button type="button" onClick={() => toggleSort("price")} className="inline-flex items-center gap-1 hover:text-text-main">
+                    <button type="button" onClick={() => toggleSort("price")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Input
-                      <span className="material-symbols-outlined text-[14px]">
-                        {sort.key === "price" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"}
-                      </span>
+                      <Icon name={sort.key === "price" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
                   <th className="w-[13%] px-2 py-2 font-medium" title="USD per one million tokens">Output</th>
@@ -295,21 +290,21 @@ export default function ModelsPage() {
                             className="size-7"
                           />
                           <span className="min-w-0">
-                            <code className="block truncate font-mono text-[12px] font-medium text-text-main" title={model.id}>
+                            <code className="block truncate font-mono text-[12px] font-medium text-foreground" title={model.id}>
                               {model.id}
                             </code>
-                            <span className="block truncate font-mono text-[10px] uppercase tracking-wide text-text-muted">
+                            <span className="block truncate text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
                               {model.provider}
                             </span>
                           </span>
                           {free && (
-                            <span className="shrink-0 rounded-sm bg-text-main px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-bg">
+                            <span className="shrink-0 rounded-sm border border-success/25 bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success">
                               Free
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-text-main">
+                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-foreground">
                         {formatContextWindow(model.capabilities?.contextWindow)}
                       </td>
                       {["input", "output"].map((field) => (
@@ -317,18 +312,18 @@ export default function ModelsPage() {
                           {free ? (
                             <span className="font-mono text-xs font-semibold text-success">Free</span>
                           ) : model.pricing ? (
-                            <span className="font-mono text-xs font-medium tabular-nums text-text-main">
+                            <span className="font-mono text-xs font-medium tabular-nums text-foreground">
                               {formatRate(model.pricing[field])}
                             </span>
                           ) : (
-                            <span className="text-xs text-text-subtle">—</span>
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </td>
                       ))}
-                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-text-muted">
+                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-muted-foreground">
                         {free ? "Free" : model.pricing ? formatRate(model.pricing.cached) : "—"}
                       </td>
-                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-text-muted">
+                      <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-muted-foreground">
                         {free ? "Free" : model.pricing ? formatRate(model.pricing.cache_creation) : "—"}
                       </td>
                       <td className="px-2 py-2.5 align-middle">
@@ -337,10 +332,10 @@ export default function ModelsPage() {
                             {visibleCaps.map(([key, label, icon]) => (
                               <Tooltip key={key} text={label} position="top">
                                 <span
-                                  className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 text-text-main"
+                                  className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 text-foreground"
                                   aria-label={label}
                                 >
-                                  <span className="material-symbols-outlined text-[14px]">{icon}</span>
+                                  <Icon name={icon} className="size-[14px]" />
                                 </span>
                               </Tooltip>
                             ))}
@@ -351,34 +346,32 @@ export default function ModelsPage() {
                                   <div className="flex flex-col gap-1 text-left">
                                     {supported.map(([key, label, icon]) => (
                                       <div key={key} className="flex items-center gap-1.5 whitespace-nowrap">
-                                        <span className="material-symbols-outlined text-[13px]">{icon}</span>
+                                        <Icon name={icon} className="size-[13px]" />
                                         <span>{label}</span>
                                       </div>
                                     ))}
                                   </div>
                                 }
                               >
-                                <span className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 font-mono text-[10px] font-semibold text-text-muted">
+                                <span className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 font-mono text-[10px] font-semibold text-muted-foreground">
                                   +{overflowCaps}
                                 </span>
                               </Tooltip>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-text-subtle">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-right align-middle">
                         <button
                           type="button"
                           onClick={() => copy(model.id, model.id)}
-                          className="inline-flex size-7 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+                          className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                           aria-label={`Copy model ID ${model.id}`}
                           title="Copy model ID"
                         >
-                          <span className="material-symbols-outlined text-[16px]">
-                            {copied === model.id ? "check" : "content_copy"}
-                          </span>
+                          <Icon name={copied === model.id ? "check" : "content_copy"} className="size-[16px]" />
                         </button>
                       </td>
                     </tr>
@@ -392,11 +385,11 @@ export default function ModelsPage() {
 
       {!loading && !error && sortedModels.length === 0 && (
         <Card className="py-12 text-center">
-          <span className="material-symbols-outlined text-4xl text-text-subtle">deployed_code_off</span>
-          <h2 className="mt-3 font-mono text-sm font-semibold text-text-main">
+          <Icon name="deployed_code_off" className="size-9 text-muted-foreground" />
+          <h2 className="mt-3 font-mono text-sm font-semibold text-foreground">
             {filtersActive ? "No matching models" : "No models published yet"}
           </h2>
-          <p className="mx-auto mt-1 max-w-md text-xs text-text-muted">
+          <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
             {filtersActive
               ? "Try a shorter model ID or clear the filters."
               : "Enable a route in Model Routes to publish it here."}
@@ -406,7 +399,7 @@ export default function ModelsPage() {
               href="/dashboard/combos"
               className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs font-medium text-primary hover:underline"
             >
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              <Icon name="arrow_forward" className="size-[16px]" />
               Go to Model Routes
             </Link>
           )}

@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Modal, Button } from "@/shared/components";
 import { translate } from "@/i18n/runtime";
+import { Icon } from "@/shared/components/ui/icon";
 
 const PLACEHOLDER = `[
   {
@@ -181,7 +182,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
     <Modal isOpen={isOpen} title={translate("Bulk Add Grok CLI Accounts")} onClose={handleClose}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             {translate("Upload multiple .json files or paste JSON array / object.")}
           </p>
           <input
@@ -227,7 +228,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
 
           {isDragging && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-sidebar/90 rounded pointer-events-none backdrop-blur-xs">
-              <span className="material-symbols-outlined text-3xl text-primary mb-1">upload_file</span>
+              <Icon name="upload_file" className="size-7 text-primary mb-1" />
               <span className="text-sm font-medium text-primary">
                 {translate("Drop .json files here")}
               </span>
@@ -236,8 +237,8 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         {fileCountInfo && (
-          <div className="flex items-center gap-1.5 text-xs text-green-400 font-medium bg-green-500/10 border border-green-500/20 px-2.5 py-1.5 rounded">
-            <span className="material-symbols-outlined text-sm">check_circle</span>
+          <div className="flex items-center gap-1.5 text-xs text-success font-medium bg-success/10 border border-success/20 px-2.5 py-1.5 rounded">
+            <Icon name="check_circle" className="size-3.5" />
             <span>
               {translate("Loaded")} {fileCountInfo.accountsCount} {translate("account(s) from")}{" "}
               {fileCountInfo.filesCount} {translate("file(s)")}
@@ -246,7 +247,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
         )}
 
         {parseError && (
-          <p className="text-xs text-red-500 break-words">{parseError}</p>
+          <p className="text-xs text-destructive break-words">{parseError}</p>
         )}
 
         {result && result.failed > 0 && (
@@ -257,7 +258,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
             {failedItems.length > 0 && (
               <ul className="rounded border border-accent/20 bg-sidebar/50 p-2 text-xs font-mono max-h-40 overflow-y-auto">
                 {failedItems.map((item) => (
-                  <li key={item.index} className="text-red-400">
+                  <li key={item.index} className="text-destructive">
                     [{item.index}] {item.error}
                   </li>
                 ))}

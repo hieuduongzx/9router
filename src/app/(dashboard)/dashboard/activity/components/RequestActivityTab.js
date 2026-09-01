@@ -94,8 +94,8 @@ export default function RequestActivityTab({ period }) {
       <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Request outcomes</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Success, error, and rate-limit distribution.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Request outcomes</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Success, error, and rate-limit distribution.</p>
           </div>
           <div className="relative h-72 p-4">
             {outcomeData.length ? <>
@@ -109,17 +109,17 @@ export default function RequestActivityTab({ period }) {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-2xl font-semibold text-text-main">{formatNumber(totalRequests)}</span>
-                <span className="text-xs text-text-muted">requests</span>
+                <span className="font-mono text-2xl font-semibold text-foreground">{formatNumber(totalRequests)}</span>
+                <span className="text-xs text-muted-foreground">requests</span>
               </div>
-            </> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No classified requests in this period.</div>}
+            </> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No classified requests in this period.</div>}
           </div>
         </Card>
 
         <Card padding="none" className="min-w-0 overflow-hidden">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="font-mono text-sm font-semibold text-text-main">Request latency</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Average and percentile response times.</p>
+            <h2 className="font-mono text-sm font-semibold text-foreground">Request latency</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Average and percentile response times.</p>
           </div>
           <div className="h-72 p-4">
             {latencyData.length ? <ResponsiveContainer width="100%" height="100%">
@@ -130,7 +130,7 @@ export default function RequestActivityTab({ period }) {
                 <Bar dataKey="value" fill={CHART_COLORS.info} maxBarSize={56} isAnimationActive={false} />
               </BarChart>
 
-            </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">No latency samples in this period.</div>}
+            </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No latency samples in this period.</div>}
           </div>
         </Card>
       </div>

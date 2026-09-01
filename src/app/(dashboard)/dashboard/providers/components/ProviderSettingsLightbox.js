@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import PropTypes from "prop-types";
 import ProviderDetailClient from "../[id]/ProviderDetailClient";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function ProviderSettingsLightbox({ providerId, providerName, onClose }) {
   const closeButtonRef = useRef(null);
@@ -33,25 +34,25 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
       <section className="relative flex min-h-0 w-full flex-col border-border bg-bg sm:max-w-7xl sm:border">
         <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 sm:px-5">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">Provider settings</p>
-            <h2 id="provider-settings-title" className="truncate font-mono text-sm font-semibold text-text-main">{providerName || providerId}</h2>
+            <p className="text-xs font-medium text-muted-foreground">Provider settings</p>
+            <h2 id="provider-settings-title" className="truncate font-mono text-sm font-semibold text-foreground">{providerName || providerId}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
               href={`/dashboard/providers/${providerId}`}
-              className="inline-flex min-h-11 items-center gap-2 rounded-sm px-3 font-mono text-xs font-semibold text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="inline-flex min-h-11 items-center gap-2 rounded-sm px-3 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
-              <span className="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
+              <Icon name="open_in_new" className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">Open full page</span>
             </Link>
             <button
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="inline-flex size-11 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="inline-flex size-11 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               aria-label="Close provider settings"
             >
-              <span className="material-symbols-outlined text-xl" aria-hidden="true">close</span>
+              <Icon name="close" className="size-5" aria-hidden="true" />
             </button>
           </div>
         </header>

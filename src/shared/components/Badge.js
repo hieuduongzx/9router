@@ -1,56 +1,56 @@
 "use client";
 
+import { Badge as UIBadge } from "./ui/badge";
+import { Icon } from "./ui/icon";
 import { cn } from "@/shared/utils/cn";
 
-const variants = {
-  default: "border-border bg-surface-2 text-text-muted",
-  primary: "border-border text-text-main",
-  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-  warning: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  error: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
-  info: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  outline: "border-border text-text-main",
+/**
+ * Legacy Badge API over the shadcn badge. `default` maps to `secondary` because
+ * in this codebase it always meant "quiet neutral chip", not "solid primary".
+ */
+const VARIANTS = {
+  default: "secondary",
+  primary: "default",
+  secondary: "secondary",
+  outline: "outline",
+  success: "success",
+  warning: "warning",
+  error: "error",
+  danger: "error",
+  info: "info",
 };
 
-const sizes = {
-  sm: "px-1.5 py-0 text-[10px]",
-  md: "px-2 py-0.5 text-[11px]",
-  lg: "px-2.5 py-1 text-xs",
+const DOT_COLORS = {
+  success: "bg-success",
+  warning: "bg-warning",
+  error: "bg-destructive",
+  danger: "bg-destructive",
+  info: "bg-info",
+  primary: "bg-primary",
+  default: "bg-muted-foreground",
+  secondary: "bg-muted-foreground",
+  outline: "bg-muted-foreground",
 };
 
 export default function Badge({
   children,
   variant = "default",
-  size = "md",
+  size = "default",
   dot = false,
   icon,
   className,
+  ...props
 }) {
   return (
-    <span
-      className={cn(
-        // Square, not pill: chips across the dashboard share one flat shape.
-        "inline-flex items-center gap-1 border font-mono font-semibold uppercase tracking-wide transition-colors",
-        variants[variant],
-        sizes[size],
-        className
-      )}
-    >
-      {dot && (
+    <UIBadge variant={VARIANTS[variant] || "secondary"} size={size} className={className} {...props}>
+      {dot ? (
         <span
-          className={cn(
-            "size-1.5",
-            variant === "success" && "bg-emerald-500",
-            variant === "warning" && "bg-amber-500",
-            variant === "error" && "bg-red-500",
-            variant === "info" && "bg-blue-500",
-            variant === "primary" && "bg-text-main",
-            (variant === "default" || variant === "outline") && "bg-text-muted"
-          )}
+          aria-hidden
+          className={cn("size-1.5 rounded-full", DOT_COLORS[variant] || DOT_COLORS.default)}
         />
-      )}
-      {icon && <span className="material-symbols-outlined text-[14px] normal-case">{icon}</span>}
+      ) : null}
+      {icon ? <Icon name={icon} className="size-3" /> : null}
       {children}
-    </span>
+    </UIBadge>
   );
 }

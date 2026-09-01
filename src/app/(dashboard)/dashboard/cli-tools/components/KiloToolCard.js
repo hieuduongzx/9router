@@ -7,6 +7,7 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus }) {
   const [status, setStatus] = useState(initialStatus || null);
@@ -151,20 +152,20 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
-              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">Connected</span>}
-              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">Not configured</span>}
+              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-success/30 bg-success/10 text-success dark:text-success">Connected</span>}
+              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-warning/30 bg-warning/10 text-warning dark:text-warning">Not configured</span>}
             </div>
-            <p className="text-xs text-text-muted truncate">{tool.description}</p>
+            <p className="text-xs text-muted-foreground truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-muted-foreground size-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </div>
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checking && (
-            <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Icon name="progress_activity" className="animate-spin" />
               <span>Checking Kilo Code...</span>
             </div>
           )}
@@ -173,19 +174,19 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30">
                 <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-yellow-500">warning</span>
+                  <Icon name="warning" className="text-yellow-500" />
                   <div className="flex-1">
                     <p className="font-medium text-yellow-600 dark:text-yellow-400">Kilo Code not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if 9router is deployed on a remote server.</p>
+                    <p className="text-sm text-muted-foreground">Manual configuration is still available if 9router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
                   <Button variant="secondary" size="sm" onClick={() => setShowManualConfigModal(true)} className="!bg-yellow-500/20 !border-yellow-500/40 !text-yellow-700 dark:!text-yellow-300 hover:!bg-yellow-500/30">
-                    <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>
+                    <Icon name="content_copy" className="size-[18px] mr-1" />
                     Manual Config
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setShowInstallGuide(!showInstallGuide)}>
-                    <span className="material-symbols-outlined text-[18px] mr-1">{showInstallGuide ? "expand_less" : "help"}</span>
+                    <Icon name={showInstallGuide ? "expand_less" : "help"} className="size-[18px] mr-1" />
                     {showInstallGuide ? "Hide" : "How to Install"}
                   </Button>
                 </div>
@@ -193,7 +194,7 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
               {showInstallGuide && (
                 <div className="p-4 bg-surface border border-border">
                   <h4 className="font-mono font-medium mb-3">Installation Guide</h4>
-                  <p className="text-sm text-text-muted">Install Kilo Code from <a className="text-primary underline" href="https://kilocode.ai" target="_blank" rel="noreferrer">kilocode.ai</a> or VS Code extension marketplace.</p>
+                  <p className="text-sm text-muted-foreground">Install Kilo Code from <a className="text-primary underline" href="https://kilocode.ai" target="_blank" rel="noreferrer">kilocode.ai</a> or VS Code extension marketplace.</p>
                 </div>
               )}
             </div>
@@ -203,46 +204,46 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
             <>
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">Select Endpoint</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <BaseUrlSelect value={customBaseUrl || getDisplayUrl()}
                   onChange={setCustomBaseUrl}
                   requiresExternalUrl={tool.requiresExternalUrl}  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">API Key</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Model</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">Model</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <div className="relative w-full min-w-0">
                     <input type="text" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} placeholder="provider/model-id" className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5" />
-                    {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors" title="Clear"><span className="material-symbols-outlined text-[14px]">close</span></button>}
+                    {selectedModel && <button onClick={() => setSelectedModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-destructive rounded transition-colors" title="Clear"><Icon name="close" className="size-[14px]" /></button>}
                   </div>
-                  <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`w-full sm:w-auto rounded border px-2 py-2 font-mono text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
+                  <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`w-full sm:w-auto rounded border px-2 py-2 font-mono text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${activeProviders?.length ? "bg-surface border-border text-foreground hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select Model</button>
                 </div>
               </div>
 
               {message && (
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-                  <span className="material-symbols-outlined text-[14px]">{message.type === "success" ? "check_circle" : "error"}</span>
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                  <Icon name={message.type === "success" ? "check_circle" : "error"} className="size-[14px]" />
                   <span>{message.text}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <Button variant="primary" size="sm" onClick={handleApply} disabled={(!selectedApiKey && (cloudEnabled && apiKeys.length > 0)) || !selectedModel} loading={applying}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
+                  <Icon name="save" className="size-[14px] mr-1" />Apply
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleReset} disabled={restoring} loading={restoring}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
+                  <Icon name="restore" className="size-[14px] mr-1" />Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>Manual Config
+                  <Icon name="content_copy" className="size-[14px] mr-1" />Manual Config
                 </Button>
               </div>
             </>

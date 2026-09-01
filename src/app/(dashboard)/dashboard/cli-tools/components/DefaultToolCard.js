@@ -6,6 +6,7 @@ import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/prov
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Image from "next/image";
 import ApiKeySelect from "./ApiKeySelect";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders = [], cloudEnabled = false }) {
   const [copiedField, setCopiedField] = useState(null);
@@ -69,7 +70,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           disabled={!hasActiveProviders}
           className={`shrink-0 px-3 py-2 rounded border font-mono text-sm transition-colors ${
             hasActiveProviders
-              ? "bg-bg-secondary border-border text-text-main hover:border-primary cursor-pointer"
+              ? "bg-bg-secondary border-border text-foreground hover:border-primary cursor-pointer"
               : "opacity-50 cursor-not-allowed border-border"
           }`}
         >
@@ -81,16 +82,14 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
               onClick={() => handleCopy(modelValue, "model")}
               className="shrink-0 px-3 py-2 bg-bg-secondary hover:bg-bg-tertiary rounded border border-border transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">
-                {copiedField === "model" ? "check" : "content_copy"}
-              </span>
+              <Icon name={copiedField === "model" ? "check" : "content_copy"} className="size-[18px]" />
             </button>
             <button
               onClick={() => setModelValue("")}
-              className="p-2 text-text-muted hover:text-red-500 rounded transition-colors"
+              className="p-2 text-muted-foreground hover:text-destructive rounded transition-colors"
               title="Clear"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <Icon name="close" className="size-[18px]" />
             </button>
           </>
         )}
@@ -110,9 +109,9 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           const isWarning = note.type === "warning";
           const isError = note.type === "cloudCheck" && !cloudEnabled;
           
-          let bgClass = "bg-blue-500/10 border-blue-500/30";
-          let textClass = "text-blue-600 dark:text-blue-400";
-          let iconClass = "text-blue-500";
+          let bgClass = "bg-info/10 border-info/30";
+          let textClass = "text-info dark:text-info";
+          let iconClass = "text-info";
           let icon = "info";
           
           if (isWarning) {
@@ -121,15 +120,15 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
             iconClass = "text-yellow-500";
             icon = "warning";
           } else if (isError) {
-            bgClass = "bg-red-500/10 border-red-500/30";
-            textClass = "text-red-600 dark:text-red-400";
-            iconClass = "text-red-500";
+            bgClass = "bg-destructive/10 border-destructive/30";
+            textClass = "text-destructive dark:text-destructive";
+            iconClass = "text-destructive";
             icon = "error";
           }
           
           return (
             <div key={index} className={`flex items-start gap-3 p-3 border ${bgClass}`}>
-              <span className={`material-symbols-outlined text-lg ${iconClass}`}>{icon}</span>
+              <Icon name={icon} className={`size-[18px] ${iconClass}`} />
               <p className={`text-sm ${textClass}`}>{note.text}</p>
             </div>
           );
@@ -145,7 +144,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
   };
 
   const renderGuideSteps = () => {
-    if (!tool.guideSteps) return <p className="text-text-muted text-sm">Coming soon...</p>;
+    if (!tool.guideSteps) return <p className="text-muted-foreground text-sm">Coming soon...</p>;
 
     return (
       <div className="flex flex-col gap-4">
@@ -157,7 +156,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-mono font-medium text-text">{item.title}</p>
-              {item.desc && <p className="text-sm text-text-muted mt-0.5">{item.desc}</p>}
+              {item.desc && <p className="text-sm text-muted-foreground mt-0.5">{item.desc}</p>}
               {item.type === "apiKeySelector" && renderApiKeySelector()}
               {item.type === "modelSelector" && renderModelSelector()}
               {item.value && (
@@ -180,14 +179,12 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
         {canShowGuide() && tool.codeBlock && (
           <div className="terminal-block mt-2 rounded-sm px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">{tool.codeBlock.language}</span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">{tool.codeBlock.language}</span>
               <button
                 onClick={() => handleCopy(tool.codeBlock.code, "codeblock")}
-                className="flex items-center gap-1 rounded-sm border border-white/15 px-2 py-1 font-mono text-xs text-zinc-400 transition-colors hover:border-white/30 hover:text-white"
+                className="flex items-center gap-1 rounded-sm border border-white/15 px-2 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-white/30 hover:text-white"
               >
-                <span className="material-symbols-outlined text-sm">
-                  {copiedField === "codeblock" ? "check" : "content_copy"}
-                </span>
+                <Icon name={copiedField === "codeblock" ? "check" : "content_copy"} className="size-3.5" />
                 {copiedField === "codeblock" ? "Copied!" : "Copy"}
               </button>
             </div>
@@ -217,7 +214,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
       );
     }
     if (tool.icon) {
-      return <span className="material-symbols-outlined text-xl" style={{ color: tool.color }}>{tool.icon}</span>;
+      return <Icon name={tool.icon} className="size-5" style={{ color: tool.color }} />;
     }
     const iconSrc = getProviderIconSrc(toolId);
     if (!iconSrc) {
@@ -250,10 +247,10 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           </div>
           <div className="min-w-0">
             <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
-            <p className="text-xs text-text-muted truncate">{tool.description}</p>
+            <p className="text-xs text-muted-foreground truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-muted-foreground size-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </div>
 
       {isExpanded && (

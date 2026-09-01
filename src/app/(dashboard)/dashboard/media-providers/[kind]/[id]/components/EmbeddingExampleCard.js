@@ -6,6 +6,7 @@ import { getProviderAlias, isCustomEmbeddingProvider } from "@/shared/constants/
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Row } from "./exampleShared";
+import { Icon } from "@/shared/components/ui/icon";
 
 const DEFAULT_RESPONSE_EXAMPLE = `{
   "object": "list",
@@ -159,9 +160,9 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
               <button
                 type="button"
                 onClick={() => setInput("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                <Icon name="close" className="size-[14px]" />
               </button>
             )}
           </div>
@@ -182,13 +183,13 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
         {/* Curl + Run */}
         <div className="mt-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Request</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Request</span>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <button
                 onClick={() => copyCurl(curlSnippet)}
-                className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedCurl ? "check" : "content_copy"}</span>
+                <Icon name={copiedCurl ? "check" : "content_copy"} className="size-[14px]" />
                 {copiedCurl ? "Copied" : "Copy"}
               </button>
               <button
@@ -196,36 +197,34 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
                 disabled={running || !input.trim() || !modelFull}
                 className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
-                  play_arrow
-                </span>
+                <Icon name="play_arrow" className="size-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined} />
                 {running ? "Running..." : "Run"}
               </button>
             </div>
           </div>
-          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all">{curlSnippet}</pre>
+          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all">{curlSnippet}</pre>
         </div>
 
         {/* Error */}
-        {error && <p className="text-xs text-red-500 break-words">{error}</p>}
+        {error && <p className="text-xs text-destructive break-words">{error}</p>}
 
         {/* Response — default example or real result */}
         <div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Response {result && <span className="font-normal normal-case">&#9889; {result.latencyMs}ms</span>}
             </span>
             {result && (
               <button
                 onClick={() => copyRes(resultJson)}
-                className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedRes ? "check" : "content_copy"}</span>
+                <Icon name={copiedRes ? "check" : "content_copy"} className="size-[14px]" />
                 {copiedRes ? "Copied" : "Copy"}
               </button>
             )}
           </div>
-          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all opacity-70">
+          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all opacity-70">
             {formatResultJson(result?.data)}
           </pre>
         </div>

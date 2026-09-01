@@ -33,8 +33,8 @@ function activityCell(id, log) {
     case "account":
       return (
         <>
-          <span className="block truncate font-medium text-text-main" title={log.username}>{log.username}</span>
-          {log.email && <span className="block truncate text-[10px] text-text-muted" title={log.email}>{log.email}</span>}
+          <span className="block truncate font-medium text-foreground" title={log.username}>{log.username}</span>
+          {log.email && <span className="block truncate text-[10px] text-muted-foreground" title={log.email}>{log.email}</span>}
         </>
       );
     case "apiKey":
@@ -64,12 +64,12 @@ function activityCell(id, log) {
 
 function activityCellClass(id) {
   if (id === "account") return "max-w-[190px] px-4 py-2.5";
-  if (id === "apiKey") return "max-w-[180px] truncate px-4 py-2.5 font-mono text-text-main";
-  if (id === "model") return "max-w-[190px] truncate px-4 py-2.5 font-mono text-text-main";
+  if (id === "apiKey") return "max-w-[180px] truncate px-4 py-2.5 font-mono text-foreground";
+  if (id === "model") return "max-w-[190px] truncate px-4 py-2.5 font-mono text-foreground";
   if (id === "status") return "whitespace-nowrap px-4 py-2.5";
-  if (id === "cost") return "whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-text-main";
-  if (id === "timing" || id === "mode") return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-muted";
-  return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-text-main";
+  if (id === "cost") return "whitespace-nowrap px-4 py-2.5 font-mono font-medium tabular-nums text-foreground";
+  if (id === "timing" || id === "mode") return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-muted-foreground";
+  return "whitespace-nowrap px-4 py-2.5 font-mono tabular-nums text-foreground";
 }
 
 function activityCellTitle(id, log) {
@@ -144,15 +144,15 @@ export default function RequestLogger({ period = "all" }) {
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-mono text-lg font-semibold text-text-main">Request Logs</h2>
-          <p className="mt-0.5 text-xs text-text-muted">Account ownership is resolved from the API key used for each request.</p>
+          <h2 className="font-mono text-lg font-semibold text-foreground">Request Logs</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">Account ownership is resolved from the API key used for each request.</p>
         </div>
         <div className="flex items-center gap-3 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setAutoRefresh((value) => !value)}
             aria-pressed={autoRefresh}
-            className="inline-flex items-center gap-2 font-mono text-xs font-medium text-text-muted"
+            className="inline-flex items-center gap-2 font-mono text-xs font-medium text-muted-foreground"
           >
             <span>Auto refresh</span>
             <span className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors ${
@@ -176,9 +176,9 @@ export default function RequestLogger({ period = "all" }) {
       <Card padding="none" className="overflow-hidden">
         <div className="max-h-[600px] overflow-auto">
           {loading && logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-text-muted">Loading logs...</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Loading logs...</div>
           ) : logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-text-muted">No request details recorded yet.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">No request details recorded yet.</div>
           ) : (
             <table className="w-full min-w-max border-collapse text-left text-xs">
               <thead className="thead-data">

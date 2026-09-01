@@ -11,6 +11,7 @@ import {
   CopilotToolCard, ClineToolCard, KiloToolCard, DeepSeekTuiToolCard,
   JcodeToolCard, GrokBuildToolCard,
 } from "../components";
+import { Icon } from "@/shared/components/ui/icon";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
 
@@ -160,24 +161,24 @@ export default function ToolDetailClient({ toolId }) {
   if (!tool) {
     return (
       <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-        <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary w-fit">
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
+          <Icon name="arrow_back" className="size-[18px]" />
           Back to CLI Tools
         </Link>
-        <p className="text-sm text-text-muted">Tool not found or disabled.</p>
+        <p className="text-sm text-muted-foreground">Tool not found or disabled.</p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-      <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary w-fit">
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+      <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
+        <Icon name="arrow_back" className="size-[18px]" />
         Back to CLI Tools
       </Link>
       <div className="flex flex-col gap-1">
-        <h1 className="font-mono text-xl font-semibold text-text-main">{tool.name}</h1>
-        <p className="text-sm text-text-muted">{tool.description}</p>
+        <h1 className="font-mono text-xl font-semibold text-foreground">{tool.name}</h1>
+        <p className="text-sm text-muted-foreground">{tool.description}</p>
       </div>
       {loading ? <CardSkeleton /> : renderToolCard()}
     </div>

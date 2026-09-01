@@ -6,6 +6,7 @@ import Drawer from "./Drawer";
 import { cn } from "@/shared/utils/cn";
 import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -107,11 +108,11 @@ function SummarySection({ icon, title, action, children }) {
   return (
     <div className="flex items-start gap-3">
       <span className="relative z-10 flex size-5 shrink-0 items-center justify-center bg-surface">
-        <span className="material-symbols-outlined text-[16px] text-text-muted">{icon}</span>
+        <Icon name={icon} className="size-[16px] text-muted-foreground" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{title}</span>
+          <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">{title}</span>
           {action}
         </div>
         <div className="border border-border">{children}</div>
@@ -123,8 +124,8 @@ function SummarySection({ icon, title, action, children }) {
 function SummaryRow({ label, value, strong = false, mono = true }) {
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-      <span className="text-text-muted">{label}</span>
-      <span className={cn(mono && "font-mono tabular-nums", strong ? "font-semibold text-text-main" : "text-text-main")}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn(mono && "font-mono tabular-nums", strong ? "font-semibold text-foreground" : "text-foreground")}>
         {value}
       </span>
     </div>
@@ -138,9 +139,9 @@ function NavButton({ icon, onClick, disabled, label }) {
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex size-8 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex size-8 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+      <Icon name={icon} className="size-[18px]" />
     </button>
   );
 }
@@ -156,15 +157,13 @@ function CollapsibleSection({ title, children, defaultOpen = false, icon = null 
         className="flex w-full items-center justify-between bg-surface-2/40 p-3 transition-colors hover:bg-surface-2"
       >
         <div className="flex items-center gap-2">
-          {icon && <span className="material-symbols-outlined text-[18px] text-text-muted">{icon}</span>}
-          <span className="font-mono text-sm font-semibold text-text-main">{title}</span>
+          {icon && <Icon name={icon} className="size-[18px] text-muted-foreground" />}
+          <span className="font-mono text-sm font-semibold text-foreground">{title}</span>
         </div>
-        <span className={cn(
-          "material-symbols-outlined text-[20px] text-text-muted transition-transform duration-200",
+        <Icon name="chevron_right" className={cn(
+          "size-[20px] text-muted-foreground transition-transform duration-200",
           isOpen && "rotate-90",
-        )}>
-          chevron_right
-        </span>
+        )} />
       </button>
       {isOpen && <div className="border-t border-border p-4">{children}</div>}
     </div>
@@ -281,7 +280,7 @@ export default function RequestDetailDrawer({
       title="Usage Details"
       headerActions={headerActions}
       width="lg"
-      accentClassName={detail ? (completed ? "bg-emerald-500" : "bg-red-500") : undefined}
+      accentClassName={detail ? (completed ? "bg-success" : "bg-destructive") : undefined}
     >
       {detail && (
         <div className="space-y-6">
@@ -290,7 +289,7 @@ export default function RequestDetailDrawer({
           <SummarySection
             icon="layers"
             title="Request"
-            action={<span className="font-mono text-[11px] text-text-subtle">{new Date(detail.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }).toUpperCase()}</span>}
+            action={<span className="font-mono text-[11px] text-muted-foreground">{new Date(detail.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }).toUpperCase()}</span>}
           >
             <SummaryRow label="Mode" value={detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"} />
             {showProviderDetails && <SummaryRow label="Provider" value={resolvedProviderName} mono={false} />}
@@ -330,29 +329,29 @@ export default function RequestDetailDrawer({
 
           <SummarySection icon="troubleshoot" title="Diagnostics">
             <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-              <span className="text-text-muted">Trace ID</span>
+              <span className="text-muted-foreground">Trace ID</span>
               <div className="flex items-center gap-1.5">
-                <span className="rounded-sm border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-text-main">
+                <span className="rounded-sm border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-foreground">
                   {String(detail.id || "").slice(0, 8)}…
                 </span>
                 <button
                   type="button"
                   onClick={() => copy(detail.id || "", "trace")}
-                  className="flex size-6 items-center justify-center rounded-sm border border-border text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
+                  className="flex size-6 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                   aria-label="Copy trace ID"
                 >
-                  <span className="material-symbols-outlined text-[13px]">{copied === "trace" ? "check" : "content_copy"}</span>
+                  <Icon name={copied === "trace" ? "check" : "content_copy"} className="size-[13px]" />
                 </button>
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-sm">
-              <span className="text-text-muted">Debug report</span>
+              <span className="text-muted-foreground">Debug report</span>
               <button
                 type="button"
                 onClick={() => copy(buildDetailReport(detail, resolvedProviderName), "report")}
-                className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 font-mono text-[11px] text-text-main transition-colors hover:bg-surface-2"
+                className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 font-mono text-[11px] text-foreground transition-colors hover:bg-surface-2"
               >
-                <span className="material-symbols-outlined text-[13px]">{copied === "report" ? "check" : "content_copy"}</span>
+                <Icon name={copied === "report" ? "check" : "content_copy"} className="size-[13px]" />
                 {copied === "report" ? "Copied" : "Copy all"}
               </button>
             </div>
@@ -360,9 +359,9 @@ export default function RequestDetailDrawer({
 
           <div className="flex items-start gap-3">
             <span className="relative z-10 flex size-5 shrink-0 items-center justify-center bg-surface">
-              <span className={cn("size-2 ", completed ? "bg-emerald-500" : "bg-red-500")} />
+              <span className={cn("size-2 ", completed ? "bg-success" : "bg-destructive")} />
             </span>
-            <p className={cn("font-mono text-xs", completed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+            <p className={cn("font-mono text-xs", completed ? "text-success dark:text-success" : "text-destructive dark:text-destructive")}>
               {completed
                 ? `Response completed in ${formatTiming(detail.latency?.total)}`
                 : `Response failed after ${formatTiming(detail.latency?.total)}`}
@@ -373,13 +372,13 @@ export default function RequestDetailDrawer({
           {detail.pxpipe && (
             <div className="border border-border p-4">
               <div className="mb-2 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-text-muted">image</span>
-                <span className="font-mono text-sm font-semibold text-text-main">PXPIPE</span>
+                <Icon name="image" className="size-[18px] text-muted-foreground" />
+                <span className="font-mono text-sm font-semibold text-foreground">PXPIPE</span>
                 <span className={cn(
-                  "rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase",
+                  "rounded-sm border px-2 py-0.5 text-xs font-medium text-muted-foreground",
                   detail.pxpipe.applied
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                    ? "border-success/30 bg-success/10 text-success dark:text-success"
+                    : "border-warning/30 bg-warning/10 text-warning dark:text-warning",
                 )}>
                   {detail.pxpipe.applied ? "Activated" : "Skipped"}
                 </span>
@@ -387,24 +386,24 @@ export default function RequestDetailDrawer({
               {detail.pxpipe.applied ? (
                 <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   <div>
-                    <span className="block text-xs text-text-muted">Original (est.)</span>
+                    <span className="block text-xs text-muted-foreground">Original (est.)</span>
                     <span className="font-mono">{(detail.pxpipe.tokensBeforeEst || 0).toLocaleString()} tokens</span>
                   </div>
                   <div>
-                    <span className="block text-xs text-text-muted">Compressed (est.)</span>
+                    <span className="block text-xs text-muted-foreground">Compressed (est.)</span>
                     <span className="font-mono">{(detail.pxpipe.tokensAfterEst || 0).toLocaleString()} tokens</span>
                   </div>
                   <div>
-                    <span className="block text-xs text-text-muted">Saved</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400">{detail.pxpipe.savedPct || 0}%</span>
+                    <span className="block text-xs text-muted-foreground">Saved</span>
+                    <span className="font-mono text-success dark:text-success">{detail.pxpipe.savedPct || 0}%</span>
                   </div>
                   <div>
-                    <span className="block text-xs text-text-muted">Images</span>
+                    <span className="block text-xs text-muted-foreground">Images</span>
                     <span className="font-mono">{detail.pxpipe.imageCount || 0} ({detail.pxpipe.durationMs || 0}ms)</span>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-text-muted">
+                <p className="text-sm text-muted-foreground">
                   Reason: <span className="font-mono">{detail.pxpipe.reason}</span>
                   {detail.pxpipe.detail ? ` — ${detail.pxpipe.detail}` : ""}
                 </p>
@@ -414,8 +413,8 @@ export default function RequestDetailDrawer({
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-text-muted">code</span>
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">Raw Payloads</span>
+              <Icon name="code" className="size-[16px] text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Raw Payloads</span>
               <span className="h-px flex-1 bg-border" aria-hidden />
             </div>
             <CollapsibleSection title="Client Request (Input)" icon="input">
@@ -445,8 +444,8 @@ export default function RequestDetailDrawer({
             <CollapsibleSection title="Client Response (Final)" icon="output">
               {detail.response?.thinking && (
                 <div className="mb-4">
-                  <h4 className="mb-2 flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    <span className="material-symbols-outlined text-[16px]">psychology</span>
+                  <h4 className="mb-2 flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Icon name="psychology" className="size-[16px]" />
                     Thinking Process
                   </h4>
                   <pre className="terminal-block max-h-[200px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
@@ -454,7 +453,7 @@ export default function RequestDetailDrawer({
                   </pre>
                 </div>
               )}
-              <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">Content</h4>
+              <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">Content</h4>
               <pre className="terminal-block max-h-[300px] max-w-full overflow-auto rounded-sm p-3 sm:p-4">
                 {detail.response?.content || "[No content]"}
               </pre>

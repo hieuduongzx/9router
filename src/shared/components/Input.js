@@ -2,8 +2,16 @@
 
 import { useId } from "react";
 
+import { Input as UIInput } from "./ui/input";
+import { Label } from "./ui/label";
+import { Icon } from "./ui/icon";
 import { cn } from "@/shared/utils/cn";
 
+/**
+ * Labelled field wrapper over the shadcn input — label, optional leading icon,
+ * error and hint in one component, which is how ~60 forms in this app already
+ * call it. Use `ui/input` directly when you're composing your own field.
+ */
 export default function Input({
   id,
   label,
@@ -22,52 +30,48 @@ export default function Input({
 }) {
   const generatedId = useId();
   const inputId = id || generatedId;
+  const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
 
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      {label && (
-        <label
-          htmlFor={inputId}
-          className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
+    <div className={cn("flex flex-col gap-2", className)}>
+      {label ? (
+        <Label htmlFor={inputId}>
           {label}
-          {required && <span className="ml-1 text-red-500">*</span>}
-        </label>
-      )}
+          {required ? <span className="text-destructive">*</span> : null}
+        </Label>
+      ) : null}
       <div className="relative">
-        {icon && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-text-muted">
-            <span className="material-symbols-outlined text-[18px]">{icon}</span>
-          </div>
-        )}
-        <input
+        {icon ? (
+          <Icon
+            name={icon}
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+        ) : null}
+        <UIInput
           id={inputId}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={cn(
-            "flex h-9 w-full rounded-sm border border-border bg-transparent px-3 py-1 font-mono text-sm text-text-main transition-colors",
-            "file:border-0 file:bg-transparent file:text-sm file:font-medium",
-            "placeholder:font-sans placeholder:text-text-muted",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            "text-[16px] sm:text-sm",
-            icon && "pl-10",
-            error && "border-red-500 focus-visible:ring-red-500/30",
-            inputClassName
-          )}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn(icon && "pl-9", inputClassName)}
           {...props}
         />
       </div>
-      {error && (
-        <p className="flex items-center gap-1 font-mono text-xs text-red-500">
-          <span className="material-symbols-outlined text-[14px]">error</span>
+      {error ? (
+        <p id={`${inputId}-error`} className="flex items-center gap-1.5 text-xs text-destructive">
+          <Icon name="error" className="size-3.5" />
           {error}
         </p>
-      )}
-      {hint && !error && <p className="text-xs text-text-muted">{hint}</p>}
+      ) : null}
+      {hint && !error ? (
+        <p id={`${inputId}-hint`} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * Kiro Social OAuth Modal (Google/GitHub)
@@ -113,12 +114,10 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
         {step === "loading" && (
           <div className="text-center py-6">
             <div className="size-16 mx-auto mb-4 bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-primary animate-spin">
-                progress_activity
-              </span>
+              <Icon name="progress_activity" className="size-7 text-primary animate-spin" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Initializing...</h3>
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-muted-foreground">
               Setting up {providerName} authentication
             </p>
           </div>
@@ -144,7 +143,7 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
 
               <div>
                 <p className="text-sm font-medium mb-2">Step 2: Paste the callback URL here</p>
-                <p className="text-xs text-text-muted mb-2">
+                <p className="text-xs text-muted-foreground mb-2">
                   After authorization, copy the full URL from your browser address bar.
                 </p>
                 <Input
@@ -170,11 +169,11 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
         {/* Success */}
         {step === "success" && (
           <div className="text-center py-6">
-            <div className="size-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-green-600">check_circle</span>
+            <div className="size-16 mx-auto mb-4 bg-success/10 dark:bg-success/20 flex items-center justify-center">
+              <Icon name="check_circle" className="size-7 text-success" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connected Successfully!</h3>
-            <p className="text-sm text-text-muted mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Your Kiro account via {providerName} has been connected.
             </p>
             <Button onClick={onClose} fullWidth>
@@ -186,11 +185,11 @@ export default function KiroSocialOAuthModal({ isOpen, provider, onSuccess, onCl
         {/* Error */}
         {step === "error" && (
           <div className="text-center py-6">
-            <div className="size-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-red-600">error</span>
+            <div className="size-16 mx-auto mb-4 bg-destructive/10 dark:bg-destructive/30 flex items-center justify-center">
+              <Icon name="error" className="size-7 text-destructive" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connection Failed</h3>
-            <p className="text-sm text-red-600 mb-4">{error}</p>
+            <p className="text-sm text-destructive mb-4">{error}</p>
             <div className="flex gap-2">
               <Button onClick={() => setStep("input")} variant="secondary" fullWidth>
                 Try Again
@@ -212,3 +211,4 @@ KiroSocialOAuthModal.propTypes = {
   onSuccess: PropTypes.func,
   onClose: PropTypes.func.isRequired,
 };
+

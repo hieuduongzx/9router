@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Providers using the dynamic-port local callback proxy.
 // Browser OAuth: popup → auto callback → auto exchange → poll-status.
@@ -694,14 +695,14 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
               <button
                 type="button"
                 onClick={() => { setAuthMode("browser"); setError(null); setStep("waiting"); startOAuthFlow(); }}
-                className={`flex-1 rounded-sm border px-3 py-2 text-sm transition-colors ${authMode === "browser" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"}`}
+                className={`flex-1 rounded-sm border px-3 py-2 text-sm transition-colors ${authMode === "browser" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-primary"}`}
               >
                 🌐 Sign in with browser
               </button>
               <button
                 type="button"
                 onClick={() => { setAuthMode("paste-token"); setError(null); setStep("input"); }}
-                className={`flex-1 rounded-sm border px-3 py-2 text-sm transition-colors ${authMode === "paste-token" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"}`}
+                className={`flex-1 rounded-sm border px-3 py-2 text-sm transition-colors ${authMode === "paste-token" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-primary"}`}
               >
                 🔑 Paste token
               </button>
@@ -711,13 +712,13 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
               <>
                 {step === "waiting" && (
                   <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-sm bg-sidebar/50">
-                    <span className="material-symbols-outlined text-base text-primary animate-spin">progress_activity</span>
+                    <Icon name="progress_activity" className="size-4 text-primary animate-spin" />
                     <span className="text-sm">Waiting for browser authorization…</span>
                   </div>
                 )}
                 {step === "input" && (
                   <div className="space-y-3">
-                    <p className="text-sm text-text-muted">
+                    <p className="text-sm text-muted-foreground">
                       Popup was blocked. After authorizing in the browser, paste the full callback URL here:
                     </p>
                     <Input
@@ -738,14 +739,14 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
             {authMode === "paste-token" && (
               <div className="space-y-3">
                 {ideStatus && !ideStatus.installed && (
-                  <div className={`px-3 py-2 rounded-sm text-sm ${PASTE_TOKEN_PROVIDERS[provider].ideOptional ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}>
+                  <div className={`px-3 py-2 rounded-sm text-sm ${PASTE_TOKEN_PROVIDERS[provider].ideOptional ? "bg-info/10 text-info dark:text-info" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}>
                     {PASTE_TOKEN_PROVIDERS[provider].ideName} IDE not detected.
                     {PASTE_TOKEN_PROVIDERS[provider].ideOptional
                       ? " You can still grab the token from DevTools."
                       : ` Install ${PASTE_TOKEN_PROVIDERS[provider].ideName} IDE to get the token, or use "Sign in with browser".`}
                   </div>
                 )}
-                <p className="text-sm text-text-muted">{PASTE_TOKEN_PROVIDERS[provider].instructions}</p>
+                <p className="text-sm text-muted-foreground">{PASTE_TOKEN_PROVIDERS[provider].instructions}</p>
                 <Input
                   value={pasteToken}
                   onChange={(e) => setPasteToken(e.target.value)}
@@ -766,9 +767,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
           <>
             {/* Option A: Auto via popup */}
             <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-sm bg-sidebar/50">
-              <span className="material-symbols-outlined text-base text-primary animate-spin">
-                progress_activity
-              </span>
+              <Icon name="progress_activity" className="size-4 text-primary animate-spin" />
               <span className="text-sm">
                 {isXaiProvider ? "Waiting for Grok Build OAuth…" : "Waiting for popup authorization…"}
               </span>
@@ -777,7 +776,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
             {/* Divider */}
             <div className="flex items-center gap-3 my-1">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-text-muted uppercase tracking-wider">Or paste callback URL manually</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Or paste callback URL manually</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
@@ -799,7 +798,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
                 <p className="text-sm font-medium mb-2">
                   Step 2: Paste the {provider === "xai" ? "callback URL or copied code" : isKimchiProvider ? "callback URL or copied token" : "callback URL"} here
                 </p>
-                <p className="text-xs text-text-muted mb-2">
+                <p className="text-xs text-muted-foreground mb-2">
                   {provider === "xai"
                     ? "If xAI shows a code instead of redirecting, paste that code here."
                     : isKimchiProvider
@@ -830,11 +829,11 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         {step === "waiting" && isDeviceCode && deviceData && (
           <>
             <div className="text-center py-4">
-              <p className="text-sm text-text-muted mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Visit the login URL below and authorize:
               </p>
               <div className="bg-sidebar p-4 rounded-sm mb-4">
-                <p className="text-xs text-text-muted mb-1">Login URL</p>
+                <p className="text-xs text-muted-foreground mb-1">Login URL</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-sm break-all">{deviceLoginUrl}</code>
                   <Button
@@ -856,7 +855,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
                 </div>
               </div>
               <div className="bg-primary/10 p-4 rounded-sm">
-                <p className="text-xs text-text-muted mb-1">Your Code</p>
+                <p className="text-xs text-muted-foreground mb-1">Your Code</p>
                 <div className="flex items-center justify-center gap-2">
                   <p className="text-2xl font-mono font-bold text-primary">{deviceData.user_code}</p>
                   <Button
@@ -869,8 +868,8 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
               </div>
             </div>
             {polling && (
-              <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
-                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Icon name="progress_activity" className="animate-spin" />
                 Waiting for authorization...
               </div>
             )}
@@ -880,11 +879,11 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         {/* Success Step */}
         {step === "success" && (
           <div className="text-center py-6">
-            <div className="size-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-green-600">check_circle</span>
+            <div className="size-16 mx-auto mb-4 bg-success/10 dark:bg-success/20 flex items-center justify-center">
+              <Icon name="check_circle" className="size-7 text-success" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connected Successfully!</h3>
-            <p className="text-sm text-text-muted mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Your {providerInfo.name} account has been connected.
             </p>
             <Button onClick={handleClose} fullWidth>
@@ -896,11 +895,11 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         {/* Error Step */}
         {step === "error" && (
           <div className="text-center py-6">
-            <div className="size-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-red-600">error</span>
+            <div className="size-16 mx-auto mb-4 bg-destructive/10 dark:bg-destructive/30 flex items-center justify-center">
+              <Icon name="error" className="size-7 text-destructive" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connection Failed</h3>
-            <p className="text-sm text-red-600 mb-4">{error}</p>
+            <p className="text-sm text-destructive mb-4">{error}</p>
             <div className="flex gap-2">
               <Button onClick={startOAuthFlow} variant="secondary" fullWidth>
                 Try Again
@@ -930,3 +929,4 @@ OAuthModal.propTypes = {
     region: PropTypes.string,
   }),
 };
+

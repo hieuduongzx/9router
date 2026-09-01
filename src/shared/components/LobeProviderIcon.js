@@ -20,7 +20,7 @@ export default function LobeProviderIcon({ iconKey, name, className }) {
   return (
     <span
       className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center overflow-hidden border border-border bg-surface font-mono text-xs font-semibold text-text-main",
+        "inline-flex size-7 shrink-0 items-center justify-center overflow-hidden border border-border bg-surface font-mono text-xs font-semibold text-foreground",
         className,
       )}
       aria-hidden="true"

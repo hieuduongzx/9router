@@ -191,7 +191,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         />
         {isOAuth && connection.email && (
           <div className="bg-sidebar/50 p-3 rounded-sm">
-            <p className="text-sm text-text-muted mb-1">Email</p>
+            <p className="text-sm text-muted-foreground mb-1">Email</p>
             <p className="font-medium">{connection.email}</p>
           </div>
         )}

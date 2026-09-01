@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/shared/utils/cn";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function TerminalBlock({ command, label, className }) {
   const [copied, setCopied] = useState(false);
@@ -19,7 +20,7 @@ export default function TerminalBlock({ command, label, className }) {
   return (
     <div className={cn(className)}>
       {label && (
-        <div className="mb-1.5 font-mono text-[11px] font-semibold tracking-wide text-text-muted">
+        <div className="mb-1.5 font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">
           {label}
         </div>
       )}
@@ -31,12 +32,10 @@ export default function TerminalBlock({ command, label, className }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="flex shrink-0 items-center justify-center rounded-sm border border-white/15 p-1 text-zinc-400 transition-colors hover:border-white/30 hover:text-white"
+          className="flex shrink-0 items-center justify-center rounded-sm border border-white/15 p-1 text-muted-foreground transition-colors hover:border-white/30 hover:text-white"
           aria-label="Copy command"
         >
-          <span className="material-symbols-outlined text-[15px]">
-            {copied ? "check" : "content_copy"}
-          </span>
+          <Icon name={copied ? "check" : "content_copy"} className="size-[15px]" />
         </button>
       </div>
     </div>

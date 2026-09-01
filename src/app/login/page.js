@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Input, CropFrame } from "@/shared/components";
+import { Icon } from "@/shared/components/ui/icon";
 
 const REMEMBER_KEY = "router2k.login.remember";
 const REMEMBERED_USER_KEY = "router2k.login.username";
@@ -37,9 +38,9 @@ function RememberMeField({ id, checked, onChange }) {
         onChange={(event) => onChange(event.target.checked)}
         className="mt-0.5 size-4 shrink-0 cursor-pointer appearance-none border border-border bg-surface checked:border-primary checked:bg-primary checked:bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22white%22><path d=%22M6.2 11.6 3 8.4l1.1-1.1 2.1 2.1 5-5L12.3 5.5z%22/></svg>')] checked:bg-center checked:bg-no-repeat focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       />
-      <span className="font-mono text-sm text-text-muted">
+      <span className="font-mono text-sm text-muted-foreground">
         Keep me signed in
-        <span className="mt-0.5 block text-[11px] text-text-subtle">Stays signed in for 30 days on this browser.</span>
+        <span className="mt-0.5 block text-[11px] text-muted-foreground">Stays signed in for 30 days on this browser.</span>
       </span>
     </label>
   );
@@ -238,7 +239,7 @@ export default function LoginPage() {
           <div className="relative">
             <div className="flex items-center gap-3">
               <span className="flex size-10 items-center justify-center border border-white/15 text-white">
-                <span className="material-symbols-outlined text-[20px]">route</span>
+                <Icon name="route" className="size-[20px]" />
               </span>
               <div>
                 <p className="font-mono text-sm font-semibold">Router2k</p>
@@ -253,9 +254,9 @@ export default function LoginPage() {
               Every operator signs in with a personal account. Admin and user roles keep identity explicit without changing your routing workflow.
             </p>
             <div className="mt-8 space-y-2.5 font-mono text-xs text-white/70">
-              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />account-based sessions</div>
-              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />admin and user roles</div>
-              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-emerald-400" />local recovery for the admin account</div>
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-success" />account-based sessions</div>
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-success" />admin and user roles</div>
+              <div className="flex items-center gap-2.5"><span className="size-1.5 bg-success" />local recovery for the admin account</div>
             </div>
           </div>
 
@@ -267,11 +268,11 @@ export default function LoginPage() {
             <div className="mb-8 lg:hidden">
               <div className="flex items-center gap-3">
                 <span className="flex size-10 items-center justify-center border border-border bg-primary text-[hsl(var(--primary-foreground))]">
-                  <span className="material-symbols-outlined text-[20px]">route</span>
+                  <Icon name="route" className="size-[20px]" />
                 </span>
                 <div>
-                  <p className="font-mono font-semibold text-text-main">Router2k</p>
-                  <p className="text-xs text-text-muted">AI infrastructure gateway</p>
+                  <p className="font-mono font-semibold text-foreground">Router2k</p>
+                  <p className="text-xs text-muted-foreground">AI infrastructure gateway</p>
                 </div>
               </div>
             </div>
@@ -279,8 +280,8 @@ export default function LoginPage() {
             {mustChange ? (
               <form onSubmit={handleSetNewPassword} className="space-y-5">
                 <div>
-                  <h2 className="font-mono text-xl font-semibold tracking-tight text-text-main">Secure the admin account</h2>
-                  <p className="mt-2 text-sm leading-6 text-text-muted">Choose a new password before using this account remotely.</p>
+                  <h2 className="font-mono text-xl font-semibold tracking-tight text-foreground">Secure the admin account</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose a new password before using this account remotely.</p>
                 </div>
                 <Input id="new-password" label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={6} maxLength={128} autoComplete="new-password" required autoFocus />
                 {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
@@ -289,10 +290,10 @@ export default function LoginPage() {
             ) : (
               <>
                 <div>
-                  <h2 className="font-mono text-xl font-semibold tracking-tight text-text-main">
+                  <h2 className="font-mono text-xl font-semibold tracking-tight text-foreground">
                     {mode === "login" ? "Welcome back" : "Create your account"}
                   </h2>
-                  <p className="mt-2 text-sm text-text-muted">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     {mode === "login"
                       ? samlAvailable
                         ? "Continue with your organization’s SAML identity."
@@ -305,8 +306,8 @@ export default function LoginPage() {
 
                 {accountAvailable && registrationEnabled && (
                   <div className="mt-7 grid grid-cols-2 border border-border p-1">
-                    <button type="button" onClick={() => switchMode("login")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "login" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-text-muted hover:text-text-main"}`}>Sign in</button>
-                    <button type="button" onClick={() => switchMode("register")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "register" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-text-muted hover:text-text-main"}`}>Register</button>
+                    <button type="button" onClick={() => switchMode("login")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "login" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-muted-foreground hover:text-foreground"}`}>Sign in</button>
+                    <button type="button" onClick={() => switchMode("register")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "register" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-muted-foreground hover:text-foreground"}`}>Register</button>
                   </div>
                 )}
 
@@ -343,7 +344,7 @@ export default function LoginPage() {
                       </div>
                     )}
                     {ssoAvailable && accountAvailable && (
-                      <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-wide text-text-subtle"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
+                      <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground"><span className="h-px flex-1 bg-border" />or use an account<span className="h-px flex-1 bg-border" /></div>
                     )}
                     {accountAvailable && (
                       <form onSubmit={handleLogin} className="space-y-4">
@@ -352,7 +353,7 @@ export default function LoginPage() {
                         <RememberMeField id="login-remember" checked={rememberMe} onChange={setRememberMe} />
                         {error && <p className="font-mono text-sm text-danger" role="alert">{error}</p>}
                         {retryAfter > 0 && <p className="font-mono text-sm text-warning">Locked. Retry in <span className="font-semibold">{retryAfter}s</span>.</p>}
-                        {resetHint && <p className="text-xs leading-5 text-text-muted">Reset the admin account from the local Router2k CLI (<code className="rounded-sm bg-surface-2 px-1.5 py-0.5 font-mono">9router</code>) → Settings → Reset Admin Account.</p>}
+                        {resetHint && <p className="text-xs leading-5 text-muted-foreground">Reset the admin account from the local Router2k CLI (<code className="rounded-sm bg-surface-2 px-1.5 py-0.5 font-mono">9router</code>) → Settings → Reset Admin Account.</p>}
                         <Button type="submit" variant="primary" className="w-full" loading={loading} disabled={retryAfter > 0}>
                           {retryAfter > 0 ? `Wait ${retryAfter}s` : "Sign in"}
                         </Button>

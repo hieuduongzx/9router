@@ -1,356 +1,357 @@
 /* source() sets scan base to src/ for both webpack + Turbopack */
 @import "tailwindcss" source("../../");
+@import "tw-animate-css";
 
+/* `.dark` itself must match too (the class sits on <html>), so this is not the
+   stock shadcn `&:is(.dark *)`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Hide icon ligature text until font is ready */
-.material-symbols-outlined { opacity: 0; }
-.fonts-loaded .material-symbols-outlined { opacity: 1; transition: opacity .12s ease-out; }
-
 /* ============================================================
-   Router2k — shadcn-aligned design tokens
-   Zinc neutrals + blue primary, light/dark
+   Router2k design tokens — shadcn/ui (Tailwind v4, OKLCH)
+   Base: zinc · Primary: blue-600 · Radius: 0.625rem
+   ------------------------------------------------------------
+   Two layers live here on purpose:
+
+   1. The shadcn contract (`--background`, `--card`, `--primary`, …). Every new
+      primitive reads only these, so a real shadcn block can be dropped in and
+      themes correctly with no edits.
+   2. A compatibility layer (`--color-surface`, `--color-text-muted`, …) that
+      re-points this codebase's ~35k lines of existing markup at layer 1. It is
+      an alias table, not a second palette — never give a compat token a value
+      that layer 1 doesn't already have, or the two drift apart again.
    ============================================================ */
 :root {
-  /* shadcn-style core (HSL components for alpha support) */
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 6% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 6% 10%;
-  --radius: 0.25rem;
+  --radius: 0.625rem;
 
-  /* Brand scale (blue) */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
-
-  --color-primary: hsl(var(--primary));
-  --color-primary-hover: var(--color-brand-600);
-
-  --color-bg: hsl(var(--background));
-  --color-bg-alt: hsl(var(--muted));
-  --color-surface: hsl(var(--card));
-  --color-surface-2: hsl(var(--secondary));
-  --color-surface-3: hsl(240 5% 90%);
-  --color-sidebar: hsl(0 0% 98%);
-
-  --color-border: hsl(var(--border));
-  --color-border-subtle: hsl(240 5.9% 94%);
-
-  --color-text: hsl(var(--foreground));
-  --color-text-main: hsl(var(--foreground));
-  --color-text-muted: hsl(var(--muted-foreground));
-  --color-text-subtle: hsl(240 3.8% 56%);
-
-  --color-danger: hsl(var(--destructive));
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-info: #2563eb;
-
-  /* Data-role chips (Command Code system) — the only saturated color on screen */
-  --color-chip-tokens: #7c3aed;
-  --color-chip-requests: #f59e0b;
-  --color-chip-cost: #16a34a;
-  --color-chip-danger: #dc2626;
-  --color-chip-info: #2563eb;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.596 0.145 163.225);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.681 0.162 75.834);
+  --warning-foreground: oklch(0.216 0.006 56.043);
+  --info: oklch(0.546 0.245 262.881);
+  --info-foreground: oklch(0.97 0.014 254.604);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.546 0.245 262.881);
 
   /* Categorical chart slots: fixed order, validated for adjacent-series CVD. */
-  --color-chart-1: #2a78d6;
-  --color-chart-2: #eb6834;
-  --color-chart-3: #1baf7a;
-  --color-chart-4: #eda100;
-  --color-chart-5: #e87ba4;
+  --chart-1: oklch(0.546 0.245 262.881);
+  --chart-2: oklch(0.646 0.222 41.116);
+  --chart-3: oklch(0.6 0.118 184.704);
+  --chart-4: oklch(0.769 0.188 70.08);
+  --chart-5: oklch(0.627 0.265 303.9);
 
-  --radius-brand: calc(var(--radius) - 2px);
-  --radius-brand-lg: var(--radius);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.546 0.245 262.881);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.546 0.245 262.881);
 
-  /* Flat-by-default: no shadows anywhere in the new system */
-  --shadow-soft: none;
-  --shadow-warm: none;
-  --shadow-elevated: none;
-  --shadow-elev: none;
-  --shadow-focus: 0 0 0 3px hsl(var(--ring) / 0.25);
+  /* Data-role chips: which metric a number *is*, not which colour looks nice. */
+  --chip-tokens: oklch(0.627 0.265 303.9);
+  --chip-requests: oklch(0.769 0.188 70.08);
+  --chip-cost: oklch(0.596 0.145 163.225);
+  --chip-danger: oklch(0.577 0.245 27.325);
+  --chip-info: oklch(0.546 0.245 262.881);
 
   color-scheme: light;
 }
 
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 5.5%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 5.5%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 6% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 50.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 0 0% 98%;
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.707 0.165 254.624);
+  --primary-foreground: oklch(0.282 0.091 267.935);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.696 0.17 162.48);
+  --success-foreground: oklch(0.208 0.042 265.755);
+  --warning: oklch(0.769 0.188 70.08);
+  --warning-foreground: oklch(0.216 0.006 56.043);
+  --info: oklch(0.707 0.165 254.624);
+  --info-foreground: oklch(0.282 0.091 267.935);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.707 0.165 254.624);
 
-  --color-brand-50: #172554;
-  --color-brand-100: #1e3a8a;
-  --color-brand-200: #1e40af;
-  --color-brand-300: #2563eb;
-  --color-brand-400: #3b82f6;
-  --color-brand-500: #60a5fa;
-  --color-brand-600: #93c5fd;
-  --color-brand-700: #bfdbfe;
-  --color-brand-800: #dbeafe;
-  --color-brand-900: #eff6ff;
+  --chart-1: oklch(0.707 0.165 254.624);
+  --chart-2: oklch(0.75 0.183 55.934);
+  --chart-3: oklch(0.704 0.14 182.503);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.714 0.203 305.504);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-hover: #e4e4e7;
+  --sidebar: oklch(0.185 0.006 285.85);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.707 0.165 254.624);
+  --sidebar-primary-foreground: oklch(0.282 0.091 267.935);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.707 0.165 254.624);
 
-  --color-bg: hsl(var(--background));
-  --color-bg-alt: hsl(240 6% 6%);
-  --color-surface: hsl(var(--card));
-  --color-surface-2: hsl(var(--secondary));
-  --color-surface-3: hsl(240 4% 20%);
-  --color-sidebar: hsl(240 10% 4.5%);
-
-  --color-border: hsl(var(--border));
-  --color-border-subtle: hsl(240 4% 12%);
-
-  --color-text: hsl(var(--foreground));
-  --color-text-main: hsl(var(--foreground));
-  --color-text-muted: hsl(var(--muted-foreground));
-  --color-text-subtle: hsl(240 5% 50%);
-
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
-  --color-warning: #fbbf24;
-  --color-info: #60a5fa;
-
-  --color-chip-tokens: #a78bfa;
-  --color-chip-requests: #fbbf24;
-  --color-chip-cost: #4ade80;
-  --color-chip-danger: #f87171;
-  --color-chip-info: #60a5fa;
-
-  --color-chart-1: #3987e5;
-  --color-chart-2: #d95926;
-  --color-chart-3: #199e70;
-  --color-chart-4: #c98500;
-  --color-chart-5: #d55181;
-
-  --shadow-soft: none;
-  --shadow-warm: none;
-  --shadow-elevated: none;
-  --shadow-elev: none;
-  --shadow-focus: 0 0 0 3px hsl(var(--ring) / 0.35);
+  --chip-tokens: oklch(0.714 0.203 305.504);
+  --chip-requests: oklch(0.828 0.189 84.429);
+  --chip-cost: oklch(0.696 0.17 162.48);
+  --chip-danger: oklch(0.704 0.191 22.216);
+  --chip-info: oklch(0.707 0.165 254.624);
 
   color-scheme: dark;
 }
 
-select { color-scheme: light; }
-.dark select { color-scheme: dark; }
-.dark select option {
-  background-color: var(--color-surface);
-  color: var(--color-text-main);
-}
-
 @theme inline {
-  --color-brand-50: var(--color-brand-50);
-  --color-brand-100: var(--color-brand-100);
-  --color-brand-200: var(--color-brand-200);
-  --color-brand-300: var(--color-brand-300);
-  --color-brand-400: var(--color-brand-400);
-  --color-brand-500: var(--color-brand-500);
-  --color-brand-600: var(--color-brand-600);
-  --color-brand-700: var(--color-brand-700);
-  --color-brand-800: var(--color-brand-800);
-  --color-brand-900: var(--color-brand-900);
-
-  --color-primary: var(--color-primary);
-  --color-primary-hover: var(--color-primary-hover);
-
-  --color-bg: var(--color-bg);
-  --color-bg-alt: var(--color-bg-alt);
-  --color-surface: var(--color-surface);
-  --color-surface-2: var(--color-surface-2);
-  --color-surface-3: var(--color-surface-3);
-  --color-sidebar: var(--color-sidebar);
-  --color-border: var(--color-border);
-  --color-border-subtle: var(--color-border-subtle);
-  --color-text: var(--color-text);
-  --color-text-main: var(--color-text-main);
-  --color-text-muted: var(--color-text-muted);
-  --color-text-subtle: var(--color-text-subtle);
-  --color-accent: var(--color-brand-500);
-  --color-danger: var(--color-danger);
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-info: var(--color-info);
-
-  --color-chip-tokens: var(--color-chip-tokens);
-  --color-chip-requests: var(--color-chip-requests);
-  --color-chip-cost: var(--color-chip-cost);
-  --color-chip-danger: var(--color-chip-danger);
-  --color-chip-info: var(--color-chip-info);
-
-  --color-bg-light: #ffffff;
-  --color-bg-dark: #09090b;
-  --color-surface-light: #ffffff;
-  --color-surface-dark: #0f0f12;
-  --color-sidebar-light: #fafafa;
-  --color-sidebar-dark: #09090b;
-  --color-border-light: #e4e4e7;
-  --color-border-dark: #27272a;
-  --color-text-main-light: #09090b;
-  --color-text-main-dark: #fafafa;
-  --color-text-muted-light: #71717a;
-  --color-text-muted-dark: #a1a1aa;
-
-  --radius-brand: var(--radius-brand);
-  --radius-brand-lg: var(--radius-brand-lg);
-
-  --shadow-soft: var(--shadow-soft);
-  --shadow-warm: var(--shadow-warm);
-  --shadow-elevated: var(--shadow-elevated);
-  --shadow-elev: var(--shadow-elev);
-  --shadow-focus: var(--shadow-focus);
-
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chip-tokens: var(--chip-tokens);
+  --color-chip-requests: var(--chip-requests);
+  --color-chip-cost: var(--chip-cost);
+  --color-chip-danger: var(--chip-danger);
+  --color-chip-info: var(--chip-info);
+
+  /* ---- Compatibility aliases (see header note) ----
+     Legacy utility names kept alive so existing markup inherits the new theme
+     without a 35k-line rewrite. Prefer the shadcn name in new code. */
+  --color-bg: var(--background);
+  --color-bg-alt: var(--muted);
+  --color-surface: var(--card);
+  --color-surface-2: var(--secondary);
+  --color-surface-3: var(--border);
+  --color-text: var(--foreground);
+  --color-text-main: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
+  --color-text-subtle: var(--muted-foreground);
+  --color-border-subtle: var(--border);
+  --color-danger: var(--destructive);
+  --color-primary-hover: var(--primary);
+
+  /* Blue ramp — only for the few places that need a fixed step of the scale. */
+  --color-brand-50: oklch(0.97 0.014 254.604);
+  --color-brand-100: oklch(0.932 0.032 255.585);
+  --color-brand-200: oklch(0.882 0.059 254.128);
+  --color-brand-300: oklch(0.809 0.105 251.813);
+  --color-brand-400: oklch(0.707 0.165 254.624);
+  --color-brand-500: oklch(0.623 0.214 259.815);
+  --color-brand-600: oklch(0.546 0.245 262.881);
+  --color-brand-700: oklch(0.488 0.243 264.376);
+  --color-brand-800: oklch(0.424 0.199 265.638);
+  --color-brand-900: oklch(0.379 0.146 265.522);
 }
 
-body {
-  background-color: var(--color-bg);
-  color: var(--color-text-main);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+@layer base {
+  * {
+    border-color: var(--color-border);
+    outline-color: color-mix(in oklab, var(--color-ring) 50%, transparent);
+  }
 
-::selection {
-  background-color: hsl(var(--primary) / 0.2);
-  color: var(--color-text-main);
-}
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-input, textarea {
-  accent-color: var(--color-primary);
-}
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  }
 
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.35);
-  border-radius: 9999px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-primary);
-}
+  input,
+  textarea {
+    accent-color: var(--color-primary);
+  }
 
-.scroll-thin-x {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--primary) / 0.45) transparent;
-}
-.scroll-thin-x::-webkit-scrollbar { height: 3px; }
-.scroll-thin-x::-webkit-scrollbar-track { background: transparent; }
-.scroll-thin-x::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.45);
-  border-radius: 3px;
-}
+  /* Native dropdowns don't inherit the theme, so they're pinned per mode. */
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  .dark select option {
+    background-color: var(--color-popover);
+    color: var(--color-popover-foreground);
+  }
 
-/* Global thin mac-like scrollbars (overrides clunky Windows/Linux default) */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120, 120, 120, 0.35) transparent;
-}
-.dark * {
-  scrollbar-color: rgba(180, 180, 180, 0.3) transparent;
-}
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: rgba(120, 120, 120, 0.35);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(120, 120, 120, 0.55);
-}
-.dark *::-webkit-scrollbar-thumb {
-  background-color: rgba(180, 180, 180, 0.3);
-}
-.dark *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(180, 180, 180, 0.5);
-}
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
 
-.card-soft,
-.card-elev {
-  background-color: var(--color-surface);
-  box-shadow: none;
-  border-radius: 0;
-  border: 1px solid var(--color-border);
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  select {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* ============================================================
-   The Bench Instrument — Command Code visual system
-   See DESIGN.md. Flat, hairline, monospace-structural.
+   Shared patterns
    ============================================================ */
 
-/* Uppercase tracked mono eyebrow (no comment-slash prefix) */
+/* Section eyebrow above a group of cards. Sans + medium, not a mono caps rule —
+   uppercase tracked mono at 11px measurably slows scanning. */
 .section-label {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-foreground);
 }
 
-/* "[01]" bracket step index */
+/* "[01]" ordered-step marker. */
 .step-index {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-text-subtle);
+  color: var(--color-muted-foreground);
 }
-.step-index::before { content: "["; }
-.step-index::after { content: "]"; }
+.step-index::before {
+  content: "[";
+}
+.step-index::after {
+  content: "]";
+}
 
-/* Crop-mark corner brackets — the system's one ornament, use sparingly */
+/* Data-table head: one rule so every table in the app reads the same. Column
+   padding stays with each table — density is per-table, type is not. */
+.thead-data {
+  border-bottom: 1px solid var(--color-border);
+  background-color: color-mix(in oklab, var(--color-muted) 55%, transparent);
+}
+.thead-data th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Stat tiles fuse edge-to-edge on shared 1px seams, inside one rounded frame,
+   so a row of metrics reads as a single object instead of N floating cards. */
+.tile-grid {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-border);
+  box-shadow: var(--shadow-xs);
+}
+.tile-grid > * {
+  background-color: var(--color-card);
+}
+
+/* Card wrappers kept for pages not yet on the Card primitive. */
+.card-soft,
+.card-elev {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Terminal / code block — always dark, regardless of theme. */
+.terminal-block {
+  background-color: oklch(0.19 0.005 285.8);
+  color: oklch(0.93 0.004 286.3);
+  border: 1px solid oklch(1 0 0 / 10%);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.terminal-block .terminal-prompt {
+  color: oklch(0.62 0.015 286);
+  user-select: none;
+}
+
+/* Crop-mark corner brackets — used on one featured container at a time. */
 .crop-frame {
   position: relative;
 }
@@ -363,177 +364,182 @@ input, textarea {
   width: 10px;
   height: 10px;
   pointer-events: none;
+  opacity: 0.4;
 }
 .crop-frame::before {
   top: -1px;
   left: -1px;
-  border-top: 1px solid var(--color-text-main);
-  border-left: 1px solid var(--color-text-main);
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
 }
 .crop-frame::after {
   bottom: -1px;
   right: -1px;
-  border-bottom: 1px solid var(--color-text-main);
-  border-right: 1px solid var(--color-text-main);
+  border-bottom: 1px solid currentColor;
+  border-right: 1px solid currentColor;
 }
 .crop-frame > .crop-corner-tr {
   top: -1px;
   right: -1px;
-  border-top: 1px solid var(--color-text-main);
-  border-right: 1px solid var(--color-text-main);
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
 }
 .crop-frame > .crop-corner-bl {
   bottom: -1px;
   left: -1px;
-  border-bottom: 1px solid var(--color-text-main);
-  border-left: 1px solid var(--color-text-main);
-}
-
-/* Terminal / code block — always black, regardless of theme */
-.terminal-block {
-  background-color: #0a0a0a;
-  color: #e4e4e7;
-  border: 1px solid var(--color-border);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-.terminal-block .terminal-prompt {
-  color: #71717a;
-  user-select: none;
-}
-
-/* Stat-tile grid: tiles fuse edge-to-edge, sharing 1px hairline seams */
-.tile-grid {
-  display: grid;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-border);
-  gap: 1px;
-}
-.tile-grid > * {
-  background-color: var(--color-surface);
-}
-
-/* Data-table head: one rule so every table in the dashboard reads the same.
-   Column padding stays with each table — density is per-table, type is not. */
-.thead-data {
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg-alt);
-}
-.thead-data th {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+  border-bottom: 1px solid currentColor;
+  border-left: 1px solid currentColor;
 }
 
 .bg-hero-gradient {
-  background: linear-gradient(180deg, var(--color-bg-alt) 0%, var(--color-bg) 100%);
+  background: linear-gradient(180deg, var(--color-muted) 0%, var(--color-background) 100%);
 }
 
 .bg-vibrancy {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background: hsl(var(--background) / 0.8);
-}
-.dark .bg-vibrancy {
-  background: hsl(var(--background) / 0.75);
+  background: color-mix(in oklab, var(--color-background) 80%, transparent);
 }
 
-.traffic-lights { display: flex; gap: 8px; }
-.traffic-light { width: 12px; height: 12px; border-radius: 50%; }
-.traffic-light.red { background: #FF5F56; }
-.traffic-light.yellow { background: #FFBD2E; }
-.traffic-light.green { background: #27C93F; }
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined', sans-serif;
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  font-feature-settings: 'liga';
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-.material-symbols-outlined.fill-1 {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-button { -webkit-user-select: none; user-select: none; }
-
-button:not(:disabled),
-[role="button"]:not([aria-disabled="true"]),
-label[for],
-summary,
-select {
-  cursor: pointer;
-}
-button:disabled,
-[role="button"][aria-disabled="true"] {
-  cursor: not-allowed;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-spin { animation: spin 1s linear infinite; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
-@keyframes border-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 1px hsl(var(--ring) / 0.25);
-    border-color: hsl(var(--ring) / 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.2);
-    border-color: hsl(var(--ring) / 0.7);
-  }
-}
-.animate-border-glow { animation: border-glow 2s ease-in-out infinite; }
-
-@keyframes slideInFromRight {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes slideInFromLeft {
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.fade-in { animation: fadeIn 0.15s ease-out; }
-
-/* Landing grid (subtle shadcn-like) */
 .landing-grid {
   background-image:
-    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in oklab, var(--color-border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-border) 60%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 75%);
 }
 
-/* Topology: router card pulse (no flying rings) + electric edge beam */
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+}
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.traffic-light.red {
+  background: #ff5f56;
+}
+.traffic-light.yellow {
+  background: #ffbd2e;
+}
+.traffic-light.green {
+  background: #27c93f;
+}
+
+/* ============================================================
+   Scrollbars
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-muted-foreground) 40%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--color-muted-foreground) 35%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--color-muted-foreground) 60%, transparent);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin-x::-webkit-scrollbar {
+  height: 3px;
+}
+
+/* ============================================================
+   Animation
+   ============================================================ */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes border-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-ring) 25%, transparent);
+    border-color: color-mix(in oklab, var(--color-ring) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-ring) 20%, transparent);
+    border-color: color-mix(in oklab, var(--color-ring) 70%, transparent);
+  }
+}
+.animate-border-glow {
+  animation: border-glow 2s ease-in-out infinite;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* ============================================================
+   Provider topology (React Flow) — the one place saturated neon is correct
+   ============================================================ */
 @keyframes topology-router-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     box-shadow:
       0 0 8px #fde047,
@@ -551,22 +557,52 @@ button:disabled,
   }
 }
 @keyframes topology-router-icon-shake {
-  0%, 100% { transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 2px #fde047); }
-  25% { transform: rotate(-5deg) scale(1.08); filter: drop-shadow(0 0 6px #facc15); }
-  75% { transform: rotate(5deg) scale(1.08); filter: drop-shadow(0 0 6px #22d3ee); }
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+    filter: drop-shadow(0 0 2px #fde047);
+  }
+  25% {
+    transform: rotate(-5deg) scale(1.08);
+    filter: drop-shadow(0 0 6px #facc15);
+  }
+  75% {
+    transform: rotate(5deg) scale(1.08);
+    filter: drop-shadow(0 0 6px #22d3ee);
+  }
 }
 @keyframes topology-router-label-flicker {
-  0%, 100% { text-shadow: 0 0 6px #fde047, 0 0 12px #22d3ee; }
-  50% { text-shadow: 0 0 10px #fff, 0 0 18px #facc15; }
+  0%,
+  100% {
+    text-shadow:
+      0 0 6px #fde047,
+      0 0 12px #22d3ee;
+  }
+  50% {
+    text-shadow:
+      0 0 10px #fff,
+      0 0 18px #facc15;
+  }
 }
 @keyframes topology-edge-dash {
-  to { stroke-dashoffset: -36; }
+  to {
+    stroke-dashoffset: -36;
+  }
 }
 @keyframes topology-edge-flicker {
-  0%, 100% { opacity: 0.85; }
-  40% { opacity: 1; }
-  55% { opacity: 0.55; }
-  70% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  40% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.55;
+  }
+  70% {
+    opacity: 1;
+  }
 }
 .topology-router-core {
   animation: topology-router-pulse 0.75s ease-in-out infinite;
@@ -579,7 +615,9 @@ button:disabled,
   animation: topology-router-label-flicker 0.7s ease-in-out infinite;
 }
 .topology-router-badge {
-  box-shadow: 0 0 10px #fde047, 0 0 16px rgba(34, 211, 238, 0.6);
+  box-shadow:
+    0 0 10px #fde047,
+    0 0 16px rgba(34, 211, 238, 0.6);
 }
 .topology-edge-kame {
   stroke-dasharray: 8 6;
@@ -590,34 +628,34 @@ button:disabled,
 }
 .topology-edge-plasma {
   stroke-dasharray: 14 10;
-  animation: topology-edge-dash 0.18s linear infinite, topology-edge-flicker 0.22s steps(3) infinite;
+  animation:
+    topology-edge-dash 0.18s linear infinite,
+    topology-edge-flicker 0.22s steps(3) infinite;
 }
 
-/* React Flow controls: match app theme */
 .react-flow-controls-custom {
-  background: var(--color-surface);
+  background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
-
 .react-flow-controls-custom button {
-  background: var(--color-surface);
-  color: var(--color-text-main);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
   border: 0;
   border-bottom: 1px solid var(--color-border);
 }
-
 .react-flow-controls-custom button:last-child {
   border-bottom: 0;
 }
-
 .react-flow-controls-custom button:hover {
-  background: var(--color-bg-alt);
+  background: var(--color-muted);
 }
 
-/* Changelog markdown body */
+/* ============================================================
+   Changelog markdown body
+   ============================================================ */
 .changelog-body h1 {
   font-size: 1.4rem;
   font-weight: 700;
@@ -625,7 +663,9 @@ button:disabled,
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-border);
 }
-.changelog-body h1:first-child { margin-top: 0; }
+.changelog-body h1:first-child {
+  margin-top: 0;
+}
 .changelog-body h2 {
   font-size: 1.05rem;
   font-weight: 600;
@@ -642,14 +682,20 @@ button:disabled,
   padding-left: 1.5rem;
   margin: 0.5rem 0;
 }
-.changelog-body li { margin: 0.25rem 0; line-height: 1.6; }
-.changelog-body p { margin: 0.5rem 0; line-height: 1.6; }
+.changelog-body li {
+  margin: 0.25rem 0;
+  line-height: 1.6;
+}
+.changelog-body p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
 .changelog-body code {
-  background: var(--color-bg-alt);
+  background: var(--color-muted);
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875em;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 .changelog-body a {
   color: var(--color-primary);

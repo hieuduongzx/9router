@@ -61,7 +61,7 @@ export default function EditIdentityModal({ user, onClose, onUpdated }) {
           onChange={(event) => setEmail(event.target.value)}
           required
         />
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-muted-foreground">
           The account signs in with either the username or the email, so a change here changes their login.
         </p>
         {error && (

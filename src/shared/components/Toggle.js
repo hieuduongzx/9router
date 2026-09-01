@@ -1,7 +1,14 @@
 "use client";
 
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 import { cn } from "@/shared/utils/cn";
 
+/**
+ * Legacy Toggle API over the Radix switch. Call sites pass
+ * `checked`/`onChange(next)`, so the boolean is unwrapped here rather than
+ * Radix's `onCheckedChange`.
+ */
 export default function Toggle({
   checked = false,
   onChange,
@@ -12,45 +19,37 @@ export default function Toggle({
   className,
   ariaLabel,
   title,
+  id,
 }) {
-  const sizes = {
-    sm: { track: "h-5 w-9", thumb: "size-4", on: "translate-x-4", off: "translate-x-0.5" },
-    md: { track: "h-6 w-11", thumb: "size-5", on: "translate-x-5", off: "translate-x-0.5" },
-    lg: { track: "h-7 w-14", thumb: "size-6", on: "translate-x-7", off: "translate-x-0.5" },
-  };
+  const control = (
+    <Switch
+      id={id}
+      checked={checked}
+      onCheckedChange={(next) => onChange?.(next)}
+      disabled={disabled}
+      size={size}
+      aria-label={ariaLabel || (label ? undefined : title)}
+      title={title}
+    />
+  );
+
+  if (!label && !description) {
+    return <div className={className}>{control}</div>;
+  }
 
   return (
     <div className={cn("flex items-center gap-3", disabled && "opacity-50", className)}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={ariaLabel}
-        title={title}
-        disabled={disabled}
-        onClick={() => !disabled && onChange?.(!checked)}
-        className={cn(
-          "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-          checked ? "bg-primary" : "bg-surface-3",
-          sizes[size].track,
-          disabled && "cursor-not-allowed"
-        )}
-      >
-        <span
-          className={cn(
-            "pointer-events-none block rounded-full bg-white ring-0 transition-transform",
-            sizes[size].thumb,
-            checked ? sizes[size].on : sizes[size].off
-          )}
-        />
-      </button>
-      {(label || description) && (
-        <div className="flex flex-col gap-0.5">
-          {label && <span className="font-mono text-sm font-medium leading-none text-text-main">{label}</span>}
-          {description && <span className="text-xs text-text-muted">{description}</span>}
-        </div>
-      )}
+      {control}
+      <div className="flex flex-col gap-1">
+        {label ? (
+          <Label htmlFor={id} className="leading-none">
+            {label}
+          </Label>
+        ) : null}
+        {description ? (
+          <span className="text-xs text-muted-foreground">{description}</span>
+        ) : null}
+      </div>
     </div>
   );
 }

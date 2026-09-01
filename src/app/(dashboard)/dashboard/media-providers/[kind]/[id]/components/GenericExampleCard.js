@@ -6,6 +6,7 @@ import { MEDIA_PROVIDER_KINDS, getProviderAlias, resolveProviderId } from "@/sha
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Row, KIND_EXAMPLE_CONFIG } from "./exampleShared";
+import { Icon } from "@/shared/components/ui/icon";
 
 const CLOUDFLARE_TEST_IMAGE_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog.png";
 const CLOUDFLARE_TEST_MASK_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog-mask.png";
@@ -248,7 +249,7 @@ export function GenericExampleCard({ providerId, kind }) {
         {/* Endpoint */}
         <Row label="Endpoint">
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <span className="w-full min-w-0 flex-1 px-3 py-1.5 text-sm font-mono text-text-main bg-sidebar truncate">
+            <span className="w-full min-w-0 flex-1 px-3 py-1.5 text-sm font-mono text-foreground bg-sidebar truncate">
               {endpoint}{apiPath}
             </span>
           </div>
@@ -256,8 +257,8 @@ export function GenericExampleCard({ providerId, kind }) {
 
         {/* API Key */}
         <Row label="API Key">
-          <span className="px-3 py-1.5 text-sm font-mono text-text-main bg-sidebar rounded-lg truncate block">
-            {apiKey ? `${apiKey.slice(0, 8)}${"\u2022".repeat(Math.min(20, Math.max(0, apiKey.length - 8)))}` : <span className="text-text-muted italic">No key configured</span>}
+          <span className="px-3 py-1.5 text-sm font-mono text-foreground bg-sidebar rounded-lg truncate block">
+            {apiKey ? `${apiKey.slice(0, 8)}${"\u2022".repeat(Math.min(20, Math.max(0, apiKey.length - 8)))}` : <span className="text-muted-foreground italic">No key configured</span>}
           </span>
         </Row>
 
@@ -296,9 +297,9 @@ export function GenericExampleCard({ providerId, kind }) {
               <button
                 type="button"
                 onClick={() => setInput("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                <Icon name="close" className="size-[14px]" />
               </button>
             )}
           </div>
@@ -319,9 +320,9 @@ export function GenericExampleCard({ providerId, kind }) {
                   <button
                     type="button"
                     onClick={() => setRefImage("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <Icon name="close" className="size-[14px]" />
                   </button>
                 )}
               </div>
@@ -354,9 +355,9 @@ export function GenericExampleCard({ providerId, kind }) {
                   <button
                     type="button"
                     onClick={() => setMaskImage("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <Icon name="close" className="size-[14px]" />
                   </button>
                 )}
               </div>
@@ -428,13 +429,13 @@ export function GenericExampleCard({ providerId, kind }) {
         {/* Curl + Run */}
         <div className="mt-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Request</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Request</span>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <button
                 onClick={() => copyCurl(curlSnippet)}
-                className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedCurl ? "check" : "content_copy"}</span>
+                <Icon name={copiedCurl ? "check" : "content_copy"} className="size-[14px]" />
                 {copiedCurl ? "Copied" : "Copy"}
               </button>
             <button
@@ -442,23 +443,19 @@ export function GenericExampleCard({ providerId, kind }) {
               disabled={running || !input.trim() || !modelFull}
               className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <span className="material-symbols-outlined text-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
-                  play_arrow
-                </span>
+                <Icon name="play_arrow" className="size-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined} />
                 {running ? "Running..." : "Run"}
               </button>
             </div>
           </div>
-          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all">{curlSnippet}</pre>
+          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all">{curlSnippet}</pre>
         </div>
 
         {/* Streaming progress */}
         {(running || progress) && useStreaming && (
           <div className="flex flex-col gap-2 px-3 py-2 bg-sidebar border border-border sm:flex-row sm:items-center sm:gap-3">
-            <span className="material-symbols-outlined text-[16px] text-primary" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
-              {running ? "progress_activity" : "check_circle"}
-            </span>
-            <span className="text-xs text-text-muted">
+            <Icon name={running ? "progress_activity" : "check_circle"} className="size-[16px] text-primary" style={running ? { animation: "spin 1s linear infinite" } : undefined} />
+            <span className="text-xs text-muted-foreground">
               {progress?.stage || "starting"}
               {!running && progress?.bytesReceived ? ` · ${(progress.bytesReceived / 1024).toFixed(1)} KB` : ""}
             </span>
@@ -468,7 +465,7 @@ export function GenericExampleCard({ providerId, kind }) {
         {/* Partial image preview (codex stream) */}
         {partialImage?.b64_json && !result && (
           <div>
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Partial preview</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Partial preview</span>
             <img
               src={`data:image/png;base64,${partialImage.b64_json}`}
               alt="Partial"
@@ -480,25 +477,25 @@ export function GenericExampleCard({ providerId, kind }) {
         )}
 
         {/* Error */}
-        {error && <p className="text-xs text-red-500 break-words">{error}</p>}
+        {error && <p className="text-xs text-destructive break-words">{error}</p>}
 
         {/* Response */}
         <div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Response {result && <span className="font-normal normal-case">&#9889; {result.latencyMs}ms</span>}
             </span>
             {result && (
               <button
                 onClick={() => copyRes(resultJson)}
-                className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedRes ? "check" : "content_copy"}</span>
+                <Icon name={copiedRes ? "check" : "content_copy"} className="size-[14px]" />
                 {copiedRes ? "Copied" : "Copy"}
               </button>
             )}
           </div>
-          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all opacity-70">
+          <pre className="bg-sidebar px-3 py-2.5 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all opacity-70">
             {result ? resultJson : exConfig.defaultResponse}
           </pre>
           {kind === "image" && (binaryImageUrl || result?.data?.data?.[0]) && (
@@ -507,9 +504,9 @@ export function GenericExampleCard({ providerId, kind }) {
                 <a
                   href={binaryImageUrl || (result?.data?.data?.[0]?.b64_json ? `data:image/png;base64,${result.data.data[0].b64_json}` : result?.data?.data?.[0]?.url || "")}
                   download="image.png"
-                  className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]">download</span>
+                  <Icon name="download" className="size-[14px]" />
                   Download
                 </a>
               </div>

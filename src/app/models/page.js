@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function PublicModelsPage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-white font-sans text-zinc-950 antialiased selection:bg-zinc-950/10 selection:text-zinc-950">
+    <div className="relative min-h-screen overflow-x-hidden bg-white font-sans text-foreground antialiased selection:bg-foreground/10 selection:text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[720px] overflow-hidden">
         <div className="landing-grid absolute inset-0" />
       </div>

@@ -6,6 +6,7 @@ import ProviderIcon from "@/shared/components/ProviderIcon";
 import Badge from "@/shared/components/Badge";
 import QuotaProgressBar from "./QuotaProgressBar";
 import { calculatePercentage } from "./utils";
+import { Icon } from "@/shared/components/ui/icon";
 
 const planVariants = {
   free: "default",
@@ -74,7 +75,7 @@ export default function ProviderLimitCard({
           </div>
 
           <div>
-            <h3 className="font-semibold text-text-primary">
+            <h3 className="font-semibold text-foreground">
               {name || provider}
             </h3>
             {plan && (
@@ -95,13 +96,7 @@ export default function ProviderLimitCard({
           className="p-2 rounded-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Refresh quota"
         >
-          <span
-            className={`material-symbols-outlined text-[20px] text-text-muted ${
-              refreshing || loading ? "animate-spin" : ""
-            }`}
-          >
-            refresh
-          </span>
+          <Icon name="refresh" className={`size-[20px] text-muted-foreground ${ refreshing || loading ? "animate-spin" : "" }`} />
         </button>
       </div>
 
@@ -121,24 +116,20 @@ export default function ProviderLimitCard({
 
       {/* Error State */}
       {!loading && error && (
-        <div className="p-4 rounded-sm bg-red-500/10 border border-red-500/20">
+        <div className="p-4 rounded-sm bg-destructive/10 border border-destructive/20">
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-red-500 text-[20px]">
-              error
-            </span>
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <Icon name="error" className="text-destructive size-[20px]" />
+            <p className="text-sm text-destructive dark:text-destructive">{error}</p>
           </div>
         </div>
       )}
 
       {/* Info Message (for providers without API) */}
       {!loading && !error && message && (
-        <div className="p-4 rounded-sm bg-blue-500/10 border border-blue-500/20">
+        <div className="p-4 rounded-sm bg-info/10 border border-info/20">
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-blue-500 text-[20px]">
-              info
-            </span>
-            <p className="text-sm text-blue-600 dark:text-blue-400">
+            <Icon name="info" className="text-info size-[20px]" />
+            <p className="text-sm text-info dark:text-info">
               {message}
             </p>
           </div>
@@ -174,10 +165,8 @@ export default function ProviderLimitCard({
 
       {/* Empty State */}
       {!loading && !error && !message && quotas?.length === 0 && (
-        <div className="text-center py-8 text-text-muted">
-          <span className="material-symbols-outlined text-[48px] opacity-20">
-            data_usage
-          </span>
+        <div className="text-center py-8 text-muted-foreground">
+          <Icon name="data_usage" className="size-[48px] opacity-20" />
           <p className="text-sm mt-2">No quota data available</p>
         </div>
       )}

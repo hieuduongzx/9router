@@ -2,6 +2,7 @@
 
 import { cn } from "@/shared/utils/cn";
 import Button from "./Button";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function Pagination({
   currentPage,
@@ -44,10 +45,10 @@ export default function Pagination({
     >
       {/* Info text */}
       {totalItems > 0 && (
-        <div className="font-mono text-xs text-text-muted">
-          Showing <span className="font-semibold text-text-main">{startItem}</span> to{" "}
-          <span className="font-semibold text-text-main">{endItem}</span> of{" "}
-          <span className="font-semibold text-text-main">{totalItems}</span> results
+        <div className="font-mono text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{startItem}</span> to{" "}
+          <span className="font-semibold text-foreground">{endItem}</span> of{" "}
+          <span className="font-semibold text-foreground">{totalItems}</span> results
         </div>
       )}
 
@@ -55,13 +56,13 @@ export default function Pagination({
         {/* Page size selector */}
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">Rows:</span>
+            <span className="text-sm text-muted-foreground">Rows:</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               className={cn(
                 "h-9 rounded-sm border border-border bg-surface px-2",
-                "font-mono text-sm text-text-main focus:outline-none focus:ring-1 focus:ring-primary/40",
+                "font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40",
                 "cursor-pointer"
               )}
               style={{ colorScheme: 'auto' }}
@@ -84,7 +85,7 @@ export default function Pagination({
               disabled={currentPage === 1}
               className="w-9 px-0"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <Icon name="chevron_left" className="size-[18px]" />
             </Button>
 
             {pageNumbers[0] > 1 && (
@@ -98,7 +99,7 @@ export default function Pagination({
                   1
                 </Button>
                 {pageNumbers[0] > 2 && (
-                  <span className="text-text-muted px-1 hidden sm:inline">...</span>
+                  <span className="text-muted-foreground px-1 hidden sm:inline">...</span>
                 )}
               </>
             )}
@@ -121,7 +122,7 @@ export default function Pagination({
             {pageNumbers[pageNumbers.length - 1] < totalPages && (
               <>
                 {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
-                  <span className="text-text-muted px-1 hidden sm:inline">...</span>
+                  <span className="text-muted-foreground px-1 hidden sm:inline">...</span>
                 )}
                 <Button
                   variant="ghost"
@@ -141,7 +142,7 @@ export default function Pagination({
               disabled={currentPage === totalPages}
               className="w-9 px-0"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <Icon name="chevron_right" className="size-[18px]" />
             </Button>
           </div>
         )}

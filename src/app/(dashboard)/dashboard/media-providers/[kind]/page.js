@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Card, Badge, Button, Toggle, AddCustomEmbeddingModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Kinds that support combos (currently disabled for image/tts — temporarily hidden).
 // webSearch/webFetch handled by /web page.
@@ -38,7 +39,7 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
   const renderStatus = () => {
     if (isNoAuth) return <Badge variant="success" size="sm">Ready</Badge>;
     if (allDisabled) return <Badge variant="default" size="sm">Disabled</Badge>;
-    if (total === 0) return <span className="text-xs text-text-muted">No connections</span>;
+    if (total === 0) return <span className="text-xs text-muted-foreground">No connections</span>;
     return (
       <>
         {connected > 0 && <Badge variant="success" size="sm" dot>{connected} Connected</Badge>}
@@ -56,7 +57,7 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
       >
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="size-8 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-text-main">
+            <div className="size-8 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-foreground">
               <ProviderIcon
                 src={`/providers/${provider.id}.png`}
                 alt={provider.name}
@@ -101,14 +102,14 @@ function ComboList({ combos }) {
         <Link key={combo.id} href={`/dashboard/media-providers/combo/${combo.id}`}>
           <Card padding="xs" className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-[18px]">layers</span>
+              <Icon name="layers" className="text-primary size-[18px]" />
               <code className="text-sm font-mono font-medium flex-1 truncate">{combo.name}</code>
               <div className="flex flex-wrap items-center gap-1 sm:shrink-0">
                 {combo.models.slice(0, 6).map((entry, i) => {
                   const pid = typeof entry === "string" ? entry.split("/")[0] : "";
                   const p = AI_PROVIDERS[pid];
                   return (
-                    <div key={`${entry}-${i}`} title={p?.name || entry} className="size-5 flex items-center justify-center border border-border bg-surface-2 text-text-main">
+                    <div key={`${entry}-${i}`} title={p?.name || entry} className="size-5 flex items-center justify-center border border-border bg-surface-2 text-foreground">
                       <ProviderIcon
                         src={`/providers/${pid}.png`}
                         alt={p?.name || pid}
@@ -121,11 +122,11 @@ function ComboList({ combos }) {
                   );
                 })}
                 {combo.models.length > 6 && (
-                  <span className="text-[10px] text-text-muted ml-1">+{combo.models.length - 6}</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">+{combo.models.length - 6}</span>
                 )}
               </div>
-              <span className="text-[11px] text-text-muted shrink-0">{combo.models.length}</span>
-              <span className="material-symbols-outlined text-text-muted text-[16px]">chevron_right</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">{combo.models.length}</span>
+              <Icon name="chevron_right" className="text-muted-foreground size-[16px]" />
             </div>
           </Card>
         </Link>
@@ -244,7 +245,7 @@ export default function MediaProviderKindPage() {
       )}
 
       {allProviders.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border text-text-muted text-sm">
+        <div className="text-center py-12 border border-dashed border-border text-muted-foreground text-sm">
           No providers support <strong>{kindConfig.label}</strong> yet.
         </div>
       ) : (

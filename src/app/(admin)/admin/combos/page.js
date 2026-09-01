@@ -1,5 +1,6 @@
-import CombosPage from "@/app/(dashboard)/dashboard/combos/page";
+import { redirect } from "next/navigation";
 
-export default function AdminCombosPage() {
-  return <CombosPage />;
+/** Legacy path — Model Routes lives at /admin/router now. */
+export default function AdminCombosRedirect() {
+  redirect("/admin/router");
 }

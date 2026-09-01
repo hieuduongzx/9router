@@ -8,6 +8,7 @@ import CapacityBadges from "./CapacityBadges";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
 const PROVIDER_ORDER = [
@@ -470,17 +471,15 @@ export default function ModelSelectModal({
       footer={null}
     >
       {/* Info bar */}
-      <div className="flex items-center gap-2 mb-3 px-2.5 py-2 bg-primary/8 border border-primary/20 rounded-sm text-xs text-text-muted">
-        <span className="material-symbols-outlined text-primary shrink-0" style={{ fontSize: "14px" }}>info</span>
+      <div className="flex items-center gap-2 mb-3 px-2.5 py-2 bg-primary/8 border border-primary/20 rounded-sm text-xs text-muted-foreground">
+        <Icon name="info" className="text-primary shrink-0" style={{ fontSize: "14px" }} />
         <span>Click to add, click again to remove. Changes are saved automatically.</span>
       </div>
 
       {/* Search - compact */}
       <div className="mb-3">
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">
-            search
-          </span>
+          <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground size-[16px]" />
           <input
             type="text"
             placeholder="Search..."
@@ -497,9 +496,9 @@ export default function ModelSelectModal({
         {filteredCombos.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 mb-1.5 sticky top-0 bg-surface py-0.5">
-              <span className="material-symbols-outlined text-primary text-[14px]">layers</span>
+              <Icon name="layers" className="text-primary size-[14px]" />
               <span className="text-xs font-medium text-primary">Combos</span>
-              <span className="text-[10px] text-text-muted">({filteredCombos.length})</span>
+              <span className="text-[10px] text-muted-foreground">({filteredCombos.length})</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {filteredCombos.map((combo) => {
@@ -514,12 +513,12 @@ export default function ModelSelectModal({
                         ? "bg-primary text-white border-primary"
                         : addedModelValues.includes(combo.name)
                           ? "bg-primary border-primary text-white hover:bg-primary-hover"
-                          : "bg-surface border-border text-text-main hover:border-primary/50 hover:bg-primary/5"
+                          : "bg-surface border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
                       }
                     `}
                   >
                     {addedModelValues.includes(combo.name) && (
-                      <span className="material-symbols-outlined leading-none" style={{ fontSize: "10px" }}>check</span>
+                      <Icon name="check" style={{ fontSize: "10px" }} />
                     )}
                     {combo.name}
                   </button>
@@ -544,7 +543,7 @@ export default function ModelSelectModal({
               <span className="text-xs font-medium text-primary">
                 {group.name}
               </span>
-              <span className="text-[10px] text-text-muted">
+              <span className="text-[10px] text-muted-foreground">
                 ({group.models.length})
               </span>
             </div>
@@ -561,22 +560,22 @@ export default function ModelSelectModal({
                     className={`
                       px-2 py-1 rounded-sm text-xs font-medium transition-all border hover:cursor-pointer
                       ${isPlaceholder
-                        ? "border-dashed border-border text-text-muted hover:border-primary/50 hover:text-primary bg-surface italic"
+                        ? "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary bg-surface italic"
                         : isSelected
                           ? "bg-primary text-white border-primary"
                           : addedModelValues.includes(model.value)
                             ? "bg-primary border-primary text-white hover:bg-primary-hover"
-                            : "bg-surface border-border text-text-main hover:border-primary/50 hover:bg-primary/5"
+                            : "bg-surface border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
                       }
                     `}
                   >
                     <span className="flex items-center gap-1">
                       {addedModelValues.includes(model.value) && !isPlaceholder && (
-                        <span className="material-symbols-outlined leading-none" style={{ fontSize: "10px" }}>check</span>
+                        <Icon name="check" style={{ fontSize: "10px" }} />
                       )}
                       {isPlaceholder ? (
                         <>
-                          <span className="material-symbols-outlined text-[11px]">edit</span>
+                          <Icon name="edit" className="size-[11px]" />
                           {model.name}
                         </>
                       ) : model.isCustom ? (
@@ -600,10 +599,8 @@ export default function ModelSelectModal({
         ))}
 
         {Object.keys(filteredGroups).length === 0 && filteredCombos.length === 0 && (
-          <div className="text-center py-4 text-text-muted">
-            <span className="material-symbols-outlined text-2xl mb-1 block">
-              search_off
-            </span>
+          <div className="text-center py-4 text-muted-foreground">
+            <Icon name="search_off" className="size-6 mb-1 block" />
             <p className="text-xs">No models found</p>
           </div>
         )}

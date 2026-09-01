@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, Button, Badge, Input, ModelSelectModal } from "@/shared/components";
 import { TOOL_HOSTS } from "@/shared/constants/mitmToolHosts";
 import Image from "next/image";
+import { Icon } from "@/shared/components/ui/icon";
 
 /**
  * Per-tool MITM card — shows DNS status + model mappings.
@@ -158,12 +159,10 @@ export default function MitmToolCard({
                   <Badge variant="warning" size="sm">DNS off</Badge>
                 )}
               </div>
-              <p className="text-xs text-text-muted sm:truncate">Intercept {tool.name} requests via MITM proxy</p>
+              <p className="text-xs text-muted-foreground sm:truncate">Intercept {tool.name} requests via MITM proxy</p>
             </div>
           </div>
-          <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>
-            expand_more
-          </span>
+          <Icon name="expand_more" className={`text-muted-foreground size-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
         </div>
 
         {isExpanded && (
@@ -171,10 +170,10 @@ export default function MitmToolCard({
             {/* Hosts */}
             {mitmHosts.length > 0 && (
               <div className="mt-2 border border-border bg-surface/50 px-2 py-1.5">
-                <p className="text-[10px] font-medium tracking-wide text-text-main/80 mb-1">
+                <p className="text-[10px] font-medium tracking-wide text-foreground/80 mb-1">
                   Edit hosts file manually to add the following entries:
                 </p>
-                <ul className="list-none space-y-0.5 font-mono text-[10px] text-text-muted break-all">
+                <ul className="list-none space-y-0.5 font-mono text-[10px] text-muted-foreground break-all">
                   {mitmHosts.map((h) => (
                     <li key={h}>127.0.0.1 {h}</li>
                   ))}
@@ -182,10 +181,10 @@ export default function MitmToolCard({
               </div>
             )}
             {/* Info */}
-            <div className="flex flex-col gap-0.5 text-[11px] text-text-muted px-1">
+            <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground px-1">
               <p>Toggle DNS to redirect {tool.name} traffic through Router2k via MITM.</p>
               {!dnsActive && (
-                <p className="text-amber-600 text-[10px] mt-1">
+                <p className="text-warning text-[10px] mt-1">
                   ⚠️ Enable DNS to edit model mappings
                 </p>
               )}
@@ -196,8 +195,8 @@ export default function MitmToolCard({
               <div className="flex flex-col gap-2">
                 {tool.defaultModels.map((model) => (
                   <div key={model.alias} className="grid grid-cols-1 gap-1.5 sm:grid-cols-[9rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                    <span className="text-xs font-semibold text-text-main sm:text-right">{model.name}</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                    <span className="text-xs font-semibold text-foreground sm:text-right">{model.name}</span>
+                    <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                     <div className="relative w-full min-w-0">
                       <input
                         type="text"
@@ -214,10 +213,10 @@ export default function MitmToolCard({
                             handleModelMappingChange(model.alias, "");
                             saveMappings({ ...modelMappings, [model.alias]: "" });
                           }}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-destructive rounded transition-colors"
                           title="Clear"
                         >
-                          <span className="material-symbols-outlined text-[14px]">close</span>
+                          <Icon name="close" className="size-[14px]" />
                         </button>
                       )}
                     </div>
@@ -234,7 +233,7 @@ export default function MitmToolCard({
             )}
 
             {tool.defaultModels?.length === 0 && (
-              <p className="text-xs text-text-muted px-1">Model mappings will be available soon.</p>
+              <p className="text-xs text-muted-foreground px-1">Model mappings will be available soon.</p>
             )}
 
             {/* Start / Stop DNS button */}
@@ -243,9 +242,9 @@ export default function MitmToolCard({
                 <button
                   onClick={handleDnsToggle}
                   disabled={!serverRunning || loading}
-                  className="flex w-full items-center justify-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-4 py-2 font-mono text-xs font-medium text-red-500 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1.5"
+                  className="flex w-full items-center justify-center gap-1.5 rounded border border-destructive/30 bg-destructive/10 px-4 py-2 font-mono text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1.5"
                 >
-                  <span className="material-symbols-outlined text-[16px]">stop_circle</span>
+                  <Icon name="stop_circle" className="size-[16px]" />
                   Stop DNS
                 </button>
               ) : (
@@ -254,15 +253,15 @@ export default function MitmToolCard({
                   disabled={!serverRunning || loading}
                   className="flex w-full items-center justify-center gap-1.5 rounded border border-primary/30 bg-primary/10 px-4 py-2 font-mono text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1.5"
                 >
-                  <span className="material-symbols-outlined text-[16px]">play_circle</span>
+                  <Icon name="play_circle" className="size-[16px]" />
                   Start DNS
                 </button>
               )}
 
               {/* Warning below button */}
               {warning && (
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-amber-500">
-                  <span className="material-symbols-outlined text-[14px]">warning</span>
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-warning">
+                  <Icon name="warning" className="size-[14px]" />
                   <span>{warning}</span>
                 </div>
               )}
@@ -275,10 +274,10 @@ export default function MitmToolCard({
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="mx-4 flex w-full max-w-sm flex-col gap-4 border border-border bg-surface p-5 sm:p-6">
-            <h3 className="font-mono font-semibold text-text-main">Sudo Password Required</h3>
+            <h3 className="font-mono font-semibold text-foreground">Sudo Password Required</h3>
             <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30">
-              <span className="material-symbols-outlined text-yellow-500 text-[20px]">warning</span>
-              <p className="text-xs text-text-muted">Required to modify /etc/hosts and flush DNS cache</p>
+              <Icon name="warning" className="text-yellow-500 size-[20px]" />
+              <p className="text-xs text-muted-foreground">Required to modify /etc/hosts and flush DNS cache</p>
             </div>
             <Input
               type="password"
@@ -288,8 +287,8 @@ export default function MitmToolCard({
               onKeyDown={(e) => { if (e.key === "Enter" && !loading) handleConfirmPassword(); }}
             />
             {modalError && (
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs bg-red-500/10 text-red-600">
-                <span className="material-symbols-outlined text-[14px]">error</span>
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs bg-destructive/10 text-destructive">
+                <Icon name="error" className="size-[14px]" />
                 <span>{modalError}</span>
               </div>
             )}

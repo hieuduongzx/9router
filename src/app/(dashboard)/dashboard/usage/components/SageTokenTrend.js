@@ -18,9 +18,9 @@ export default function SageTokenTrend({ points = [] }) {
     <Card padding="none" className="min-w-0 overflow-hidden">
       <div className="border-b border-border px-5 py-3.5">
         <SectionLabel className="!mb-0">Xu hướng sử dụng Token</SectionLabel>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
           {["Input", "Output", "Cache Creation", "Cache Read", "Cache Hit Rate"].map((label, index) => (
-            <span key={label} className="inline-flex items-center gap-1.5"><span className={`size-2 ${index === 0 ? "bg-blue-500" : index === 1 ? "bg-emerald-500" : index === 2 ? "bg-amber-500" : index === 3 ? "bg-cyan-400" : "bg-violet-500"}`} />{label}</span>
+            <span key={label} className="inline-flex items-center gap-1.5"><span className={`size-2 ${index === 0 ? "bg-info" : index === 1 ? "bg-success" : index === 2 ? "bg-warning" : index === 3 ? "bg-info/70" : "bg-info"}`} />{label}</span>
           ))}
         </div>
       </div>
@@ -38,7 +38,7 @@ export default function SageTokenTrend({ points = [] }) {
             <Area yAxisId="tokens" type="monotone" dataKey="cacheRead" name="Cache Read" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.2} strokeWidth={1.5} isAnimationActive={false} />
             <Line yAxisId="rate" type="monotone" dataKey="cacheHitRate" name="Cache Hit Rate" stroke="#8b5cf6" strokeDasharray="5 5" dot={false} strokeWidth={1.5} isAnimationActive={false} />
           </AreaChart>
-        </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-text-muted">Không có dữ liệu trong khoảng thời gian này.</div>}
+        </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Không có dữ liệu trong khoảng thời gian này.</div>}
       </div>
     </Card>
   );

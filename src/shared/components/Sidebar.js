@@ -1,269 +1,237 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import PropTypes from "prop-types";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import PropTypes from "prop-types";
 import {
-  AudioLines,
-  Braces,
-  Brush,
-  Check,
   ChevronDown,
-  Copy,
   Download,
-  Film,
-  Globe,
-  Images,
-  Mic,
   PanelLeftClose,
   PanelLeftOpen,
-  PowerOff,
   Route,
   Search,
+  ShieldCheck,
+  User,
   X,
 } from "lucide-react";
+
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
-import { DASHBOARD_NAV_GROUPS, visibleNavItems } from "@/shared/constants/dashboardNav";
-import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import {
+  ADMIN_NAV_GROUPS,
+  DASHBOARD_NAV_GROUPS,
+  flattenNavForPalette,
+  visibleNavItems,
+} from "@/shared/constants/dashboardNav";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
-import Button from "./Button";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import JumpToPalette from "./JumpToPalette";
 import HeaderLanguage from "./HeaderLanguage";
 import ThemeToggle from "./ThemeToggle";
 import { ConfirmModal } from "./Modal";
 
 /**
- * Lucide strokes are authored on a 24px grid, so a 16px icon renders them at
- * strokeWidth * (16/24): idle 2.25 lands on ~1.5px, active 2.75 on ~1.83px.
- * Kept deliberately above Lucide's default of 2 because at this size the thinner
- * weights read as washed out against muted text. The active row gains weight
- * rather than a fill, since Lucide has no filled variant to switch to.
+ * The one dashboard rail, for both the user and admin shells.
+ *
+ * There used to be two ~600-line sidebars plus a dead third copy, each with its
+ * own `NavItem`, group label and update strip. `variant` is the only difference
+ * that mattered: which nav groups to read and what the brand row says.
  */
-const ICON_SIZE = 16;
-const STROKE_IDLE = 2.25;
-const STROKE_ACTIVE = 2.75;
-/** Same optical weight for the 13px icons in the update strip: 1.5px * 24/13. */
-const STROKE_SMALL = 2.75;
-
-const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
-
-/** Media submenu icons, keyed by kind id (the constants carry webfont names). */
-const MEDIA_ICONS = {
-  embedding: Braces,
-  image: Brush,
-  video: Film,
-  tts: AudioLines,
-  stt: Mic,
-};
-
-const COMBINED_WEB_ITEM = {
-  id: "web",
-  label: "Web Fetch & Search",
-  icon: Globe,
-  href: "/dashboard/media-providers/web",
+const VARIANTS = {
+  user: {
+    groups: DASHBOARD_NAV_GROUPS,
+    home: "/dashboard",
+    brand: APP_CONFIG.name,
+    brandIcon: Route,
+    navLabel: "Dashboard",
+  },
+  admin: {
+    groups: ADMIN_NAV_GROUPS,
+    home: "/admin",
+    brand: "Admin Panel",
+    brandIcon: ShieldCheck,
+    navLabel: "Admin dashboard",
+  },
 };
 
 function isPathActive(pathname, href, exact = false) {
-  if (exact) return pathname === href || pathname === `${href}/`;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  // Strip the query so a `?tab=` row still matches its own pathname.
+  const base = href.split("?")[0];
+  if (exact) return pathname === base || pathname === `${base}/`;
+  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
-/**
- * Shared row geometry: square corners, 2px ink tick when active.
- *
- * Labels are sans, not mono: DESIGN.md's Mono-Structure Rule puts nav labels in
- * mono, but at 14px in a narrow rail mono is measurably harder to scan, so the
- * rule is waived here by user decision. Mono stays on identifiers (version) and
- * the structural eyebrows.
- *
- * Marks a row the member view never renders. Only administrators ever see this
- * tag, so it reads as "hidden from your users" rather than as a lock.
- */
-
-function AdminTag() {
-  return (
-    <span
-      aria-hidden
-      className="shrink-0 rounded-sm border border-border px-1 font-mono text-[9px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-text-subtle"
-    >
-      Admin
-    </span>
-  );
-}
-
-function NavItem({ href, label, icon: Icon, active, onClick, nested = false, collapsed = false, adminOnly = false }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      title={adminOnly ? `${label} — admin only` : label}
-      aria-current={active ? "page" : undefined}
+function NavRow({
+  as: Comp = Link,
+  label,
+  icon: ItemIcon,
+  active,
+  collapsed,
+  nested = false,
+  trailing,
+  className,
+  ...props
+}) {
+  const row = (
+    <Comp
+      aria-current={active && Comp === Link ? "page" : undefined}
       className={cn(
-        "group relative flex h-9 items-center text-sm outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-primary/40",
-        collapsed ? "justify-center px-0" : cn("gap-3 pr-2.5", nested ? "pl-2.5" : "pl-3"),
+        "group relative flex h-9 w-full items-center rounded-md text-sm outline-none transition-colors",
+        "focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        collapsed ? "justify-center px-0" : cn("gap-2.5 pr-2", nested ? "pl-2" : "pl-2.5"),
         active
-          ? "font-medium text-text-main"
-          : "text-text-muted hover:bg-surface-2 hover:text-text-main"
+          ? "bg-accent font-medium text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        className,
       )}
+      {...props}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-1 left-0 w-0.5 bg-text-main transition-opacity",
-          active ? "opacity-100" : "opacity-0"
-        )}
-      />
-      <Icon
-        aria-hidden
-        size={ICON_SIZE}
-        strokeWidth={active ? STROKE_ACTIVE : STROKE_IDLE}
-        className={cn(
-          "shrink-0 transition-colors",
-          active ? "text-text-main" : "text-text-muted group-hover:text-text-main"
-        )}
-      />
-      {/* Collapsed rows keep an accessible name even with the label hidden. */}
-      <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
-        {label}
-        {adminOnly && <span className="sr-only"> (admin only)</span>}
-      </span>
-      {!collapsed && adminOnly && <AdminTag />}
-    </Link>
+      {ItemIcon ? (
+        <ItemIcon
+          aria-hidden
+          className={cn("size-4 shrink-0", active ? "text-foreground" : "text-muted-foreground")}
+        />
+      ) : null}
+      <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate text-left"}>{label}</span>
+      {collapsed ? null : trailing}
+    </Comp>
+  );
+
+  // Collapsed to 64px the label is `sr-only`, so a tooltip is the only way to
+  // read a row without expanding the rail.
+  if (!collapsed) return row;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{row}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
-NavItem.propTypes = {
-  href: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  icon: PropTypes.elementType.isRequired,
-  active: PropTypes.bool,
-  onClick: PropTypes.func,
-  nested: PropTypes.bool,
-  collapsed: PropTypes.bool,
-  adminOnly: PropTypes.bool,
-};
-
-/**
- * `LABEL ────` eyebrow with the trailing hairline rule (see DESIGN.md).
- * Collapsed, the text is dropped and only the rule remains as a group seam.
- */
 function GroupLabel({ children, collapsed }) {
   if (collapsed) {
     return (
-      <div className="px-2.5 pb-1.5 pt-3.5">
-        <span className="block h-px bg-border" aria-hidden />
+      <div className="px-3 pb-1 pt-3">
+        <Separator />
       </div>
     );
   }
   return (
-    <div className="flex items-center gap-2 px-1.5 pb-1.5 pt-4">
-      <span className="whitespace-nowrap font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-subtle">
-        {children}
-      </span>
-      <span className="h-px flex-1 bg-border" aria-hidden />
-    </div>
+    <p className="px-2.5 pb-1 pt-4 text-xs font-medium text-muted-foreground/80">{children}</p>
   );
 }
 
-GroupLabel.propTypes = { children: PropTypes.node, collapsed: PropTypes.bool };
+/** A nav item with children: a disclosure, not a destination. */
+function NavSubmenu({ item, pathname, collapsed, onNavigate, onExpandRail }) {
+  const sectionActive = isPathActive(pathname, item.href);
+  const [open, setOpen] = useState(sectionActive);
+  const [lastActive, setLastActive] = useState(sectionActive);
 
-function NavGroup({ label, children, collapsed }) {
+  // Navigating into the section opens it; done during render so the panel is
+  // already open on the first paint after a route change.
+  if (sectionActive !== lastActive) {
+    setLastActive(sectionActive);
+    if (sectionActive) setOpen(true);
+  }
+
+  const expanded = open && !collapsed;
+
   return (
-    <div>
-      <GroupLabel collapsed={collapsed}>{label}</GroupLabel>
-      {children}
-    </div>
+    <>
+      <NavRow
+        as="button"
+        type="button"
+        label={item.label}
+        icon={item.icon}
+        active={sectionActive}
+        collapsed={collapsed}
+        aria-expanded={expanded}
+        onClick={() => {
+          // A nested list has nowhere to render at 64px, so opening it has to
+          // expand the rail first.
+          if (collapsed) {
+            onExpandRail();
+            setOpen(true);
+            return;
+          }
+          setOpen((value) => !value);
+        }}
+        trailing={
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              expanded && "rotate-180",
+            )}
+          />
+        }
+      />
+      <div
+        inert={expanded ? undefined : true}
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="ml-[19px] border-l pl-1.5">
+            {item.children.map((child) => (
+              <NavRow
+                key={child.href}
+                href={child.href}
+                label={child.label}
+                icon={child.icon}
+                nested
+                active={isPathActive(pathname, child.href)}
+                onClick={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
-NavGroup.propTypes = {
-  label: PropTypes.string.isRequired,
-  children: PropTypes.node,
-  collapsed: PropTypes.bool,
-};
-
-export default function Sidebar({ onClose }) {
-  const pathname = usePathname();
+export default function Sidebar({ variant = "user", onClose }) {
+  const config = VARIANTS[variant] || VARIANTS.user;
+  const pathname = usePathname() || "";
   const searchParams = useSearchParams();
   const accountTab = searchParams?.get("tab") || "profile";
-  const onMediaRoute = pathname.startsWith("/dashboard/media-providers");
-  const [mediaOpen, setMediaOpen] = useState(onMediaRoute);
-  const [lastMediaRoute, setLastMediaRoute] = useState(onMediaRoute);
-  const [isDisconnected, setIsDisconnected] = useState(false);
+
+  const [isAdmin, setIsAdmin] = useState(variant === "admin");
+  const [enableTranslator, setEnableTranslator] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
-  const [enableTranslator, setEnableTranslator] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const { copied, copy } = useCopyToClipboard(2000);
   const [storedCollapsed, setCollapsed] = useSidebarCollapsed();
 
   const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
-
-  // `onClose` is only passed by the mobile drawer, which is always full width —
-  // collapsing there would leave a rail floating over the overlay.
   const isDrawer = Boolean(onClose);
+  // The mobile drawer is always full width — collapsing it makes no sense.
   const collapsed = storedCollapsed && !isDrawer;
-  const mediaExpanded = mediaOpen && !collapsed;
-
-  /** Collapsed rows have no room for a submenu, so open the rail first. */
-  const handleMediaToggle = () => {
-    if (collapsed) {
-      setCollapsed(false);
-      setMediaOpen(true);
-      return;
-    }
-    setMediaOpen((value) => !value);
-  };
-
-  const mediaKinds = useMemo(
-    () => MEDIA_PROVIDER_KINDS.filter((k) => VISIBLE_MEDIA_KINDS.includes(k.id)),
-    []
-  );
 
   const navGroups = useMemo(
-    () => DASHBOARD_NAV_GROUPS
-      .map((group) => ({
-        ...group,
-        items: visibleNavItems(group.items, { isAdmin, enableTranslator }),
-      }))
-      // "Capabilities" still renders for admins on the strength of the media
-      // submenu alone, which is not part of the item list.
-      .filter((group) => group.items.length > 0 || (group.id === "capabilities" && isAdmin)),
-    [isAdmin, enableTranslator]
+    () =>
+      config.groups
+        .map((group) => ({
+          ...group,
+          items: visibleNavItems(group.items, { isAdmin, enableTranslator }),
+        }))
+        .filter((group) => group.items.length > 0),
+    [config.groups, isAdmin, enableTranslator],
   );
 
-  /** Same destinations as the rail, flattened for the ⌘K navigator. */
-  const paletteItems = useMemo(() => {
-    const rows = navGroups.flatMap((group) =>
-      group.items.map((item) => ({
-        href: item.href,
-        label: item.label,
-        group: group.label,
-        icon: item.icon,
-      }))
-    );
-    if (!isAdmin) return rows;
-    const media = [
-      ...mediaKinds.map((kind) => ({
-        href: `/dashboard/media-providers/${kind.id}`,
-        label: kind.label,
-        group: "Media",
-        icon: MEDIA_ICONS[kind.id] || Images,
-      })),
-      { href: COMBINED_WEB_ITEM.href, label: COMBINED_WEB_ITEM.label, group: "Media", icon: COMBINED_WEB_ITEM.icon },
-    ];
-    return [...rows, ...media];
-  }, [navGroups, isAdmin, mediaKinds]);
+  const paletteItems = useMemo(() => flattenNavForPalette(navGroups), [navGroups]);
 
-  // ⌘K / Ctrl+K opens the navigator from anywhere in the dashboard. Bound on the
-  // desktop rail only — the drawer instance would double-register the shortcut.
   useEffect(() => {
     if (isDrawer) return undefined;
     const onKeyDown = (event) => {
@@ -276,14 +244,6 @@ export default function Sidebar({ onClose }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isDrawer]);
 
-  // Auto-reveal the media group when routing into it; a manual collapse still wins afterwards.
-  // Adjusted during render (not in an effect) so it never causes a cascading re-render.
-  if (onMediaRoute !== lastMediaRoute) {
-    setLastMediaRoute(onMediaRoute);
-    if (onMediaRoute) setMediaOpen(true);
-  }
-
-  // Nav gating only — identity is read by the header's account menu.
   useEffect(() => {
     const loadAuthStatus = () =>
       fetch("/api/auth/status", { cache: "no-store" })
@@ -314,17 +274,7 @@ export default function Sidebar({ onClose }) {
       .catch(() => {});
   }, []);
 
-  const handleUpdate = () => {
-    setShowUpdateModal(false);
-    setIsUpdating(true);
-  };
-
   const handleCopyAndShutdown = async () => {
-    try {
-      await navigator.clipboard.writeText(INSTALL_CMD);
-    } catch {
-      /* clipboard blocked */
-    }
     copy(INSTALL_CMD);
     let remaining = UPDATER_CONFIG.shutdownCountdownSec;
     setShutdownCountdown(remaining);
@@ -339,64 +289,52 @@ export default function Sidebar({ onClose }) {
     }, 1000);
   };
 
-  const handleCancelUpdate = () => {
-    setIsUpdating(false);
-    setShutdownCountdown(0);
-  };
+  const BrandIcon = config.brandIcon;
 
   return (
     <>
       <aside
         className={cn(
-          "flex h-full min-h-full shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 ease-out",
-          collapsed ? "w-16" : "w-64"
+          "flex h-full min-h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground",
+          "transition-[width] duration-200 ease-out",
+          collapsed ? "w-16" : "w-64",
         )}
       >
-        {/* Brand header */}
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center border-b border-border",
-            collapsed ? "justify-center px-0" : "gap-2 px-3"
+            "flex h-14 shrink-0 items-center border-b",
+            collapsed ? "justify-center px-0" : "gap-2 px-3",
           )}
         >
           <Link
-            href="/dashboard"
+            href={config.home}
             onClick={onClose}
-            title={collapsed ? APP_CONFIG.name : undefined}
             className={cn(
-              "group flex items-center outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
-              collapsed ? "justify-center" : "min-w-0 flex-1 gap-2.5 px-1 py-1.5"
+              "flex items-center rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              collapsed ? "justify-center" : "min-w-0 flex-1 gap-2.5 px-1 py-1.5",
             )}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center border border-border text-text-main transition-colors group-hover:border-text-main">
-              <Route aria-hidden size={16} strokeWidth={STROKE_ACTIVE} />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <BrandIcon aria-hidden className="size-4" />
             </span>
-            <span className={collapsed ? "sr-only" : "min-w-0 flex-1"}>
-              <span className="block truncate font-mono text-sm font-semibold tracking-tight text-text-main">
-                {APP_CONFIG.name}
-              </span>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate font-semibold"}>
+              {config.brand}
             </span>
           </Link>
           {onClose ? (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={onClose}
               aria-label="Close sidebar"
-              className="flex size-8 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main lg:hidden"
+              className="shrink-0 lg:hidden"
             >
-              <X aria-hidden size={16} strokeWidth={STROKE_IDLE} />
-            </button>
+              <X />
+            </Button>
           ) : null}
         </div>
 
-        {/* ⌘K navigator trigger */}
-        <div
-          className={cn(
-            "shrink-0 border-b border-border",
-            collapsed ? "flex justify-center py-2.5" : "px-2.5 py-2.5"
-          )}
-        >
-
+        <div className={cn("shrink-0 border-b", collapsed ? "flex justify-center py-2.5" : "p-2.5")}>
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
@@ -404,16 +342,16 @@ export default function Sidebar({ onClose }) {
             aria-label="Jump to page"
             aria-keyshortcuts="Meta+K Control+K"
             className={cn(
-              "flex items-center rounded-sm border border-border bg-surface text-text-muted transition-colors",
-              "hover:border-text-subtle hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
-              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2.5"
+              "flex items-center rounded-md border bg-background text-muted-foreground shadow-xs transition-colors",
+              "hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2.5",
             )}
           >
-            <Search aria-hidden size={13} strokeWidth={STROKE_IDLE} className="shrink-0" />
+            <Search aria-hidden className="size-3.5 shrink-0" />
             {collapsed ? null : (
               <>
-                <span className="min-w-0 flex-1 truncate text-left text-[13px]">Jump to...</span>
-                <kbd className="shrink-0 rounded-sm border border-border bg-surface-2 px-1 font-mono text-[9px] font-semibold tracking-[0.06em] text-text-subtle">
+                <span className="min-w-0 flex-1 truncate text-left text-sm">Jump to...</span>
+                <kbd className="shrink-0 rounded border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground">
                   ⌘K
                 </kbd>
               </>
@@ -421,341 +359,202 @@ export default function Sidebar({ onClose }) {
           </button>
         </div>
 
-
-        {/* Update strip — collapses to a single affordance so the notice survives */}
-        {isAdmin && updateInfo && collapsed ? (
-          <div className="flex shrink-0 justify-center border-b border-border bg-surface-2/40 py-2.5">
-            <button
-              type="button"
-              onClick={() => setShowUpdateModal(true)}
-              title="Update available"
-              aria-label="Update available"
-              className="flex size-8 items-center justify-center rounded-sm border border-border text-text-main transition-colors hover:bg-surface-2"
-            >
-              <Download aria-hidden size={15} strokeWidth={STROKE_IDLE} />
-            </button>
-          </div>
-        ) : null}
-
-        {isAdmin && updateInfo && !collapsed ? (
-          <div className="shrink-0 border-b border-border bg-surface-2/40 px-2.5 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="whitespace-nowrap font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
-                Update
-              </span>
-              <span className="h-px flex-1 bg-border" aria-hidden />
-            </div>
-            <p className="mt-1.5 truncate text-[13px] font-medium text-text-main">
-              A newer release is available
-            </p>
-            <div className="mt-2 flex items-center gap-1.5">
-
-              <button
-                type="button"
+        {updateInfo ? (
+          <div className={cn("shrink-0 border-b bg-muted/40", collapsed ? "flex justify-center py-2.5" : "p-2.5")}>
+            {collapsed ? (
+              <Button
+                variant="outline"
+                size="icon-sm"
                 onClick={() => setShowUpdateModal(true)}
-                className="inline-flex h-7 items-center gap-1.5 rounded-sm bg-primary px-2.5 font-mono text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition-colors hover:bg-primary/85"
+                aria-label="Update available"
+                title="Update available"
               >
-                <Download aria-hidden size={13} strokeWidth={STROKE_SMALL} />
-                Update
-              </button>
-              <button
-                type="button"
-                onClick={() => copy(INSTALL_CMD)}
-                title={INSTALL_CMD}
-                aria-label="Copy install command"
-                className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 font-mono text-[11px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text-main"
-              >
-                {copied ? (
-                  <Check aria-hidden size={13} strokeWidth={STROKE_SMALL} />
-                ) : (
-                  <Copy aria-hidden size={13} strokeWidth={STROKE_SMALL} />
-                )}
-                {copied ? "Copied" : "Command"}
-              </button>
-            </div>
+                <Download />
+              </Button>
+            ) : (
+              <>
+                {/* Deliberately no version number — see DESIGN.md. */}
+                <p className="text-sm font-medium">A newer release is available</p>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <Button size="xs" onClick={() => setShowUpdateModal(true)}>
+                    <Download />
+                    Update
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => copy(INSTALL_CMD)}
+                    title={INSTALL_CMD}
+                  >
+                    {copied ? "Copied" : "Command"}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
 
-        {/* Navigation */}
         <nav
-          aria-label="Dashboard"
+          aria-label={config.navLabel}
           className={cn(
             "custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-4",
-            collapsed ? "px-0" : "px-2"
+            collapsed ? "px-2" : "px-2",
           )}
         >
           {navGroups.map((group) => (
-            <NavGroup key={group.id} label={group.label} collapsed={collapsed}>
-              {/* Media sits at the head of Capabilities: it is the only row with
-                  children, and a submenu reads better before flat siblings. */}
-              {group.id === "capabilities" && isAdmin ? (
-                <>
-                  <button
-                  type="button"
-                  onClick={handleMediaToggle}
-                  aria-expanded={collapsed ? false : mediaOpen}
-                  title="Media Providers — admin only"
-                  className={cn(
-                    "group relative flex h-9 w-full items-center text-sm outline-none transition-colors",
-                    "focus-visible:ring-1 focus-visible:ring-primary/40",
-                    collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-2.5",
-                    onMediaRoute
-                      ? "font-medium text-text-main"
-                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "absolute inset-y-1 left-0 w-0.5 bg-text-main transition-opacity",
-                      onMediaRoute ? "opacity-100" : "opacity-0"
-                    )}
+            <div key={group.id}>
+              <GroupLabel collapsed={collapsed}>{group.label}</GroupLabel>
+              {group.items.map((item) =>
+                item.children?.length ? (
+                  <NavSubmenu
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    collapsed={collapsed}
+                    onNavigate={onClose}
+                    onExpandRail={() => setCollapsed(false)}
                   />
-                  <Images
-                    aria-hidden
-                    size={ICON_SIZE}
-                    strokeWidth={onMediaRoute ? STROKE_ACTIVE : STROKE_IDLE}
-                    className={cn(
-                      "shrink-0 transition-colors",
-                      onMediaRoute ? "text-text-main" : "text-text-muted group-hover:text-text-main"
-                    )}
-                  />
-                  <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate text-left"}>
-                    Media Providers
-                    <span className="sr-only"> (admin only)</span>
-                  </span>
-                  {collapsed ? null : <AdminTag />}
-                  {collapsed ? null : (
-                    <ChevronDown
-                      aria-hidden
-                      size={14}
-                      strokeWidth={STROKE_IDLE}
-                      className={cn(
-                        "shrink-0 text-text-subtle transition-transform duration-200",
-                        mediaOpen && "rotate-180"
-                      )}
-                    />
-                  )}
-                </button>
-
-                {/* `inert` keeps Tab out of the collapsed rows — clipping them with
-                    overflow-hidden alone leaves them focusable but invisible. */}
-                <div
-                  inert={mediaExpanded ? undefined : true}
-                  className={cn(
-                    "grid transition-[grid-template-rows] duration-200 ease-out",
-                    mediaExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                  )}
-                >
-                  <div className="overflow-hidden">
-                    <div className="ml-[15px] border-l border-border pl-1.5">
-                      {mediaKinds.map((kind) => (
-                        <NavItem
-                          key={kind.id}
-                          href={`/dashboard/media-providers/${kind.id}`}
-                          label={kind.label}
-                          icon={MEDIA_ICONS[kind.id] || Images}
-                          nested
-                          active={pathname.startsWith(`/dashboard/media-providers/${kind.id}`)}
-                          onClick={onClose}
-                        />
-                      ))}
-                      <NavItem
-                        href={COMBINED_WEB_ITEM.href}
-                        label={COMBINED_WEB_ITEM.label}
-                        icon={COMBINED_WEB_ITEM.icon}
-                        nested
-                        active={pathname.startsWith(COMBINED_WEB_ITEM.href)}
-                        onClick={onClose}
-                      />
-                    </div>
-                  </div>
-                </div>
-                </>
-              ) : null}
-
-              {group.items.map((item) => {
-                // Account rows all share one route and differ by ?tab=, so they
-                // cannot be resolved by pathname alone.
-                const onAccount =
-                  pathname === "/dashboard/account" || pathname.startsWith("/dashboard/account/");
-                const active = item.match
-                  ? onAccount && (accountTab || "profile") === item.match
-                  : isPathActive(pathname, item.href, item.exact);
-                return (
-                  <NavItem
+                ) : (
+                  <NavRow
                     key={item.href}
                     href={item.href}
                     label={item.label}
                     icon={item.icon}
                     collapsed={collapsed}
-                    active={active}
-                    adminOnly={item.admin === true}
+                    // `match` rows are one page differing only by `?tab=`, so
+                    // the active row is decided by the query, not the path.
+                    active={
+                      item.match
+                        ? isPathActive(pathname, item.href) && accountTab === item.match
+                        : isPathActive(pathname, item.href, item.exact)
+                    }
                     onClick={onClose}
                   />
-                );
-              })}
-            </NavGroup>
+                ),
+              )}
+            </div>
           ))}
+
+          {variant === "admin" ? (
+            <div className="mt-4 border-t pt-3">
+              <NavRow
+                href="/dashboard"
+                label="My Dashboard"
+                icon={User}
+                collapsed={collapsed}
+                onClick={onClose}
+              />
+            </div>
+          ) : null}
         </nav>
 
-        {/* Rail foot: appearance + language, then the collapse toggle. Identity
-            lives in the page header. Collapsed, three 28px controls do not fit
-            across a 64px rail, so they stack instead. */}
         <div
           className={cn(
-            "flex shrink-0 items-center border-t border-border",
-            collapsed ? "flex-col gap-1 py-2" : "h-12 justify-between px-2"
+            "flex shrink-0 items-center border-t",
+            collapsed ? "flex-col gap-1 py-2" : "h-12 justify-between px-2",
           )}
         >
-          {/* Both controls already render at size-8; overriding the size here
-              would only stack a second Tailwind size class on top. */}
           <div className={cn("flex items-center gap-1", collapsed && "flex-col")}>
             <ThemeToggle />
             <HeaderLanguage />
           </div>
-
-          {/* Drawer mode is always full width, so the rail toggle is desktop-only. */}
           {isDrawer ? null : (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setCollapsed(!collapsed)}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-pressed={collapsed}
-              className="flex size-7 shrink-0 items-center justify-center rounded-sm text-text-subtle transition-colors hover:bg-surface-2 hover:text-text-main focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
             >
-              {collapsed ? (
-                <PanelLeftOpen aria-hidden size={15} strokeWidth={STROKE_IDLE} />
-              ) : (
-                <PanelLeftClose aria-hidden size={15} strokeWidth={STROKE_IDLE} />
-              )}
-            </button>
+              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
           )}
         </div>
       </aside>
 
-      <JumpToPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        items={paletteItems}
-      />
+      <JumpToPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
 
       <ConfirmModal
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
-        onConfirm={handleUpdate}
+        onConfirm={() => {
+          setShowUpdateModal(false);
+          setIsUpdating(true);
+        }}
         title={`Update ${APP_CONFIG.name}`}
         message="Show the install command? You can copy it and shut the server down to install manually."
-        confirmText="Show Command"
-        cancelText="Cancel"
+        confirmText="Show command"
         variant="primary"
       />
 
-      {(isDisconnected || isUpdating) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+      {isUpdating || isDisconnected ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-6">
           {isUpdating ? (
             <ManualUpdatePanel
               installCmd={INSTALL_CMD}
               copied={copied}
-              onCopyAndShutdown={handleCopyAndShutdown}
-              onCancel={handleCancelUpdate}
               countdown={shutdownCountdown}
               isDisconnected={isDisconnected}
+              onCopyAndShutdown={handleCopyAndShutdown}
+              onCancel={() => {
+                setIsUpdating(false);
+                setShutdownCountdown(0);
+              }}
             />
           ) : (
-            <div className="p-8 text-center">
-              <div className="mx-auto mb-4 flex size-16 items-center justify-center border border-danger/30 bg-danger/10 text-danger">
-                <PowerOff aria-hidden size={28} strokeWidth={2} />
-              </div>
-              <h2 className="mb-2 font-mono text-xl font-semibold text-white">Server Disconnected</h2>
-              <p className="mb-6 text-text-muted">The proxy server has been stopped.</p>
-              <Button variant="secondary" onClick={() => globalThis.location.reload()}>
-                Reload Page
+            <div className="w-full max-w-sm rounded-xl border bg-card p-6 text-center shadow-lg">
+              <p className="font-semibold">Server disconnected</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                The proxy server has been stopped.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => globalThis.location.reload()}
+              >
+                Reload page
               </Button>
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </>
   );
 }
 
 Sidebar.propTypes = {
+  variant: PropTypes.oneOf(["user", "admin"]),
   onClose: PropTypes.func,
 };
 
 function ManualUpdatePanel({
   installCmd,
   copied,
-  onCopyAndShutdown,
-  onCancel,
   countdown,
   isDisconnected,
+  onCopyAndShutdown,
+  onCancel,
 }) {
   const isCountingDown = countdown > 0;
   return (
-    <div className="w-full max-w-lg border border-white/15 bg-[#0a0a0a] p-6 text-white">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center border border-white/15 text-white">
-          <Copy aria-hidden size={20} strokeWidth={2} />
-        </div>
-        <div>
-          <h2 className="font-mono text-lg font-semibold">Update {APP_CONFIG.name}</h2>
-          <p className="text-xs text-white/60">
-            {isDisconnected
-              ? "Server stopped. Paste the command into a terminal to install."
-              : isCountingDown
-                ? `Command copied. Server will stop in ${countdown}s...`
-                : "Click the button below to copy the install command and shutdown."}
-          </p>
-        </div>
+    <div className="w-full max-w-lg rounded-xl border bg-card p-6 shadow-lg">
+      <p className="font-semibold">Manual update</p>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Copy the install command, then shut the server down to update.
+      </p>
+      <div className="terminal-block mt-4 overflow-x-auto p-3">
+        <span className="terminal-prompt">$ </span>
+        {installCmd}
       </div>
-
-      <p className="section-label mb-2 !text-white/50">Install command</p>
-      <div className="mb-4 w-full rounded-sm border border-white/10 bg-white/5 px-3 py-2">
-        <code className="break-all font-mono text-xs text-emerald-400">{installCmd}</code>
-      </div>
-
-      <ol className="mb-4 list-inside list-decimal space-y-1 text-xs text-white/70">
-        <li>
-          Click <strong>Copy &amp; Shutdown</strong> below.
-        </li>
-        <li>Paste the command into your terminal and press Enter.</li>
-        <li>
-          Run{" "}
-          <code className="rounded-sm bg-white/10 px-1 text-emerald-400">9router</code> again after
-          install.
-        </li>
-      </ol>
-
-      {isDisconnected ? (
-        <Button variant="secondary" fullWidth onClick={() => globalThis.location.reload()}>
-          Reload Page
+      <div className="mt-4 flex gap-2">
+        <Button onClick={onCopyAndShutdown} disabled={isCountingDown || isDisconnected}>
+          {isCountingDown ? `Shutting down in ${countdown}s...` : copied ? "Copied" : "Copy & shut down"}
         </Button>
-      ) : (
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={isCountingDown}>
-            Cancel
-          </Button>
-          <Button variant="primary" fullWidth onClick={onCopyAndShutdown} disabled={isCountingDown}>
-            {copied
-              ? "✓ Copied — shutting down..."
-              : isCountingDown
-                ? `Shutting down in ${countdown}s`
-                : "Copy & Shutdown"}
-          </Button>
-        </div>
-      )}
+        <Button variant="outline" onClick={onCancel} disabled={isCountingDown}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
-
-ManualUpdatePanel.propTypes = {
-  installCmd: PropTypes.string.isRequired,
-  copied: PropTypes.bool,
-  onCopyAndShutdown: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-  countdown: PropTypes.number,
-  isDisconnected: PropTypes.bool,
-};

@@ -22,6 +22,7 @@ import AddApiKeyModal from "./AddApiKeyModal";
 import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
+import { Icon } from "@/shared/components/ui/icon";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -916,7 +917,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                 type="checkbox"
                 checked={isSelected(conn.id)}
                 onChange={() => toggleSelectConnection(conn.id)}
-                className="h-4 w-4 rounded-sm border-gray-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded-sm border-foreground/10 text-primary focus:ring-primary"
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -980,16 +981,16 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
             disabled={bulkUpdatingProxy || activePools.length === 0}
             className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-text-muted text-[18px]">sync_alt</span>
-            <span className="text-sm text-text-main">One-to-one (rotate)</span>
+            <Icon name="sync_alt" className="text-muted-foreground size-[18px]" />
+            <span className="text-sm text-foreground">One-to-one (rotate)</span>
           </button>
           <button
             onClick={() => handleApplySinglePool(null)}
             disabled={bulkUpdatingProxy}
             className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-text-muted text-[18px]">link_off</span>
-            <span className="text-sm text-text-main">None (unbind all)</span>
+            <Icon name="link_off" className="text-muted-foreground size-[18px]" />
+            <span className="text-sm text-foreground">None (unbind all)</span>
           </button>
           {proxyPools.map((pool) => (
             <button
@@ -998,16 +999,16 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
               disabled={bulkUpdatingProxy || pool.isActive !== true}
               className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-text-muted text-[18px]">lan</span>
-              <span className="truncate text-sm text-text-main">{pool.name}</span>
+              <Icon name="lan" className="text-muted-foreground size-[18px]" />
+              <span className="truncate text-sm text-foreground">{pool.name}</span>
               {pool.isActive !== true && (
-                <span className="text-[10px] text-text-muted">(inactive)</span>
+                <span className="text-[10px] text-muted-foreground">(inactive)</span>
               )}
             </button>
           ))}
         </div>
 
-        {bulkUpdatingProxy && <p className="text-xs text-text-muted">Applying...</p>}
+        {bulkUpdatingProxy && <p className="text-xs text-muted-foreground">Applying...</p>}
 
         <Button onClick={closeBulkProxyModal} variant="ghost" fullWidth disabled={bulkUpdatingProxy}>
           Cancel
@@ -1208,7 +1209,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           onClick={() => setShowAddCustomModel(true)}
           className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary/40 px-3 py-2 text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5 sm:w-auto"
         >
-          <span className="material-symbols-outlined text-sm">add</span>
+          <Icon name="add" className="size-3.5" />
           Add Model
         </button>
 
@@ -1227,7 +1228,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           if (notAdded.length === 0) return null;
           return (
             <div className="w-full">
-              <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
+              <p className="text-xs text-muted-foreground mb-2">Suggested free models (≥200k context):</p>
               <div className="flex flex-wrap gap-2">
                 {notAdded.map((m) => (
                   <button
@@ -1235,10 +1236,10 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                     onClick={async () => {
                       await handleAddCustomModel(m.id, "llm", providerStorageAlias);
                     }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm border border-black/10 dark:border-white/10 text-xs text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
                     title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
                   >
-                    <span className="material-symbols-outlined text-[13px]">add</span>
+                    <Icon name="add" className="size-[13px]" />
                     {m.id.split("/").pop()}
                   </button>
                 ))}
@@ -1250,15 +1251,15 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         {/* Disabled models — restorable */}
         {disabledDisplayModels.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-mono font-medium text-text-muted">Disabled models ({disabledDisplayModels.length})</p>
+            <p className="text-xs font-mono font-medium text-muted-foreground">Disabled models ({disabledDisplayModels.length})</p>
             <div role="list" className="divide-y divide-border overflow-hidden border border-border">
               {disabledDisplayModels.map((model) => (
                 <div
                   role="listitem"
                   key={model.id}
-                  className="flex min-w-0 items-center gap-3 px-3 py-1.5 text-text-muted transition-colors hover:bg-sidebar/50"
+                  className="flex min-w-0 items-center gap-3 px-3 py-1.5 text-muted-foreground transition-colors hover:bg-sidebar/50"
                 >
-                  <span className="material-symbols-outlined text-lg">block</span>
+                  <Icon name="block" className="size-[18px]" />
                   <div className="min-w-0 flex-1 py-1">
                     <code className="block truncate font-mono text-sm" title={`${providerDisplayAlias}/${model.id}`}>
                       {providerDisplayAlias}/{model.id}
@@ -1270,10 +1271,10 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                   <button
                     type="button"
                     onClick={() => handleEnableModel(model.id)}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-sm px-3 text-xs font-medium text-text-muted transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-sm px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     title="Restore model"
                   >
-                    <span className="material-symbols-outlined text-base">restart_alt</span>
+                    <Icon name="restart_alt" className="size-4" />
                     <span className="hidden sm:inline">Restore</span>
                   </button>
                 </div>
@@ -1297,7 +1298,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   if (!providerInfo) {
     return (
       <div className="text-center py-20">
-        <p className="text-text-muted">Provider not found</p>
+        <p className="text-muted-foreground">Provider not found</p>
         {embedded ? (
           <button type="button" onClick={onClose} className="mt-4 text-primary">Close</button>
         ) : (
@@ -1325,9 +1326,9 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         {!embedded && (
           <Link
             href="/dashboard/providers"
-            className="mb-4 inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-primary"
+            className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
           >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <Icon name="arrow_back" className="size-[18px]" />
             Back to Providers
           </Link>
         )}
@@ -1367,12 +1368,12 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                   rel="noopener noreferrer"
                   className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                  <Icon name="open_in_new" className="size-3.5" />
                   {providerInfo.notice?.apiKeyUrl ? "Get API Key" : "Sign up / Learn more"}
                 </a>
               )}
             </div>
-            <p className="text-text-muted">
+            <p className="text-muted-foreground">
               {connections.length} connection{connections.length === 1 ? "" : "s"}
             </p>
           </div>
@@ -1381,21 +1382,21 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
 
       {providerInfo.deprecated && (
         <div className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30">
-          <span className="material-symbols-outlined text-[16px] text-yellow-500 mt-0.5 shrink-0">warning</span>
-          <p className="text-xs text-red-600 dark:text-yellow-400 leading-relaxed">{providerInfo.deprecationNotice}</p>
+          <Icon name="warning" className="size-[16px] text-yellow-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-destructive dark:text-yellow-400 leading-relaxed">{providerInfo.deprecationNotice}</p>
         </div>
       )}
 
       {providerInfo.notice?.text && !providerInfo.deprecated && (
-        <div className="flex flex-col gap-2 border border-blue-500/30 bg-blue-500/10 px-3 py-2 sm:flex-row sm:items-center">
-          <span className="material-symbols-outlined text-[16px] text-blue-500 shrink-0">info</span>
-          <p className="min-w-0 flex-1 text-xs leading-relaxed text-blue-600 dark:text-blue-400">{providerInfo.notice.text}</p>
+        <div className="flex flex-col gap-2 border border-info/30 bg-info/10 px-3 py-2 sm:flex-row sm:items-center">
+          <Icon name="info" className="size-[16px] text-info shrink-0" />
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-info dark:text-info">{providerInfo.notice.text}</p>
           {providerInfo.notice.apiKeyUrl && (
             <a
               href={providerInfo.notice.apiKeyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex justify-center rounded-sm bg-blue-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 sm:py-0.5"
+              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-info sm:py-0.5"
             >
               Get API Key →
             </a>
@@ -1408,7 +1409,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="font-mono text-sm font-semibold">{isAnthropicCompatible ? "Anthropic Compatible Details" : "OpenAI Compatible Details"}</h2>
-              <p className="break-all text-sm text-text-muted">
+              <p className="break-all text-sm text-muted-foreground">
                 {isAnthropicCompatible ? "Messages API" : (providerNode.apiType === "responses" ? "Responses API" : "Chat Completions")} · {(providerNode.baseUrl || "").replace(/\/$/, "")}/
                 {isAnthropicCompatible ? "messages" : (providerNode.apiType === "responses" ? "responses" : "chat/completions")}
               </p>
@@ -1519,14 +1520,14 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
               )}
               {/* Round Robin toggle */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-text-muted font-medium">Round Robin</span>
+                <span className="text-xs text-muted-foreground font-medium">Round Robin</span>
                 <Toggle
                   checked={providerStrategy === "round-robin"}
                   onChange={handleRoundRobinToggle}
                 />
                 {providerStrategy === "round-robin" && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-text-muted">Sticky:</span>
+                    <span className="text-xs text-muted-foreground">Sticky:</span>
                     <input
                       type="number"
                       min={1}
@@ -1544,13 +1545,13 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           {connections.length === 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="inline-flex items-center justify-center w-9 h-9 border border-border bg-surface-2 text-text-main shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">{isOAuth ? "lock" : "key"}</span>
+                <div className="inline-flex items-center justify-center w-9 h-9 border border-border bg-surface-2 text-foreground shrink-0">
+                  <Icon name={isOAuth ? "lock" : "key"} className="size-[18px]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-text-muted">No connections yet</p>
+                  <p className="text-sm text-muted-foreground">No connections yet</p>
                   {hasDualAuthModes && (
-                    <p className="text-xs text-text-muted">
+                    <p className="text-xs text-muted-foreground">
                       Choose {oauthConnectionLabel} or {apiKeyConnectionLabel}.
                     </p>
                   )}
@@ -1592,14 +1593,14 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           ) : (
             <>
               {oneByOneSummary && (
-                <div className="mb-4 border border-black/10 bg-black/[0.02] px-3 py-2 text-xs font-mono text-text-muted dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="mb-4 border border-black/10 bg-black/[0.02] px-3 py-2 text-xs font-mono text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
                   <div className="flex flex-wrap items-center gap-3">
                     <span>Total: {oneByOneSummary.total}</span>
                     <span>Completed: {oneByOneSummary.completed}</span>
                     <span>Passed: {oneByOneSummary.passed}</span>
                     <span>Failed: {oneByOneSummary.failed}</span>
                     {oneByOneSummary.stopped && (
-                      <span className="text-amber-600 dark:text-amber-400">Stopped</span>
+                      <span className="text-warning dark:text-warning">Stopped</span>
                     )}
                     {oneByOneRunning && oneByOneCurrentConnectionId && (
                       <span>Running: {connections.find((conn) => conn.id === oneByOneCurrentConnectionId)?.name || oneByOneCurrentConnectionId}</span>
@@ -1609,12 +1610,12 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
               )}
               {connections.length > 0 && (
                 <div className="mb-3 flex items-center gap-2 border-b border-black/[0.03] pb-2 dark:border-white/[0.03]">
-                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-text-muted hover:text-primary">
+                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">
                     <input
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleSelectAllConnections}
-                      className="h-3.5 w-3.5 rounded-sm border-gray-300 text-primary focus:ring-primary"
+                      className="h-3.5 w-3.5 rounded-sm border-foreground/10 text-primary focus:ring-primary"
                     />
                     Select All
                   </label>
@@ -1733,7 +1734,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           </p>
         )}
         {!!modelsTestError && (
-          <p className="text-xs text-red-500 mb-3 break-words">{modelsTestError}</p>
+          <p className="text-xs text-destructive mb-3 break-words">{modelsTestError}</p>
         )}
         {renderModelsSection()}
       </Card>

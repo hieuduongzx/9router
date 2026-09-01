@@ -7,6 +7,7 @@ import BaseUrlSelect from "./BaseUrlSelect";
 import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, apiKeys, activeProviders, cloudEnabled, initialStatus }) {
   const [status, setStatus] = useState(initialStatus || null);
@@ -193,30 +194,30 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="font-mono font-medium text-sm">{tool.name}</h3>
-              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">Connected</span>}
-              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">Not configured</span>}
-              {configStatus === "other" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400">Other</span>}
+              {configStatus === "configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-success/30 bg-success/10 text-success dark:text-success">Connected</span>}
+              {configStatus === "not_configured" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-warning/30 bg-warning/10 text-warning dark:text-warning">Not configured</span>}
+              {configStatus === "other" && <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wide border border-info/30 bg-info/10 text-info dark:text-info">Other</span>}
             </div>
-            <p className="text-xs text-text-muted truncate">{tool.description}</p>
+            <p className="text-xs text-muted-foreground truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-muted-foreground size-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </div>
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checking && (
-            <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Icon name="progress_activity" className="animate-spin" />
               <span>Checking Copilot config...</span>
             </div>
           )}
 
           {!checking && (
             <>
-              <div className="flex items-start gap-3 p-3 bg-blue-500/10 border border-blue-500/30">
-                <span className="material-symbols-outlined text-blue-500 text-lg">info</span>
-                <div className="text-xs text-blue-700 dark:text-blue-300">
+              <div className="flex items-start gap-3 p-3 bg-info/10 border border-info/30">
+                <Icon name="info" className="text-info size-[18px]" />
+                <div className="text-xs text-info dark:text-info">
                   <p className="font-medium">Writes to <code className="px-1 bg-black/5 dark:bg-white/10 rounded font-mono">chatLanguageModels.json</code></p>
                   <p className="mt-0.5 opacity-80">Reload VS Code after applying for changes to take effect.</p>
                 </div>
@@ -225,8 +226,8 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
               <div className="flex flex-col gap-2">
                 {/* Endpoint */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">Select Endpoint</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <BaseUrlSelect value={customBaseUrl || getDisplayUrl()}
                   onChange={setCustomBaseUrl}
                   requiresExternalUrl={tool.requiresExternalUrl}  />
@@ -234,53 +235,53 @@ export default function CopilotToolCard({ tool, isExpanded, onToggle, baseUrl, a
 
                 {/* API Key */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <span className="text-xs font-semibold text-foreground sm:text-right sm:text-sm">API Key</span>
+                  <Icon name="arrow_forward" className="hidden text-muted-foreground size-[14px]" />
                   <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
                 {/* Models */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">Models</span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px] mt-1.5">arrow_forward</span>
+                  <span className="w-32 shrink-0 text-sm font-semibold text-foreground text-right pt-1">Models</span>
+                  <Icon name="arrow_forward" className="text-muted-foreground size-[14px] mt-1.5" />
                   <div className="flex-1 flex flex-col gap-2">
                     <div className="flex flex-wrap gap-1.5 min-h-[28px] px-2 py-1.5 bg-surface rounded border border-border">
                       {selectedModels.length === 0 ? (
-                        <span className="text-xs text-text-muted">No models selected</span>
+                        <span className="text-xs text-muted-foreground">No models selected</span>
                       ) : (
                         selectedModels.map((model) => (
-                          <span key={model} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-black/5 dark:bg-white/5 text-text-muted border border-transparent hover:border-border">
+                          <span key={model} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-black/5 dark:bg-white/5 text-muted-foreground border border-transparent hover:border-border">
                             {model}
-                            <button onClick={(e) => { e.stopPropagation(); removeModel(model); }} className="ml-0.5 hover:text-red-500">
-                              <span className="material-symbols-outlined text-[12px]">close</span>
+                            <button onClick={(e) => { e.stopPropagation(); removeModel(model); }} className="ml-0.5 hover:text-destructive">
+                              <Icon name="close" className="size-[12px]" />
                             </button>
                           </span>
                         ))
                       )}
                     </div>
                     <div>
-                      <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`px-2 py-1 rounded border font-mono text-xs transition-colors ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Add Model</button>
+                      <button onClick={() => setModalOpen(true)} disabled={!activeProviders?.length} className={`px-2 py-1 rounded border font-mono text-xs transition-colors ${activeProviders?.length ? "bg-surface border-border text-foreground hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Add Model</button>
                     </div>
                   </div>
                 </div>
               </div>
 
               {message && (
-                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-                  <span className="material-symbols-outlined text-[14px]">{message.type === "success" ? "check_circle" : "error"}</span>
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                  <Icon name={message.type === "success" ? "check_circle" : "error"} className="size-[14px]" />
                   <span>{message.text}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
+                  <Icon name="save" className="size-[14px] mr-1" />Apply
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleReset} disabled={!status?.has9Router} loading={restoring}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
+                  <Icon name="restore" className="size-[14px] mr-1" />Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)} disabled={selectedModels.length === 0}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>Manual Config
+                  <Icon name="content_copy" className="size-[14px] mr-1" />Manual Config
                 </Button>
               </div>
             </>

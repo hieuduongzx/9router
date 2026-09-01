@@ -42,6 +42,7 @@ import Card from "@/shared/components/Card";
 import { ConfirmModal, EditConnectionModal } from "@/shared/components";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { Icon } from "@/shared/components/ui/icon";
 
 // Maps the stored providerSpecificData.authMethod to a human label for Kiro.
 // Values come from the Kiro connect flows: builder-id/idc (device code),
@@ -761,13 +762,11 @@ export default function ProviderLimits() {
     return (
       <Card padding="lg">
         <div className="text-center py-12">
-          <span className="material-symbols-outlined text-[64px] text-text-muted opacity-20">
-            cloud_off
-          </span>
-          <h3 className="mt-4 font-mono text-sm font-semibold text-text-main">
+          <Icon name="cloud_off" className="size-[64px] text-muted-foreground opacity-20" />
+          <h3 className="mt-4 font-mono text-sm font-semibold text-foreground">
             No Providers Connected
           </h3>
-          <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
+          <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
             Connect to providers with OAuth to track your API quota limits and
             usage.
           </p>
@@ -780,13 +779,11 @@ export default function ProviderLimits() {
     return (
       <Card padding="lg">
         <div className="text-center py-12">
-          <span className="material-symbols-outlined text-[64px] text-text-muted opacity-20">
-            {emptyState.icon}
-          </span>
-          <h3 className="mt-4 font-mono text-sm font-semibold text-text-main">
+          <Icon name={emptyState.icon} className="size-[64px] text-muted-foreground opacity-20" />
+          <h3 className="mt-4 font-mono text-sm font-semibold text-foreground">
             {emptyState.title}
           </h3>
-          <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
+          <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
             {emptyState.description}
           </p>
         </div>
@@ -803,16 +800,14 @@ export default function ProviderLimits() {
             <button
               type="button"
               onClick={() => setProviderMenuOpen((prev) => !prev)}
-              className="flex h-8 items-center justify-between gap-1 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+              className="flex h-8 items-center justify-between gap-1 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-foreground transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
               aria-haspopup="menu"
               aria-expanded={providerMenuOpen}
               title="Filter quota providers"
             >
               <span className="flex min-w-0 items-center gap-1.5">
                 {providerFilter === "all" ? (
-                  <span className="material-symbols-outlined text-[14px] text-text-muted">
-                    apps
-                  </span>
+                  <Icon name="apps" className="size-[14px] text-muted-foreground" />
                 ) : (
                   <ProviderIcon
                     src={`/providers/${providerFilter}.png`}
@@ -826,9 +821,7 @@ export default function ProviderLimits() {
                   {selectedProviderLabel}
                 </span>
               </span>
-              <span className="material-symbols-outlined text-[14px] text-text-muted">
-                expand_more
-              </span>
+              <Icon name="expand_more" className="size-[14px] text-muted-foreground" />
             </button>
 
             {providerMenuOpen && (
@@ -849,16 +842,12 @@ export default function ProviderLimits() {
                       setProviderFilter("all");
                       setProviderMenuOpen(false);
                     }}
-                    className={`flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === "all" ? "bg-primary/10 text-primary" : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"}`}
+                    className={`flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === "all" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-black/5 dark:hover:bg-white/10"}`}
                   >
-                    <span className="material-symbols-outlined text-[22px]">
-                      apps
-                    </span>
+                    <Icon name="apps" className="size-[22px]" />
                     <span className="font-medium">All providers</span>
                     {providerFilter === "all" && (
-                      <span className="material-symbols-outlined ml-auto text-[20px]">
-                        check
-                      </span>
+                      <Icon name="check" className="ml-auto size-[20px]" />
                     )}
                   </button>
                   <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
@@ -874,7 +863,7 @@ export default function ProviderLimits() {
                           setProviderFilter(provider);
                           setProviderMenuOpen(false);
                         }}
-                        className={`flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === provider ? "bg-primary/10 text-primary" : "text-text-primary hover:bg-black/5 dark:hover:bg-white/10"}`}
+                        className={`flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left text-sm transition-colors ${providerFilter === provider ? "bg-primary/10 text-primary" : "text-foreground hover:bg-black/5 dark:hover:bg-white/10"}`}
                       >
                         <ProviderIcon
                           src={`/providers/${provider}.png`}
@@ -887,9 +876,7 @@ export default function ProviderLimits() {
                           {provider}
                         </span>
                         {providerFilter === provider && (
-                          <span className="material-symbols-outlined ml-auto text-[20px]">
-                            check
-                          </span>
+                          <Icon name="check" className="ml-auto size-[20px]" />
                         )}
                       </button>
                     ))}
@@ -907,7 +894,7 @@ export default function ProviderLimits() {
               }
               setAccountFilter(nextValue);
             }}
-            className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+            className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-foreground outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
             aria-label="Filter accounts by status"
           >
             {ACCOUNT_FILTER_OPTIONS.map((option) => (
@@ -921,7 +908,7 @@ export default function ProviderLimits() {
             <select
               value={quotaSortMode}
               onChange={(event) => setQuotaSortMode(event.target.value)}
-              className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+              className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-foreground outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
               aria-label="Sort Codex quotas by remaining"
             >
               {QUOTA_SORT_OPTIONS.map((option) => (
@@ -936,12 +923,10 @@ export default function ProviderLimits() {
             type="button"
             onClick={() => setExpiringFirst((prev) => !prev)}
             aria-pressed={expiringFirst}
-            className={`flex h-8 shrink-0 items-center gap-1 rounded-sm border px-2 text-xs transition-colors ${expiringFirst ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-black/10 text-text-primary hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"}`}
+            className={`flex h-8 shrink-0 items-center gap-1 rounded-sm border px-2 text-xs transition-colors ${expiringFirst ? "border-warning/40 bg-warning/10 text-warning" : "border-black/10 text-foreground hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"}`}
             title="Sort accounts by earliest quota reset time"
           >
-            <span className="material-symbols-outlined text-[14px]">
-              hourglass_top
-            </span>
+            <Icon name="hourglass_top" className="size-[14px]" />
             <span className="hidden sm:inline">Expiring first</span>
           </button>
 
@@ -950,10 +935,10 @@ export default function ProviderLimits() {
             type="button"
             onClick={handleDisableDepleted}
             disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-red-500/30 px-2 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-destructive/30 px-2 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             title="Disable connections with depleted quota on the current page"
           >
-            <span className="material-symbols-outlined text-[14px]">block</span>
+            <Icon name="block" className="size-[14px]" />
             <span className="hidden sm:inline">Turn off Empty</span>
           </button>
 
@@ -962,12 +947,10 @@ export default function ProviderLimits() {
             type="button"
             onClick={handleEnableAvailable}
             disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-emerald-500/30 px-2 text-xs text-emerald-500 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-success/30 px-2 text-xs text-success transition-colors hover:bg-success/10 disabled:opacity-50"
             title="Enable connections that still have quota on the current page"
           >
-            <span className="material-symbols-outlined text-[14px]">
-              check_circle
-            </span>
+            <Icon name="check_circle" className="size-[14px]" />
             <span className="hidden sm:inline">Turn on Available</span>
           </button>
 
@@ -977,18 +960,12 @@ export default function ProviderLimits() {
             className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-black/10 px-2 text-xs transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
             title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
           >
-            <span
-              className={`material-symbols-outlined text-[14px] ${
-                autoRefresh ? "text-primary" : "text-text-muted"
-              }`}
-            >
-              {autoRefresh ? "toggle_on" : "toggle_off"}
-            </span>
-            <span className="hidden text-text-primary sm:inline">
+            <Icon name={autoRefresh ? "toggle_on" : "toggle_off"} className={`size-[14px] ${ autoRefresh ? "text-primary" : "text-muted-foreground" }`} />
+            <span className="hidden text-foreground sm:inline">
               Auto-refresh
             </span>
             {autoRefresh && (
-              <span className="text-[10px] text-text-muted tabular-nums">
+              <span className="text-[10px] text-muted-foreground tabular-nums">
                 ({countdown}s)
               </span>
             )}
@@ -1000,21 +977,17 @@ export default function ProviderLimits() {
             type="button"
             onClick={() => refreshAll(true)}
             disabled={refreshingAll}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-black/10 px-2 text-xs text-text-primary transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5 disabled:opacity-50"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-sm border border-black/10 px-2 text-xs text-foreground transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5 disabled:opacity-50"
             title="Refresh all"
           >
-            <span
-              className={`material-symbols-outlined text-[14px] ${refreshingAll ? "animate-spin" : ""}`}
-            >
-              refresh
-            </span>
+            <Icon name="refresh" className={`size-[14px] ${refreshingAll ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
       {/* Provider cards: 2 columns, compact */}
       {expiringFirst && (
-        <div className="rounded-sm border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-sm border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
           Expiring-first currently reorders accounts inside the current page.
           Cross-page ordering still follows backend pagination.
         </div>
@@ -1057,16 +1030,16 @@ export default function ProviderLimits() {
                       />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-text-primary capitalize truncate">
+                      <h3 className="text-sm font-semibold text-foreground capitalize truncate">
                         {conn.provider}
                       </h3>
                       {getConnectionLabel(conn) ? (
-                        <p className="text-xs text-text-muted truncate">
+                        <p className="text-xs text-muted-foreground truncate">
                           {getConnectionLabel(conn)}
                         </p>
                       ) : null}
                       {getConnectionSecondaryLabel(conn) ? (
-                        <p className="text-[11px] text-text-muted/80 truncate">
+                        <p className="text-[11px] text-muted-foreground/80 truncate">
                           {getConnectionSecondaryLabel(conn)}
                         </p>
                       ) : null}
@@ -1076,19 +1049,19 @@ export default function ProviderLimits() {
                             {kiroMethodLabel(conn)}
                           </span>
                           {kiroRegion(conn) && (
-                            <span className="bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                            <span className="bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info dark:text-info">
                               {kiroRegion(conn)}
                             </span>
                           )}
                           <span
                             className={`px-2 py-0.5 text-[10px] font-semibold ${
                               isInactive
-                                ? "bg-surface-2 text-text-muted"
+                                ? "bg-surface-2 text-muted-foreground"
                                 : conn.testStatus === "active" || conn.testStatus === "success"
-                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                  ? "bg-success/10 text-success dark:text-success"
                                   : conn.testStatus === "error" || conn.testStatus === "expired" || conn.testStatus === "unavailable"
-                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                    : "bg-surface-2 text-text-muted"
+                                    ? "bg-destructive/10 text-destructive dark:text-destructive"
+                                    : "bg-surface-2 text-muted-foreground"
                             }`}
                           >
                             {isInactive ? "disabled" : conn.testStatus || "unknown"}
@@ -1098,11 +1071,9 @@ export default function ProviderLimits() {
                               type="button"
                               onClick={() => copy(conn.providerSpecificData.profileArn, conn.id)}
                               title={conn.providerSpecificData.profileArn}
-                              className="inline-flex max-w-full items-center gap-1 border border-border-subtle px-2 py-0.5 text-[10px] text-text-muted transition-colors hover:text-primary"
+                              className="inline-flex max-w-full items-center gap-1 border border-border-subtle px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-primary"
                             >
-                              <span className="material-symbols-outlined text-[12px]">
-                                {copied === conn.id ? "check" : "content_copy"}
-                              </span>
+                              <Icon name={copied === conn.id ? "check" : "content_copy"} className="size-[12px]" />
                               <code className="truncate font-mono">
                                 {conn.providerSpecificData.profileArn}
                               </code>
@@ -1135,12 +1106,10 @@ export default function ProviderLimits() {
                             className={`flex h-8 min-w-10 items-center justify-center gap-1 rounded-sm border px-2 text-[11px] font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/60 disabled:cursor-not-allowed disabled:opacity-60 ${
                               resetCreditCount > 0
                                 ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                                : "border-black/10 bg-black/[0.02] text-text-muted dark:border-white/10 dark:bg-white/[0.03]"
+                                : "border-black/10 bg-black/[0.02] text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]"
                             }`}
                           >
-                            <span className={`material-symbols-outlined text-[15px] ${isResettingLimit ? "animate-spin" : ""}`}>
-                              {isResettingLimit ? "progress_activity" : "restart_alt"}
-                            </span>
+                            <Icon name={isResettingLimit ? "progress_activity" : "restart_alt"} className={`size-[15px] ${isResettingLimit ? "animate-spin" : ""}`} />
                             <span>{resetCreditCount}</span>
                           </button>
                         </Tooltip>
@@ -1150,9 +1119,9 @@ export default function ProviderLimits() {
                             onClick={() => handleViewCodexResetCredits(conn)}
                             disabled={isLoading || rowBusy}
                             aria-label="View Codex reset credit expiry"
-                            className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-text-muted transition-colors hover:bg-black/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+                            className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-muted-foreground transition-colors hover:bg-black/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
                           >
-                            <span className="material-symbols-outlined text-[17px]">schedule</span>
+                            <Icon name="schedule" className="size-[17px]" />
                           </button>
                         </Tooltip>
                       </>
@@ -1163,9 +1132,9 @@ export default function ProviderLimits() {
                           type="button"
                           onClick={() => toggleAutoPing(conn.id, conn.provider, !(autoPingMaps[conn.provider]?.[conn.id] === true))}
                           aria-label="Toggle auto-ping"
-                          className={`flex h-8 w-8 items-center justify-center rounded-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${autoPingMaps[conn.provider]?.[conn.id] === true ? "text-primary" : "text-text-muted"}`}
+                          className={`flex h-8 w-8 items-center justify-center rounded-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${autoPingMaps[conn.provider]?.[conn.id] === true ? "text-primary" : "text-muted-foreground"}`}
                         >
-                          <span className="material-symbols-outlined text-[18px]">bolt</span>
+                          <Icon name="bolt" className="size-[18px]" />
                         </button>
                       </Tooltip>
                     )}
@@ -1177,11 +1146,7 @@ export default function ProviderLimits() {
                         aria-label="Refresh quota"
                         className="flex h-8 w-8 items-center justify-center rounded-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
-                        <span
-                          className={`material-symbols-outlined text-[18px] text-text-muted ${isLoading ? "animate-spin" : ""}`}
-                        >
-                          refresh
-                        </span>
+                        <Icon name="refresh" className={`size-[18px] text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
                       </button>
                     </Tooltip>
                     <Tooltip text="Edit connection">
@@ -1193,11 +1158,9 @@ export default function ProviderLimits() {
                         }}
                         disabled={rowBusy}
                         aria-label="Edit connection"
-                        className="flex h-8 w-8 items-center justify-center rounded-sm hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
                       >
-                        <span className="material-symbols-outlined text-[18px]">
-                          edit
-                        </span>
+                        <Icon name="edit" className="size-[18px]" />
                       </button>
                     </Tooltip>
                     <Tooltip text="Delete connection">
@@ -1206,13 +1169,9 @@ export default function ProviderLimits() {
                         onClick={() => handleDeleteConnection(conn.id)}
                         disabled={rowBusy}
                         aria-label="Delete connection"
-                        className="flex h-8 w-8 items-center justify-center rounded-sm hover:bg-red-500/10 text-red-500 transition-colors disabled:opacity-50"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-50"
                       >
-                        <span
-                          className={`material-symbols-outlined text-[18px] ${deletingId === conn.id ? "animate-pulse" : ""}`}
-                        >
-                          delete
-                        </span>
+                        <Icon name="delete" className={`size-[18px] ${deletingId === conn.id ? "animate-pulse" : ""}`} />
                       </button>
                     </Tooltip>
                     <div
@@ -1238,21 +1197,17 @@ export default function ProviderLimits() {
 
               <div className="px-2 py-1.5">
                 {isLoading ? (
-                  <div className="text-center py-5 text-text-muted">
-                    <span className="material-symbols-outlined text-[28px] animate-spin">
-                      progress_activity
-                    </span>
+                  <div className="text-center py-5 text-muted-foreground">
+                    <Icon name="progress_activity" className="size-[28px] animate-spin" />
                   </div>
                 ) : error ? (
                   <div className="text-center py-5">
-                    <span className="material-symbols-outlined text-[28px] text-red-500">
-                      error
-                    </span>
-                    <p className="mt-1.5 text-xs text-text-muted">{error}</p>
+                    <Icon name="error" className="size-[28px] text-destructive" />
+                    <p className="mt-1.5 text-xs text-muted-foreground">{error}</p>
                   </div>
                 ) : quota?.message ? (
                   <div className="text-center py-5">
-                    <p className="text-xs text-text-muted">{quota.message}</p>
+                    <p className="text-xs text-muted-foreground">{quota.message}</p>
                   </div>
                 ) : (
                   <QuotaTable
@@ -1266,15 +1221,13 @@ export default function ProviderLimits() {
                   />
                 )}
                 {quota?.message && !error && !isLoading && (
-                  <p className="mt-2 px-1 text-[10px] leading-relaxed text-text-muted">
+                  <p className="mt-2 px-1 text-[10px] leading-relaxed text-muted-foreground">
                     {quota.message}
                   </p>
                 )}
                 {hiddenQuotaRows.length > 0 && (
-                  <div className="mt-2 flex min-w-0 items-center gap-1 border-t border-black/5 pt-2 text-[10px] text-text-muted dark:border-white/5">
-                    <span className="material-symbols-outlined shrink-0 text-[14px]">
-                      visibility_off
-                    </span>
+                  <div className="mt-2 flex min-w-0 items-center gap-1 border-t border-black/5 pt-2 text-[10px] text-muted-foreground dark:border-white/5">
+                    <Icon name="visibility_off" className="shrink-0 size-[14px]" />
                     <span className="shrink-0">Hidden:</span>
                     <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap pb-2">
                       {hiddenQuotaRows.map((quotaRow) => (
@@ -1282,7 +1235,7 @@ export default function ProviderLimits() {
                           key={getQuotaVisibilityKey(quotaRow)}
                           type="button"
                           onClick={() => handleShowQuota(conn.provider, quotaRow)}
-                          className="shrink-0 rounded-md border border-black/10 px-1.5 py-0.5 transition-colors hover:bg-black/5 hover:text-text-primary dark:border-white/10 dark:hover:bg-white/5"
+                          className="shrink-0 rounded-md border border-black/10 px-1.5 py-0.5 transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
                           title="Show this quota row"
                         >
                           {quotaRow.name}
@@ -1299,7 +1252,7 @@ export default function ProviderLimits() {
 
       <div className="rounded-sm border border-black/10 bg-black/[0.02] px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-text-muted">{connectionsPageSummary}</span>
+            <span className="text-xs text-muted-foreground">{connectionsPageSummary}</span>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={isCustomPageSize ? "custom" : String(pageSize)}
@@ -1313,7 +1266,7 @@ export default function ProviderLimits() {
                     setCustomPageSizeInput(String(nextPageSize));
                   }
                 }}
-                className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+                className="h-8 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-foreground outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
                 aria-label="Accounts per page"
               >
                 {ACCOUNT_PAGE_SIZE_OPTIONS.map((option) => (
@@ -1353,11 +1306,11 @@ export default function ProviderLimits() {
                   setPageSize(nextPageSize);
                   setCustomPageSizeInput(String(nextPageSize));
                 }}
-                className="h-8 w-20 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-text-primary outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+                className="h-8 w-20 rounded-sm border border-black/10 bg-black/[0.02] px-2 text-xs text-foreground outline-none transition-colors hover:bg-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
                 aria-label="Custom accounts per page"
                 placeholder="Custom"
               />
-              <span className="text-xs text-text-muted">Page {pagination.page} / {pagination.totalPages}</span>
+              <span className="text-xs text-muted-foreground">Page {pagination.page} / {pagination.totalPages}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
@@ -1366,7 +1319,7 @@ export default function ProviderLimits() {
                 disabled={
                   pagination.page <= 1 || connectionsLoading || refreshingAll
                 }
-                className="flex h-8 items-center rounded-sm border border-black/10 px-3 text-xs text-text-primary transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
+                className="flex h-8 items-center rounded-sm border border-black/10 px-3 text-xs text-foreground transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
               >
                 First Page
               </button>
@@ -1378,12 +1331,10 @@ export default function ProviderLimits() {
                 disabled={
                   pagination.page <= 1 || connectionsLoading || refreshingAll
                 }
-                className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-text-primary transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
+                className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-foreground transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
                 aria-label="Previous accounts page"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  chevron_left
-                </span>
+                <Icon name="chevron_left" className="size-[16px]" />
               </button>
               <button
                 type="button"
@@ -1397,12 +1348,10 @@ export default function ProviderLimits() {
                   connectionsLoading ||
                   refreshingAll
                 }
-                className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-text-primary transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
+                className="flex h-8 w-8 items-center justify-center rounded-sm border border-black/10 text-foreground transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
                 aria-label="Next accounts page"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  chevron_right
-                </span>
+                <Icon name="chevron_right" className="size-[16px]" />
               </button>
               <button
                 type="button"
@@ -1412,7 +1361,7 @@ export default function ProviderLimits() {
                   connectionsLoading ||
                   refreshingAll
                 }
-                className="flex h-8 items-center rounded-sm border border-black/10 px-3 text-xs text-text-primary transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
+                className="flex h-8 items-center rounded-sm border border-black/10 px-3 text-xs text-foreground transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/5"
               >
                 Last Page
               </button>
@@ -1444,34 +1393,34 @@ export default function ProviderLimits() {
           <div className="w-full max-w-2xl overflow-hidden rounded-sm border border-black/15 bg-white shadow-2xl ring-1 ring-black/10 dark:border-white/15 dark:bg-neutral-950 dark:ring-white/10">
             <div className="flex items-start justify-between gap-3 border-b border-black/10 bg-black/[0.03] px-4 py-3 dark:border-white/10 dark:bg-white/[0.04]">
               <div className="min-w-0">
-                <h3 className="font-mono text-sm font-semibold text-text-main">Codex Reset Credit Expiry</h3>
-                <p className="mt-0.5 truncate text-xs text-text-muted">
+                <h3 className="font-mono text-sm font-semibold text-foreground">Codex Reset Credit Expiry</h3>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
                   {getConnectionLabel(resetCreditsState.connection) || "Codex account"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setResetCreditsState(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-black/5 hover:text-text-primary dark:hover:bg-white/5"
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
                 aria-label="Close reset credit expiry modal"
               >
-                <span className="material-symbols-outlined text-[18px]">close</span>
+                <Icon name="close" className="size-[18px]" />
               </button>
             </div>
 
             <div className="max-h-[70vh] overflow-auto bg-white p-4 dark:bg-neutral-950">
               {resetCreditsState.loading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-muted">
-                  <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                  <Icon name="progress_activity" className="animate-spin size-[20px]" />
                   Loading reset credits...
                 </div>
               ) : resetCreditsState.error ? (
-                <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
+                <div className="rounded-sm border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive dark:text-destructive">
                   {resetCreditsState.error}
                 </div>
               ) : resetCreditsState.data?.credits?.length ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-sm border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-text-muted dark:border-white/10 dark:bg-white/[0.03]">
+                  <div className="flex items-center justify-between rounded-sm border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
                     <span>{resetCreditsState.data.credits.length} reset credit{resetCreditsState.data.credits.length === 1 ? "" : "s"}</span>
                     <span>{resetCreditsState.data.availableCount ?? 0} available</span>
                   </div>
@@ -1493,9 +1442,9 @@ export default function ProviderLimits() {
                                 {credit.status || "unknown"}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-text-muted">{formatCreditDate(credit.grantedAt)}</td>
-                            <td className="px-3 py-2 text-text-primary">{formatCreditDate(credit.expiresAt)}</td>
-                            <td className="px-3 py-2 font-medium text-text-primary">{formatTimeRemaining(credit.expiresAt)}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{formatCreditDate(credit.grantedAt)}</td>
+                            <td className="px-3 py-2 text-foreground">{formatCreditDate(credit.expiresAt)}</td>
+                            <td className="px-3 py-2 font-medium text-foreground">{formatTimeRemaining(credit.expiresAt)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1503,7 +1452,7 @@ export default function ProviderLimits() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-sm border border-black/10 bg-black/[0.02] px-3 py-8 text-center text-sm text-text-muted dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="rounded-sm border border-black/10 bg-black/[0.02] px-3 py-8 text-center text-sm text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
                   No reset credit details returned for this account.
                 </div>
               )}

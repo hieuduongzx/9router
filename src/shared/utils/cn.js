@@ -1,11 +1,16 @@
-// Utility function to merge class names
-// Handles conditional classes and removes duplicates
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function cn(...classes) {
-  return classes
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+/**
+ * Merge Tailwind classes with conflict resolution.
+ *
+ * `twMerge` is what makes `className` a real override on every primitive: a
+ * caller passing `rounded-none` or `h-11` wins over the component's base
+ * utility instead of both landing in the class list and the later-defined one
+ * silently winning. The previous implementation was a plain join, which is why
+ * ~90 call sites reached for `!important` prefixes to force an override — those
+ * are unnecessary now.
+ */
+export function cn(...inputs) {
+  return twMerge(clsx(inputs));
 }
-

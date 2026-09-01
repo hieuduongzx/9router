@@ -1,25 +1,36 @@
 "use client";
 
-export default function Tooltip({ text, children, position = "top", color }) {
-  const posClass = {
-    top: "bottom-full left-1/2 -translate-x-1/2 mb-1.5",
-    bottom: "top-full left-1/2 -translate-x-1/2 mt-1.5",
-    left: "right-full top-1/2 -translate-y-1/2 mr-1.5",
-    right: "left-full top-1/2 -translate-y-1/2 ml-1.5",
-  }[position];
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
-  const bgStyle = color ? { backgroundColor: color } : {};
-  const bgClass = color ? "" : "bg-gray-900";
+/**
+ * Legacy Tooltip API over the Radix tooltip.
+ *
+ * The previous implementation was pure CSS `:hover`, so it never appeared for
+ * keyboard users and could be clipped by an ancestor's `overflow: hidden`. Radix
+ * portals the content and opens on focus as well as hover.
+ *
+ * The trigger wraps children in a span rather than using them directly: several
+ * call sites pass a `<button>`, and Radix's default trigger *is* a button.
+ */
+export default function Tooltip({ text, children, position = "top", color, className }) {
+  if (!text) return children;
 
   return (
-    <div className="relative inline-flex group/tt">
-      {children}
-      <div
-        className={`pointer-events-none absolute ${posClass} z-50 w-max max-w-56 rounded px-2 py-1 text-[11px] leading-snug ${bgClass} text-white opacity-0 group-hover/tt:opacity-100 transition-opacity duration-150 whitespace-normal`}
-        style={bgStyle}
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent
+        side={position}
+        className={className}
+        style={color ? { backgroundColor: color, color: "#fff" } : undefined}
       >
         {text}
-      </div>
-    </div>
+      </TooltipContent>
+    </UITooltip>
   );
 }

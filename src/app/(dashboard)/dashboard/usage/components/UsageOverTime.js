@@ -35,8 +35,8 @@ function MiniChart({ label, total, children }) {
   return (
     <div className="min-w-0 p-4 sm:p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-text-muted">{label}</span>
-        {total != null && <span className="font-mono text-xs tabular-nums text-text-subtle">{total}</span>}
+        <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">{label}</span>
+        {total != null && <span className="font-mono text-xs tabular-nums text-muted-foreground">{total}</span>}
       </div>
       <div className="h-[220px] min-w-0">{children}</div>
     </div>
@@ -99,9 +99,9 @@ export default function UsageOverTime({ period, onPeriodChange, apiKeyId = "all"
       </div>
 
       {loading ? (
-        <div className="flex h-[260px] items-center justify-center text-sm text-text-muted">Loading trend…</div>
+        <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading trend…</div>
       ) : !hasData ? (
-        <div className="flex h-[260px] items-center justify-center text-sm text-text-muted">No usage in this period.</div>
+        <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">No usage in this period.</div>
       ) : (
         <div className="tile-grid grid-cols-1 md:grid-cols-3">
           <MiniChart label="Requests" total={fmtNum(totalRequests)}>
