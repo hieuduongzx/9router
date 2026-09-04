@@ -25,6 +25,7 @@ import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
 import AddCompatibleModal from "./components/AddCompatibleModal";
 import ProviderSettingsLightbox from "./components/ProviderSettingsLightbox";
 import { Icon } from "@/shared/components/ui/icon";
+import { STATUS_FILTER_OPTIONS, matchesStatusFilter } from "./utils";
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -108,6 +109,7 @@ export default function ProvidersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
   const notify = useNotificationStore();
 
   const matchSearch = (name) => {
@@ -234,6 +236,9 @@ export default function ProvidersPage() {
     );
   };
 
+  const matchStatus = (stats, isNoAuth) =>
+    matchesStatusFilter(statusFilter, stats, isNoAuth);
+
   // Toggle all connections for a provider on/off. authType may be a single
   // string or an array (kiro counts oauth + api_key/apikey together).
   const handleToggleProvider = async (providerId, authType, newActive) => {
@@ -292,7 +297,8 @@ export default function ProvidersPage() {
     .filter(
       (provider) =>
         matchSearch(provider.name) &&
-        (!activeOnly || isProviderActive(provider.id, "apikey", provider)),
+        (!activeOnly || isProviderActive(provider.id, "apikey", provider)) &&
+        matchStatus(getProviderStats(provider.id, "apikey")),
     );
 
   const anthropicCompatibleProviders = providerNodes
@@ -306,7 +312,8 @@ export default function ProvidersPage() {
     .filter(
       (provider) =>
         matchSearch(provider.name) &&
-        (!activeOnly || isProviderActive(provider.id, "apikey", provider)),
+        (!activeOnly || isProviderActive(provider.id, "apikey", provider)) &&
+        matchStatus(getProviderStats(provider.id, "apikey")),
     );
 
   // Dual-auth providers (oauth + apikey) store API keys as authType "apikey"
@@ -332,7 +339,8 @@ export default function ProvidersPage() {
       ([key, info]) =>
         !info.hidden &&
         matchSearch(info.name) &&
-        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)),
+        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)) &&
+        matchStatus(getProviderStats(key, dualAuthTypes(info, key)), info.noAuth),
     ),
     "oauth",
   );
@@ -341,7 +349,8 @@ export default function ProvidersPage() {
       ([key, info]) =>
         !info.hidden &&
         matchSearch(info.name) &&
-        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)),
+        (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)) &&
+        matchStatus(getProviderStats(key, dualAuthTypes(info, key)), info.noAuth),
     )
     .sort(([, a], [, b]) => (b.noAuth ? 1 : 0) - (a.noAuth ? 1 : 0));
   // Free Tier cards may be oauth-only (e.g. kimchi) or dual-auth, so count via
@@ -353,7 +362,8 @@ export default function ProvidersPage() {
         !info.hidden &&
         matchSearch(info.name) &&
         (!activeOnly || isProviderActive(key, dualAuthTypes(info, key), info)) &&
-        (info.serviceKinds ?? ["llm"]).includes("llm"),
+        (info.serviceKinds ?? ["llm"]).includes("llm") &&
+        matchStatus(getProviderStats(key, dualAuthTypes(info, key)), info.noAuth),
     )
     .sort(([ka, a], [kb, b]) => {
       const pa = a.priority ?? 999;
@@ -373,7 +383,8 @@ export default function ProvidersPage() {
         !info.hidden &&
         (info.serviceKinds ?? ["llm"]).includes("llm") &&
         matchSearch(info.name) &&
-        (!activeOnly || isProviderActive(key, "apikey", info)),
+        (!activeOnly || isProviderActive(key, "apikey", info)) &&
+        matchStatus(getProviderStats(key, "apikey"), info.noAuth),
     )
     .sort(([ka, a], [kb, b]) => {
       const ca = getProviderStats(ka, "apikey").total > 0 ? 0 : 1;
@@ -381,7 +392,8 @@ export default function ProvidersPage() {
       if (ca !== cb) return ca - cb;
       return (a.name || "").localeCompare(b.name || "");
     });
-  const isApikeySearching = !!searchQuery.trim() || activeOnly;
+  const isApikeySearching =
+    !!searchQuery.trim() || activeOnly || statusFilter !== "all";
   const visibleApikeyEntries =
     isApikeySearching || showAllApikey
       ? apikeyEntries
@@ -453,6 +465,18 @@ export default function ProvidersPage() {
               title={activeOnly ? "Show all providers" : "Show active providers only"}
             />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-7 shrink-0 appearance-none rounded-sm border border-border bg-background px-2 font-sans text-[13px] font-medium leading-4 text-foreground outline-none transition-[border-color,box-shadow,background-color] hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
+            aria-label="Filter providers by connection status"
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <div
             className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
             aria-live="polite"
@@ -468,7 +492,9 @@ export default function ProvidersPage() {
         <div className="text-center py-8 border border-dashed border-border">
           <Icon name="search_off" className="size-[32px] text-muted-foreground mb-2" />
           <p className="text-muted-foreground text-sm">
-            {activeOnly ? "No active providers match the current filter" : "No providers match your search"}
+            {activeOnly || statusFilter !== "all"
+              ? "No providers match the current filters"
+              : "No providers match your search"}
           </p>
         </div>
       )}

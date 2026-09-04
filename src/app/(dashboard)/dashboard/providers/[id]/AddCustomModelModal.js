@@ -2,18 +2,28 @@
 
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Button, Modal } from "@/shared/components";
-import { Icon } from "@/shared/components/ui/icon";
+import { Button, Modal, Toggle } from "@/shared/components";
+import { CAPACITY_META } from "@/shared/constants/models";
+
+const defaultCaps = () => Object.fromEntries(Object.keys(CAPACITY_META).map((key) => [key, false]));
 
 export default function AddCustomModelModal({ isOpen, providerAlias, providerDisplayAlias, onSave, onClose }) {
   const [modelId, setModelId] = useState("");
+  const [caps, setCaps] = useState(defaultCaps);
   const [testStatus, setTestStatus] = useState(null); // null | "testing" | "ok" | "error"
   const [testError, setTestError] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
-    if (isOpen) { setModelId(""); setTestStatus(null); setTestError(""); }
+    if (isOpen) {
+      // The modal reset intentionally synchronizes local form state with its open transition.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModelId("");
+      setCaps(defaultCaps());
+      setTestStatus(null);
+      setTestError("");
+    }
   }, [isOpen]);
 
   // Strip provider's own alias prefix (e.g. "cc/model" -> "model" for cc provider)
@@ -47,7 +57,7 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
     if (!cleanId || saving) return;
     setSaving(true);
     try {
-      await onSave(cleanId);
+      await onSave(cleanId, caps);
     } finally {
       setSaving(false);
     }
@@ -69,7 +79,7 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
               onChange={(e) => { setModelId(e.target.value); setTestStatus(null); setTestError(""); }}
               onKeyDown={handleKeyDown}
               placeholder="e.g. claude-opus-4-5"
-              className="flex-1 px-3 py-2 text-sm border border-border rounded-sm bg-background font-mono focus:outline-none focus:border-primary"
+              className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
               autoFocus
             />
             <Button
@@ -82,21 +92,37 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
               {testStatus === "testing" ? "Testing..." : "Test"}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Sent to provider as: <code className="font-mono bg-sidebar px-1 rounded-sm">{stripAlias(modelId.trim()) || "model-id"}</code>
+          <p className="text-xs text-text-muted mt-1">
+            Sent to provider as: <code className="font-mono bg-sidebar px-1 rounded">{stripAlias(modelId.trim()) || "model-id"}</code>
           </p>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-1.5 block">Capabilities</label>
+          <div className="flex flex-wrap gap-4">
+            {Object.entries(CAPACITY_META).map(([key, meta]) => (
+              <Toggle
+                key={key}
+                checked={!!caps[key]}
+                onChange={(v) => setCaps((prev) => ({ ...prev, [key]: v }))}
+                label={meta.label}
+                description={meta.desc}
+                size="sm"
+              />
+            ))}
+          </div>
         </div>
 
         {/* Test result */}
         {testStatus === "ok" && (
-          <div className="flex items-center gap-2 text-sm text-success">
-            <Icon name="check_circle" className="size-4" />
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <span className="material-symbols-outlined text-base">check_circle</span>
             Model is reachable
           </div>
         )}
         {testStatus === "error" && (
-          <div className="flex items-start gap-2 text-sm text-destructive">
-            <Icon name="cancel" className="size-4 shrink-0" />
+          <div className="flex items-start gap-2 text-sm text-red-500">
+            <span className="material-symbols-outlined text-base shrink-0">cancel</span>
             <span>{testError || "Model not reachable"}</span>
           </div>
         )}

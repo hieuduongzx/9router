@@ -400,6 +400,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   };
 
   useEffect(() => {
+    // Initial data loading intentionally starts when the provider page mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchConnections();
     fetchAliases();
     fetchCustomModels();
@@ -411,6 +413,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   // registry remains the fallback while the request is pending or unavailable.
   useEffect(() => {
     if (providerId !== "cursor") {
+      // Reset provider-specific models when switching away from Cursor.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLiveModels([]);
       return;
     }
@@ -473,12 +477,12 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     }
   };
 
-  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias) => {
+  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias, caps) => {
     try {
       const res = await fetch("/api/models/custom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerAlias: providerAliasOverride, id: modelId, type }),
+        body: JSON.stringify({ providerAlias: providerAliasOverride, id: modelId, type, ...(caps ? { caps } : {}) }),
       });
       if (res.ok) {
         await fetchCustomModels();
@@ -837,6 +841,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   };
 
   useEffect(() => {
+    // Keep selected connection ids valid after a refresh removes a connection.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedConnectionIds((prev) => prev.filter((id) => connections.some((conn) => conn.id === id)));
   }, [connections]);
 
@@ -911,7 +917,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const isSelected = (connectionId) => selectedConnectionIds.includes(connectionId);
 
   const connectionsList = (
-    <div className="flex min-w-0 flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+    <div className="flex min-w-0 flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03] max-h-[500px] overflow-y-auto pr-1">
       {connections
         .map((conn, index) => (
           <div key={conn.id} className="flex min-w-0 items-stretch">
@@ -1821,8 +1827,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           isOpen={showAddCustomModel}
           providerAlias={providerStorageAlias}
           providerDisplayAlias={providerDisplayAlias}
-          onSave={async (modelId) => {
-            await handleAddCustomModel(modelId, "llm", providerStorageAlias);
+          onSave={async (modelId, caps) => {
+            await handleAddCustomModel(modelId, "llm", providerStorageAlias, caps);
             setShowAddCustomModel(false);
           }}
           onClose={() => setShowAddCustomModel(false)}
