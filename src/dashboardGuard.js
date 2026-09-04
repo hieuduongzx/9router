@@ -3,11 +3,6 @@ import { getSettings, validateApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { getDashboardAccount, verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
 import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer";
-import {
-  DASHBOARD_VIEW_ADMIN,
-  DASHBOARD_VIEW_COOKIE,
-  resolveDashboardViewMode,
-} from "@/shared/constants/dashboardView";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
 const CLI_TOKEN_SALT = "9r-cli-auth";
@@ -125,29 +120,49 @@ const ACCOUNT_DASHBOARD_PATHS = [
   "/dashboard/token-saver",
 ];
 
-// Admin-only dashboard paths
-const ADMIN_DASHBOARD_PATHS = [
-  "/admin",
-  "/admin/providers",
-  "/admin/api-keys",
-  "/admin/usage",
-  "/admin/activity",
-  "/admin/router",
-  // Legacy path, kept so the redirect to /admin/router stays reachable.
-  "/admin/combos",
-  "/admin/models",
-  "/admin/skills",
-  "/admin/cli-tools",
-  "/admin/token-saver",
-  "/admin/translator",
-  "/admin/users",
-  "/admin/quota",
-  "/admin/proxy-pools",
-  "/admin/console-log",
-  "/admin/settings",
-  "/admin/account",
-  "/admin/media-providers",
+/**
+ * Where an administrator belongs when they ask for an admin-only page under the
+ * user prefix.
+ *
+ * Nearly every page under `src/app/(admin)/admin/*` is a re-export of its
+ * `(dashboard)` twin, and those shared components link to `/dashboard/...`
+ * literals. One click on "Manage" inside /admin/activity therefore left the
+ * admin route group: the rail swapped to the user one and the shell looked like
+ * it had switched itself. Redirecting here fixes every such link at once and
+ * keeps the invariant server-side — the shell you see is the route group you are
+ * in, and nothing but the identity menu changes it.
+ *
+ * `exact` entries have no child routes under `(admin)`; the rest carry their
+ * sub-path across (`/dashboard/providers/anthropic` → `/admin/providers/anthropic`).
+ * `/dashboard/settings/pricing` is deliberately absent: it lives outside both
+ * route groups and has no admin twin to redirect to.
+ */
+const ADMIN_SHELL_ROUTES = [
+  { from: "/dashboard/activity", to: "/admin/activity", exact: true },
+  { from: "/dashboard/basic-chat", to: "/admin/basic-chat", exact: true },
+  { from: "/dashboard/combos", to: "/admin/router", exact: true },
+  { from: "/dashboard/console-log", to: "/admin/console-log", exact: true },
+  { from: "/dashboard/endpoint", to: "/admin/endpoint", exact: true },
+  { from: "/dashboard/mitm", to: "/admin/mitm", exact: true },
+  { from: "/dashboard/proxy-pools", to: "/admin/proxy-pools", exact: true },
+  { from: "/dashboard/pxpipe", to: "/admin/pxpipe", exact: true },
+  { from: "/dashboard/quota", to: "/admin/quota", exact: true },
+  { from: "/dashboard/settings", to: "/admin/settings", exact: true },
+  { from: "/dashboard/skills", to: "/admin/skills", exact: true },
+  { from: "/dashboard/translator", to: "/admin/translator", exact: true },
+  { from: "/dashboard/cli-tools", to: "/admin/cli-tools" },
+  { from: "/dashboard/media-providers", to: "/admin/media-providers" },
+  { from: "/dashboard/providers", to: "/admin/providers" },
+  { from: "/dashboard/users", to: "/admin/users" },
 ];
+
+function adminShellPathFor(pathname) {
+  for (const { from, to, exact } of ADMIN_SHELL_ROUTES) {
+    if (pathname === from || pathname === `${from}/`) return to;
+    if (!exact && pathname.startsWith(`${from}/`)) return `${to}${pathname.slice(from.length)}`;
+  }
+  return null;
+}
 
 // Read-only status/health probes under admin-only API prefixes that any signed-in
 // account may read (token-saver page). They never mutate host state.
@@ -300,10 +315,6 @@ function isAccountDashboardPath(pathname) {
   return ACCOUNT_DASHBOARD_PATHS.some((prefix) => matchesPathPrefix(pathname, prefix));
 }
 
-function isAdminDashboardPath(pathname) {
-  return ADMIN_DASHBOARD_PATHS.some((prefix) => matchesPathPrefix(pathname, prefix));
-}
-
 async function isAdminRequest(request) {
   if (await hasValidCliToken(request)) return true;
   const account = await getDashboardAccount(request);
@@ -371,25 +382,23 @@ export async function proxy(request) {
       // On error, keep the secure default.
     }
 
-    if (matchesPathPrefix(pathname, "/dashboard/activity")) {
-      const account = await getDashboardAccount(request);
-      const viewMode = resolveDashboardViewMode(
-        account?.role,
-        request.cookies.get(DASHBOARD_VIEW_COOKIE)?.value,
-      );
-      if (account?.role === "admin" && viewMode === DASHBOARD_VIEW_ADMIN) {
-        return NextResponse.next();
-      }
-      if (account) return NextResponse.redirect(new URL("/dashboard", request.url));
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-
     // Non-admin accounts are confined to account-owned keys, usage, models,
     // and account security. A valid user session is required for every other
     // dashboard route even when legacy password protection is disabled.
     if (!isAccountDashboardPath(pathname)) {
       const account = await getDashboardAccount(request);
-      if (account?.role === "admin") return NextResponse.next();
+      if (account?.role === "admin") {
+        // An admin-only page belongs to the admin shell. Send the administrator
+        // to its /admin twin rather than rendering it inside the user rail.
+        const adminPath = adminShellPathFor(pathname);
+        if (adminPath) {
+          // Built from request.url so the query survives the hop.
+          const target = new URL(request.url);
+          target.pathname = adminPath;
+          return NextResponse.redirect(target);
+        }
+        return NextResponse.next();
+      }
       if (account) return NextResponse.redirect(new URL("/dashboard", request.url));
       return NextResponse.redirect(new URL("/login", request.url));
     }

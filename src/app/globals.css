@@ -8,7 +8,7 @@
 
 /* ============================================================
    Router2k design tokens — shadcn/ui (Tailwind v4, OKLCH)
-   Base: zinc · Primary: blue-600 · Radius: 0.625rem
+   Base: zinc · Primary: near-black (monochrome) · Radius: 0.625rem
    ------------------------------------------------------------
    Two layers live here on purpose:
 
@@ -24,17 +24,17 @@
   --radius: 0.625rem;
 
   --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  --foreground: #333333;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: #333333;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.97 0.014 254.604);
+  --popover-foreground: #333333;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
+  --muted-foreground: #777777;
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
@@ -43,11 +43,11 @@
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.681 0.162 75.834);
   --warning-foreground: oklch(0.216 0.006 56.043);
-  --info: oklch(0.546 0.245 262.881);
-  --info-foreground: oklch(0.97 0.014 254.604);
+  --info: #111111;
+  --info-foreground: #ffffff;
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.546 0.245 262.881);
+  --ring: #111111;
 
   /* Categorical chart slots: fixed order, validated for adjacent-series CVD. */
   --chart-1: oklch(0.546 0.245 262.881);
@@ -56,14 +56,18 @@
   --chart-4: oklch(0.769 0.188 70.08);
   --chart-5: oklch(0.627 0.265 303.9);
 
+  /* Fixed brand-blue chart series: lines are the lighter tone, bars the deeper one. */
+  --chart-line: #519DFA;
+  --chart-bar: #0077E6;
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-primary: #111111;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.967 0.001 286.375);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.546 0.245 262.881);
+  --sidebar-ring: #111111;
 
   /* Data-role chips: which metric a number *is*, not which colour looks nice. */
   --chip-tokens: oklch(0.627 0.265 303.9);
@@ -82,8 +86,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.707 0.165 254.624);
-  --primary-foreground: oklch(0.282 0.091 267.935);
+  --primary: #fafafa;
+  --primary-foreground: #111111;
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.274 0.006 286.033);
@@ -96,11 +100,11 @@
   --success-foreground: oklch(0.208 0.042 265.755);
   --warning: oklch(0.769 0.188 70.08);
   --warning-foreground: oklch(0.216 0.006 56.043);
-  --info: oklch(0.707 0.165 254.624);
-  --info-foreground: oklch(0.282 0.091 267.935);
+  --info: #fafafa;
+  --info-foreground: #111111;
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.707 0.165 254.624);
+  --ring: #fafafa;
 
   --chart-1: oklch(0.707 0.165 254.624);
   --chart-2: oklch(0.75 0.183 55.934);
@@ -110,12 +114,12 @@
 
   --sidebar: oklch(0.185 0.006 285.85);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.707 0.165 254.624);
-  --sidebar-primary-foreground: oklch(0.282 0.091 267.935);
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #111111;
   --sidebar-accent: oklch(0.274 0.006 286.033);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.707 0.165 254.624);
+  --sidebar-ring: #fafafa;
 
   --chip-tokens: oklch(0.714 0.203 305.504);
   --chip-requests: oklch(0.828 0.189 84.429);
@@ -199,23 +203,30 @@
   --color-danger: var(--destructive);
   --color-primary-hover: var(--primary);
 
-  /* Blue ramp — only for the few places that need a fixed step of the scale. */
-  --color-brand-50: oklch(0.97 0.014 254.604);
-  --color-brand-100: oklch(0.932 0.032 255.585);
-  --color-brand-200: oklch(0.882 0.059 254.128);
-  --color-brand-300: oklch(0.809 0.105 251.813);
-  --color-brand-400: oklch(0.707 0.165 254.624);
-  --color-brand-500: oklch(0.623 0.214 259.815);
-  --color-brand-600: oklch(0.546 0.245 262.881);
-  --color-brand-700: oklch(0.488 0.243 264.376);
-  --color-brand-800: oklch(0.424 0.199 265.638);
-  --color-brand-900: oklch(0.379 0.146 265.522);
+  /* Neutral ramp (was blue) — only for the few places that need a fixed step. */
+  --color-brand-50: #fafafa;
+  --color-brand-100: #f4f4f5;
+  --color-brand-200: #e4e4e7;
+  --color-brand-300: #d4d4d8;
+  --color-brand-400: #a1a1aa;
+  --color-brand-500: #71717a;
+  --color-brand-600: #52525b;
+  --color-brand-700: #3f3f46;
+  --color-brand-800: #27272a;
+  --color-brand-900: #18181b;
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
     outline-color: color-mix(in oklab, var(--color-ring) 50%, transparent);
+  }
+
+  html {
+    /* Stop rubber-band / overscroll chaining: scrolling past the bottom (or
+       back past the top) must not drag the document itself and tear the page
+       chrome away from the viewport edge. */
+    overscroll-behavior-y: none;
   }
 
   body {

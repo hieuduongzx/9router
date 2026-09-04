@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { CardSkeleton } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { CLI_TOOLS } from "@/shared/constants/cliTools";
 import { getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 import {
@@ -17,6 +18,8 @@ const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
 
 export default function ToolDetailClient({ toolId }) {
   const tool = CLI_TOOLS[toolId];
+  const shellPath = useShellPath();
+  const backHref = shellPath("/dashboard/cli-tools");
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modelMappings, setModelMappings] = useState({});
@@ -161,7 +164,7 @@ export default function ToolDetailClient({ toolId }) {
   if (!tool) {
     return (
       <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-        <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
+        <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
           <Icon name="arrow_back" className="size-[18px]" />
           Back to CLI Tools
         </Link>
@@ -172,7 +175,7 @@ export default function ToolDetailClient({ toolId }) {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-      <Link href="/dashboard/cli-tools" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
+      <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary w-fit">
         <Icon name="arrow_back" className="size-[18px]" />
         Back to CLI Tools
       </Link>

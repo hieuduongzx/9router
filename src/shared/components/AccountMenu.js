@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import PropTypes from "prop-types";
-import { ChevronDown, LogOut, Plus, ShieldCheck, UserCog } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Plus, ShieldCheck, UserCog } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -28,14 +28,23 @@ const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
  * all hand-wired before, and the roving focus in particular was missing.
  * Below `sm` the name and role collapse away and only the avatar remains, so the
  * header keeps room for page context.
+ *
+ * This menu is also the *only* place an administrator changes shell. `variant`
+ * says which shell is currently mounted, so the menu offers the one move that
+ * isn't a no-op: Admin panel from the user shell, My dashboard from the admin
+ * shell. It is a plain link — there is no separate "mode" to keep in sync.
  */
-export default function AccountMenu({ displayName, role, creditCents, onLogout, onNavigate }) {
+export default function AccountMenu({ displayName, role, creditCents, variant = "user", onLogout, onNavigate }) {
   if (!displayName) return null;
 
   const hasCredit = Number.isSafeInteger(creditCents);
   const formattedCredit = hasCredit ? CREDIT_FORMAT.format(creditCents / 100) : null;
   const initial = String(displayName || "A").trim().charAt(0).toUpperCase() || "A";
   const subtitle = [role || "user", formattedCredit].filter(Boolean).join(" · ");
+  const isAdmin = role === "admin";
+  const inAdminShell = variant === "admin";
+  const accountHref = inAdminShell ? "/admin/account" : "/dashboard/account";
+  const walletHref = `${accountHref}?tab=wallet`;
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -86,7 +95,7 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout, 
                     className="sm:hidden"
                     onClick={() => onNavigate?.()}
                   >
-                    <Link href="/dashboard/account?tab=wallet" aria-label="Add credit">
+                    <Link href={walletHref} aria-label="Add credit">
                       <Plus />
                     </Link>
                   </Button>
@@ -97,17 +106,20 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout, 
 
           <DropdownMenuSeparator />
 
-          {role === "admin" ? (
+          {/* Full navigation, not a soft push: the two shells are separate route
+              groups with their own layout, so a client-side transition would keep
+              the previous rail mounted for a frame. */}
+          {isAdmin ? (
             <DropdownMenuItem asChild onSelect={() => onNavigate?.()}>
-              <Link href="/admin">
-                <ShieldCheck />
-                Admin panel
-              </Link>
+              <a href={inAdminShell ? "/dashboard" : "/admin"}>
+                {inAdminShell ? <LayoutDashboard /> : <ShieldCheck />}
+                {inAdminShell ? "My dashboard" : "Admin panel"}
+              </a>
             </DropdownMenuItem>
           ) : null}
 
           <DropdownMenuItem asChild onSelect={() => onNavigate?.()}>
-            <Link href="/dashboard/account">
+            <Link href={accountHref}>
               <UserCog />
               Profile &amp; account
             </Link>
@@ -130,7 +142,7 @@ export default function AccountMenu({ displayName, role, creditCents, onLogout, 
           className="hidden sm:inline-flex"
           onClick={() => onNavigate?.()}
         >
-          <Link href="/dashboard/account?tab=wallet" aria-label="Add credit" title="Add credit">
+          <Link href={walletHref} aria-label="Add credit" title="Add credit">
             <Plus />
           </Link>
         </Button>
@@ -143,6 +155,7 @@ AccountMenu.propTypes = {
   displayName: PropTypes.string,
   role: PropTypes.string,
   creditCents: PropTypes.number,
+  variant: PropTypes.oneOf(["user", "admin"]),
   onLogout: PropTypes.func.isRequired,
   onNavigate: PropTypes.func,
 };

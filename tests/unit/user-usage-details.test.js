@@ -20,7 +20,10 @@ describe("admin account usage details", () => {
 
   it("lets an administrator open account details from the Accounts list", () => {
     const page = read("src/app/(dashboard)/dashboard/users/UsersPageClient.js");
-    expect(page).toContain("/dashboard/users/${user.id}");
+    // The link is prefixed for the current shell (/dashboard or /admin) rather
+    // than hardcoded, so the admin panel can't navigate out of its own layout.
+    expect(page).toContain('shellPath("/dashboard/users")');
+    expect(page).toContain("${usersHref}/${user.id}");
     expect(page).toContain("View details");
   });
 

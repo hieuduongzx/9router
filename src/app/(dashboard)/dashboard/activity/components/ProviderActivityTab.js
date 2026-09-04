@@ -7,8 +7,10 @@ import PropTypes from "prop-types";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import {
+  CHART_BAR,
   CHART_COLORS,
   CHART_TICK,
   CHART_TOOLTIP_LABEL,
@@ -40,6 +42,8 @@ function connectionStatus(connection) {
 }
 
 export default function ProviderActivityTab({ period }) {
+  const shellPath = useShellPath();
+  const providersHref = shellPath("/dashboard/providers");
   const [connections, setConnections] = useState([]);
   const [nodeNames, setNodeNames] = useState({});
   const [stats, setStats] = useState(null);
@@ -155,7 +159,7 @@ export default function ProviderActivityTab({ period }) {
                 <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
                 <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
                 <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [formatNumber(value), "Requests"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Bar dataKey="requests" fill={CHART_COLORS.info} maxBarSize={24} isAnimationActive={false} />
+                <Bar dataKey="requests" fill={CHART_BAR} maxBarSize={24} isAnimationActive={false} />
 
               </BarChart>
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No provider traffic in this period.</div>}
@@ -174,7 +178,7 @@ export default function ProviderActivityTab({ period }) {
                 <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
                 <YAxis type="category" dataKey="providerId" tick={CHART_TICK} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => providerLabel(value, nodeNames)} />
                 <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [MONEY_FORMAT.format(Number(value) || 0), "Spend"]} labelFormatter={(value) => providerLabel(value, nodeNames)} />
-                <Bar dataKey="cost" fill={CHART_COLORS.cost} maxBarSize={24} isAnimationActive={false} />
+                <Bar dataKey="cost" fill={CHART_BAR} maxBarSize={24} isAnimationActive={false} />
 
               </BarChart>
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No provider spend in this period.</div>}
@@ -204,13 +208,13 @@ export default function ProviderActivityTab({ period }) {
               <h2 className="font-mono text-sm font-semibold text-foreground">Connection health</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">Account-level availability reported by provider checks.</p>
             </div>
-            <Link href="/dashboard/providers" className="shrink-0 text-xs font-medium text-primary hover:underline">Manage</Link>
+            <Link href={providersHref} className="shrink-0 text-xs font-medium text-primary hover:underline">Manage</Link>
           </div>
           <div className="max-h-[520px] divide-y divide-border-subtle overflow-y-auto">
             {connections.map((connection) => {
               const status = connectionStatus(connection);
               return (
-                <Link key={connection.id} href={`/dashboard/providers/${connection.provider}`} className="flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
+                <Link key={connection.id} href={`${providersHref}/${connection.provider}`} className="flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-bg-alt">
                   <span className={`size-2 shrink-0 ${status.dot}`} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-mono text-xs font-medium text-foreground">{connection.name || providerLabel(connection.provider, nodeNames)}</span>

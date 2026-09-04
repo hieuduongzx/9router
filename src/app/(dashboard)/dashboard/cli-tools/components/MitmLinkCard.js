@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { Card } from "@/shared/components";
 import Image from "next/image";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { Icon } from "@/shared/components/ui/icon";
 
 /**
- * Clickable card for MITM tools — navigates to /dashboard/mitm on click.
+ * Clickable card for MITM tools — navigates to the MITM page in the current shell.
  */
 export default function MitmLinkCard({ tool }) {
+  const shellPath = useShellPath();
   return (
-    <Link href="/dashboard/mitm" className="block">
+    <Link href={shellPath("/dashboard/mitm")} className="block">
       <Card padding="sm" className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

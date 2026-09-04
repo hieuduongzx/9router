@@ -35,7 +35,6 @@ vi.mock("@/lib/auth/oidc", () => ({
 vi.mock("@/lib/auth/saml.js", () => ({
   isSamlLoginEnabled: mocks.isSamlLoginEnabled,
 }));
-
 vi.mock("@/lib/db/repos/usersRepo", () => ({
   getPrimaryAdmin: mocks.getPrimaryAdmin,
   getUserById: mocks.getUserById,
@@ -45,11 +44,6 @@ vi.mock("@/lib/db/repos/usersRepo", () => ({
 vi.mock("@/lib/auth/dashboardSession", () => ({
   getDashboardAuthSession: mocks.getDashboardAuthSession,
   renewDashboardAuthCookie: mocks.renewDashboardAuthCookie,
-}));
-
-vi.mock("@/shared/constants/dashboardView", () => ({
-  DASHBOARD_VIEW_COOKIE: "router2k.dashboard.view",
-  resolveDashboardViewMode: () => "user",
 }));
 
 const { GET } = await import("../../src/app/api/auth/status/route.js");
@@ -97,7 +91,6 @@ describe("GET /api/auth/status", () => {
     expect(response.body[`${protocol}Login`]).toBe(false);
     expect(mocks.renewDashboardAuthCookie).not.toHaveBeenCalled();
   });
-
   it("fails closed when status dependencies throw", async () => {
     mocks.getSettings.mockRejectedValue(new Error("database unavailable"));
 

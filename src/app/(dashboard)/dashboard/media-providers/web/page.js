@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -15,7 +16,7 @@ function getEffectiveStatus(conn) {
   return conn.testStatus === "unavailable" && !isCooldown ? "active" : conn.testStatus;
 }
 
-function ProviderCard({ provider, kind, connections }) {
+function ProviderCard({ provider, kind, basePath, connections }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
   const providerConns = connections.filter((c) => c.provider === provider.id);
@@ -38,7 +39,7 @@ function ProviderCard({ provider, kind, connections }) {
   };
 
   return (
-    <Link href={`/dashboard/media-providers/${kind}/${provider.id}`} className="group">
+    <Link href={`${basePath}/${kind}/${provider.id}`} className="group">
       <Card padding="xs" className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}>
         <div className="flex min-w-0 items-center gap-3">
           <div className="size-8 flex items-center justify-center shrink-0 border border-border bg-surface-2 text-foreground">
@@ -61,14 +62,14 @@ function ProviderCard({ provider, kind, connections }) {
   );
 }
 
-function ComboList({ combos }) {
+function ComboList({ combos, basePath }) {
   if (combos.length === 0) {
     return <p className="text-xs text-muted-foreground italic">No combos yet.</p>;
   }
   return (
     <div className="flex flex-col gap-2">
       {combos.map((combo) => (
-        <Link key={combo.id} href={`/dashboard/media-providers/combo/${combo.id}`}>
+        <Link key={combo.id} href={`${basePath}/combo/${combo.id}`}>
           <Card padding="xs" className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
             <div className="flex min-w-0 items-center gap-3">
               <Icon name="layers" className="text-primary size-[18px]" />
@@ -105,7 +106,7 @@ function ComboList({ combos }) {
   );
 }
 
-function Section({ title, icon, kind, providers, connections, combos, onCreateCombo }) {
+function Section({ title, icon, kind, basePath, providers, connections, combos, onCreateCombo }) {
   return (
     <div>
       {/* Header — title left, Create Combo right */}
@@ -121,7 +122,7 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
       {/* Combos — top */}
       {combos.length > 0 && (
         <div className="mb-4">
-          <ComboList combos={combos} />
+          <ComboList combos={combos} basePath={basePath} />
         </div>
       )}
 
@@ -133,7 +134,7 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {providers.map((p) => (
-            <ProviderCard key={p.id} provider={p} kind={kind} connections={connections} />
+            <ProviderCard key={p.id} provider={p} kind={kind} basePath={basePath} connections={connections} />
           ))}
         </div>
       )}
@@ -143,6 +144,8 @@ function Section({ title, icon, kind, providers, connections, combos, onCreateCo
 
 export default function WebProvidersPage() {
   const router = useRouter();
+  const shellPath = useShellPath();
+  const basePath = shellPath("/dashboard/media-providers");
   const [connections, setConnections] = useState([]);
   const [combos, setCombos] = useState([]);
 
@@ -179,7 +182,7 @@ export default function WebProvidersPage() {
     });
     if (res.ok) {
       const created = await res.json();
-      router.push(`/dashboard/media-providers/combo/${created.id}`);
+      router.push(`${basePath}/combo/${created.id}`);
     } else {
       const err = await res.json();
       alert(err.error || "Failed to create combo");
@@ -189,7 +192,7 @@ export default function WebProvidersPage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <Section
-        title="Web Search" icon="search" kind="webSearch"
+        title="Web Search" icon="search" kind="webSearch" basePath={basePath}
         providers={searchProviders} connections={connections} combos={searchCombos}
         onCreateCombo={() => handleCreateCombo("webSearch")}
       />
@@ -198,7 +201,7 @@ export default function WebProvidersPage() {
       <div className="border-t border-border" />
 
       <Section
-        title="Web Fetch" icon="travel_explore" kind="webFetch"
+        title="Web Fetch" icon="travel_explore" kind="webFetch" basePath={basePath}
         providers={fetchProviders} connections={connections} combos={fetchCombos}
         onCreateCombo={() => handleCreateCombo("webFetch")}
       />

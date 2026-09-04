@@ -59,13 +59,13 @@ export default function ModelsCatalog() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-muted-foreground">
-            <span className="border border-border bg-white px-4 py-2 font-mono">
+            <span className="border border-border bg-card px-4 py-2 font-mono">
               {loading ? "…" : models.length} models
             </span>
           </div>
         </div>
 
-        <div className="overflow-hidden border border-border bg-white">
+        <div className="overflow-hidden border border-border bg-card">
           <div className="flex flex-col gap-4 border-b border-border bg-muted p-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
               <span className="size-3 rounded-full bg-destructive" />
@@ -81,7 +81,7 @@ export default function ModelsCatalog() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search model"
-                className="h-11 w-full rounded-sm border border-border bg-white pl-10 pr-3 font-mono text-sm text-foreground outline-none transition placeholder:font-sans placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-zinc-950/10"
+                className="h-11 w-full rounded-sm border border-border bg-card pl-10 pr-3 font-mono text-sm text-foreground outline-none transition placeholder:font-sans placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-ring/20"
               />
             </label>
           </div>
@@ -111,7 +111,7 @@ export default function ModelsCatalog() {
 
           {!loading && !error && visible.length > 0 && (
             <>
-              <div className="divide-y divide-zinc-100 lg:hidden">
+              <div className="divide-y divide-border lg:hidden">
                 {visible.map((model) => (
                   <article key={`mobile-${model.id}`} className="p-4 sm:p-5">
                     <p className="break-all font-mono text-sm font-semibold leading-6 text-foreground">{model.id}</p>
@@ -130,16 +130,16 @@ export default function ModelsCatalog() {
               </div>
               <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-                  <thead className="bg-white font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <thead className="bg-card font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     <tr className="border-b border-border">
                       <th className="px-5 py-4">Model</th>
                       <th className="px-5 py-4 text-right">Input /M</th>
                       <th className="px-5 py-4 text-right">Output /M</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody className="divide-y divide-border">
                     {visible.map((model) => (
-                      <tr key={model.id} className="bg-white transition hover:bg-muted">
+                      <tr key={model.id} className="bg-card transition hover:bg-muted">
                         <td className="max-w-[320px] px-5 py-4">
                           <p className="truncate font-mono text-sm font-semibold text-foreground">{model.id}</p>
                         </td>

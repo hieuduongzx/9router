@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card, Badge, Button, Toggle, AddCustomEmbeddingModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -20,7 +21,7 @@ function getEffectiveStatus(conn) {
   return conn.testStatus === "unavailable" && !isCooldown ? "active" : conn.testStatus;
 }
 
-function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) {
+function MediaProviderCard({ provider, kind, basePath, connections, isCustom, onToggle }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
 
@@ -50,7 +51,7 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
   };
 
   return (
-    <Link href={`/dashboard/media-providers/${kind}/${provider.id}`} className="group">
+    <Link href={`${basePath}/${kind}/${provider.id}`} className="group">
       <Card
         padding="xs"
         className={`h-full hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors cursor-pointer ${allDisabled ? "opacity-50" : ""}`}
@@ -94,12 +95,12 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
   );
 }
 
-function ComboList({ combos }) {
+function ComboList({ combos, basePath }) {
   if (combos.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
       {combos.map((combo) => (
-        <Link key={combo.id} href={`/dashboard/media-providers/combo/${combo.id}`}>
+        <Link key={combo.id} href={`${basePath}/combo/${combo.id}`}>
           <Card padding="xs" className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
             <div className="flex min-w-0 items-center gap-3">
               <Icon name="layers" className="text-primary size-[18px]" />
@@ -138,6 +139,8 @@ function ComboList({ combos }) {
 export default function MediaProviderKindPage() {
   const { kind } = useParams();
   const router = useRouter();
+  const shellPath = useShellPath();
+  const basePath = shellPath("/dashboard/media-providers");
   const [connections, setConnections] = useState([]);
   const [customNodes, setCustomNodes] = useState([]);
   const [combos, setCombos] = useState([]);
@@ -146,9 +149,9 @@ export default function MediaProviderKindPage() {
   // webSearch/webFetch listing pages are merged into /web
   useEffect(() => {
     if (kind === "webSearch" || kind === "webFetch") {
-      router.replace("/dashboard/media-providers/web");
+      router.replace(`${basePath}/web`);
     }
-  }, [kind, router]);
+  }, [kind, router, basePath]);
 
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
   const isEmbedding = kind === "embedding";
@@ -218,7 +221,7 @@ export default function MediaProviderKindPage() {
     });
     if (res.ok) {
       const created = await res.json();
-      router.push(`/dashboard/media-providers/combo/${created.id}`);
+      router.push(`${basePath}/combo/${created.id}`);
     } else {
       const err = await res.json();
       alert(err.error || "Failed to create combo");
@@ -241,7 +244,7 @@ export default function MediaProviderKindPage() {
       )}
 
       {supportsCombo && kindCombos.length > 0 && (
-        <ComboList combos={kindCombos} />
+        <ComboList combos={kindCombos} basePath={basePath} />
       )}
 
       {allProviders.length === 0 ? (
@@ -255,6 +258,7 @@ export default function MediaProviderKindPage() {
               key={provider.id}
               provider={provider}
               kind={kind}
+              basePath={basePath}
               connections={connections}
               onToggle={handleToggleProvider}
             />
@@ -264,6 +268,7 @@ export default function MediaProviderKindPage() {
               key={provider.id}
               provider={provider}
               kind={kind}
+              basePath={basePath}
               connections={connections}
               isCustom
               onToggle={handleToggleProvider}

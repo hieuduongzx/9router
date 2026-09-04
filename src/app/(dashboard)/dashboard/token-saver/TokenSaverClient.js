@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, Button, Input, Modal, Toggle, ConfirmModal, TerminalBlock } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { getCurrentLocale, onLocaleChange } from "@/i18n/runtime";
 import {
   WENYAN_LOCALES,
@@ -10,6 +11,8 @@ import {
 } from "../endpoint/endpointConstants";
 
 export default function TokenSaverClient() {
+  const shellPath = useShellPath();
+  const pxpipeHref = shellPath("/dashboard/pxpipe");
   const [rtkEnabled, setRtkEnabledState] = useState(true);
   const [headroomEnabled, setHeadroomEnabled] = useState(false);
   const [headroomUrl, setHeadroomUrl] = useState("http://localhost:8787");
@@ -782,7 +785,7 @@ export default function TokenSaverClient() {
                 {pxpipeStatus.installed ? "Manage" : "Setup"}
               </button>
               <a
-                href="/dashboard/pxpipe"
+                href={pxpipeHref}
                 className="text-xs text-primary underline hover:opacity-80"
               >
                 Dashboard
@@ -981,7 +984,7 @@ export default function TokenSaverClient() {
                 Repair
               </Button>
               <a
-                href="/dashboard/pxpipe#logs"
+                href={`${pxpipeHref}#logs`}
                 className="col-span-2 rounded-sm border border-border px-4 py-2 text-center font-mono text-sm hover:bg-surface-2"
               >
                 Open Logs

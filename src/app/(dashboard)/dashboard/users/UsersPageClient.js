@@ -15,6 +15,7 @@ import {
 } from "@/shared/components";
 import { getRelativeTime } from "@/shared/utils";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import ActionMenu from "./components/ActionMenu";
 import CreditAdjustModal from "./components/CreditAdjustModal";
 import PasswordResetModal from "./components/PasswordResetModal";
@@ -41,10 +42,12 @@ const SORT_OPTIONS = [
 /** Accounts are long-lived, so a month of history is the useful default here. */
 const DEFAULT_PERIOD = "30d";
 const EMPTY_DRAFT = { username: "", email: "", password: "", role: "user", credit: "" };
-const FILTER_SELECT_CLASS = "h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground focus-visible:border-primary focus-visible:outline-none";
+const FILTER_SELECT_CLASS = "h-7 rounded-sm border border-border bg-background px-2.5 font-sans text-[13px] font-medium leading-4 text-foreground focus-visible:border-primary focus-visible:outline-none";
 
 export default function UsersPageClient() {
   const router = useRouter();
+  const shellPath = useShellPath();
+  const usersHref = shellPath("/dashboard/users");
   const [users, setUsers] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("");
   const [unassignedKeyCount, setUnassignedKeyCount] = useState(0);
@@ -203,7 +206,7 @@ export default function UsersPageClient() {
   const buildMenu = (user) => {
     const isCurrent = user.id === currentUserId;
     return [
-      { label: "View details", icon: "open_in_new", onSelect: () => router.push(`/dashboard/users/${user.id}`) },
+      { label: "View details", icon: "open_in_new", onSelect: () => router.push(`${usersHref}/${user.id}`) },
       { label: "Adjust credit", icon: "account_balance_wallet", onSelect: () => { setError(""); setCreditTarget(user); } },
       { label: "Reset password", icon: "lock_reset", onSelect: () => { setError(""); setResetTarget(user); } },
       {
@@ -264,10 +267,10 @@ export default function UsersPageClient() {
         <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
-      <div className="border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <h2 className="font-mono text-sm font-semibold text-foreground">Accounts</h2>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">Accounts</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {visibleUsers.length === users.length
                 ? `${users.length} account${users.length === 1 ? "" : "s"}`
@@ -283,7 +286,7 @@ export default function UsersPageClient() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search username, email, ID"
                 aria-label="Search accounts"
-                className="h-8 w-full rounded-sm border border-border bg-surface pl-8 pr-3 font-mono text-xs text-foreground placeholder:font-sans focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                className="h-7 w-full rounded-sm border border-border bg-background pl-8 pr-3 font-sans text-[13px] font-medium leading-4 text-foreground placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
               />
             </div>
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} aria-label="Filter by role" className={FILTER_SELECT_CLASS}>
@@ -359,7 +362,7 @@ export default function UsersPageClient() {
                             </span>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground hover:text-primary">
+                                <Link href={`${usersHref}/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground hover:text-primary">
                                   {user.username}
                                 </Link>
                                 {isCurrent && <Badge size="sm" variant="info">You</Badge>}
@@ -379,7 +382,7 @@ export default function UsersPageClient() {
                             disabled={busy || isCurrent}
                             aria-label={`Role for ${user.username}`}
                             onChange={(event) => updateUser(user.id, { role: event.target.value })}
-                            className="h-8 rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
+                            className="h-7 rounded-sm border border-border bg-background px-2 font-sans text-[13px] font-medium leading-4 text-foreground focus-visible:border-primary focus-visible:outline-none disabled:opacity-60"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -391,10 +394,10 @@ export default function UsersPageClient() {
                             disabled={busy || isCurrent}
                             onClick={() => updateUser(user.id, { isActive: !user.isActive })}
                             title={isCurrent ? "You cannot change your own access" : user.isActive ? "Suspend account" : "Reactivate account"}
-                            className={`inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium text-muted-foreground tracking-wide transition-colors disabled:opacity-60 ${
+                            className={`inline-flex h-7 items-center gap-1.5 rounded-sm border px-2.5 text-[13px] font-medium leading-4 transition-colors disabled:opacity-60 ${
                               user.isActive
                                 ? "border-success/25 bg-success/10 text-success"
-                                : "border-border bg-surface-2 text-muted-foreground"
+                                : "border-border bg-muted text-muted-foreground"
                             }`}
                           >
                             <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-muted-foreground"}`} />
@@ -435,8 +438,8 @@ export default function UsersPageClient() {
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Link
-                              href={`/dashboard/users/${user.id}`}
-                              className="inline-flex h-8 items-center rounded-sm border border-border px-2.5 font-mono text-xs text-foreground transition-colors hover:bg-surface-2"
+                              href={`${usersHref}/${user.id}`}
+                              className="inline-flex h-7 items-center rounded-sm border border-border px-2.5 font-sans text-[13px] font-medium leading-4 text-foreground transition-colors hover:bg-muted"
                             >
                               Details
                             </Link>
@@ -464,7 +467,7 @@ export default function UsersPageClient() {
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <Link href={`/dashboard/users/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground">
+                            <Link href={`${usersHref}/${user.id}`} className="truncate font-mono text-sm font-semibold text-foreground">
                               {user.username}
                             </Link>
                             {isCurrent && <Badge size="sm" variant="info">You</Badge>}
@@ -485,7 +488,7 @@ export default function UsersPageClient() {
                             disabled={busy || isCurrent}
                             aria-label={`Role for ${user.username}`}
                             onChange={(event) => updateUser(user.id, { role: event.target.value })}
-                            className="h-8 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs text-foreground disabled:opacity-60"
+                            className="h-7 w-full rounded-sm border border-border bg-background px-2.5 font-sans text-[13px] font-medium leading-4 text-foreground disabled:opacity-60"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -499,10 +502,10 @@ export default function UsersPageClient() {
                             type="button"
                             disabled={busy || isCurrent}
                             onClick={() => updateUser(user.id, { isActive: !user.isActive })}
-                            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-sm border text-xs font-medium text-muted-foreground tracking-wide disabled:opacity-60 ${
+                            className={`inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-sm border text-[13px] font-medium leading-4 transition-colors disabled:opacity-60 ${
                               user.isActive
                                 ? "border-success/25 bg-success/10 text-success"
-                                : "border-border bg-surface-2 text-muted-foreground"
+                                : "border-border bg-muted text-muted-foreground"
                             }`}
                           >
                             <span className={`size-1.5 ${user.isActive ? "bg-success" : "bg-muted-foreground"}`} />
@@ -581,7 +584,7 @@ export default function UsersPageClient() {
               <select
                 value={draft.role}
                 onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value }))}
-                className="h-9 rounded-sm border border-border bg-surface px-3 font-mono text-sm text-foreground focus-visible:border-primary focus-visible:outline-none"
+                className="h-7 rounded-sm border border-border bg-background px-2.5 font-sans text-[13px] font-medium leading-4 text-foreground focus-visible:border-primary focus-visible:outline-none"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>

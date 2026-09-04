@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, Button, Input, Select, Toggle } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { AI_PROVIDERS, AUTH_METHODS } from "@/shared/constants/config";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -19,6 +20,8 @@ const authMethodOptions = Object.values(AUTH_METHODS).map((m) => ({
 
 export default function NewProviderPage() {
   const router = useRouter();
+  const shellPath = useShellPath();
+  const providersHref = shellPath("/dashboard/providers");
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     provider: "",
@@ -59,7 +62,7 @@ export default function NewProviderPage() {
       });
 
       if (response.ok) {
-        router.push("/dashboard/providers");
+        router.push(providersHref);
       } else {
         const data = await response.json();
         setErrors({ submit: data.error || "Failed to create provider" });
@@ -78,7 +81,7 @@ export default function NewProviderPage() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          href="/dashboard/providers"
+          href={providersHref}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
           <Icon name="arrow_back" className="size-[18px]" />
@@ -197,7 +200,7 @@ export default function NewProviderPage() {
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-border">
-            <Link href="/dashboard/providers" className="flex-1">
+            <Link href={providersHref} className="flex-1">
               <Button type="button" variant="ghost" fullWidth>
                 Cancel
               </Button>

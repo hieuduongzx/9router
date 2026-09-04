@@ -73,7 +73,6 @@ describe("dashboard guard public LLM API access", () => {
 
   it("rejects loopback public LLM API without API key", async () => {
     const response = await proxy(localRequest("/v1/chat/completions", { host: "localhost:20128" }));
-
     expect(response.status).toBe(401);
     expect(response.body.error).toBe("Valid API key required");
     expect(mocks.validateApiKey).not.toHaveBeenCalled();
@@ -109,7 +108,6 @@ describe("dashboard guard public LLM API access", () => {
 
   it("rejects loopback rewritten public LLM API without API key", async () => {
     const response = await proxy(localRequest("/api/v1/chat/completions", { host: "localhost:20128" }));
-
     expect(response.status).toBe(401);
     expect(response.body.error).toBe("Valid API key required");
   });
@@ -347,7 +345,6 @@ describe("dashboard guard role boundaries", () => {
     expect(response.status).toBe(403);
     expect(response.body.error).toBe("Administrator access required");
   });
-
   it("redirects users away from administrator pages", async () => {
     const response = await proxy(request("/dashboard/providers"));
 
@@ -363,7 +360,7 @@ describe("dashboard guard role boundaries", () => {
     expect(await proxy(request("/dashboard/account", {}, "user-token"))).toBe(mocks.nextResponse);
   });
 
-  it("allows administrators to use control-plane APIs and pages", async () => {
+  it("allows administrators to use control-plane APIs", async () => {
     mocks.getDashboardAccount.mockResolvedValue({
       id: "admin-1",
       role: "admin",
@@ -372,26 +369,62 @@ describe("dashboard guard role boundaries", () => {
 
     expect(await proxy(request("/api/providers"))).toBe(mocks.nextResponse);
     expect(await proxy(request("/api/usage/connection-1"))).toBe(mocks.nextResponse);
-    expect(await proxy(request("/dashboard/providers"))).toBe(mocks.nextResponse);
-    expect(await proxy(request("/dashboard/settings"))).toBe(mocks.nextResponse);
   });
 
-  it("limits Activity to an administrator's Admin view without changing admin authorization", async () => {
+  // The visible shell has to be the route group. An admin-only page reached
+  // under /dashboard would render inside the user rail, which is how the two
+  // used to disagree about which mode you were in.
+  it("moves an administrator's admin-only dashboard pages into the admin shell", async () => {
     mocks.getDashboardAccount.mockResolvedValue({
       id: "admin-1",
       role: "admin",
       isActive: true,
     });
 
-    expect(await proxy(request("/dashboard/activity"))).toBe(mocks.nextResponse);
+    const providers = await proxy(request("/dashboard/providers"));
+    expect(providers.status).toBe(307);
+    expect(providers.url.pathname).toBe("/admin/providers");
 
-    const userViewCookies = { dashboard_view_mode: "user" };
-    const activityResponse = await proxy(request("/dashboard/activity", {}, null, userViewCookies));
-    expect(activityResponse.status).toBe(307);
-    expect(activityResponse.url.pathname).toBe("/dashboard");
+    const settings = await proxy(request("/dashboard/settings"));
+    expect(settings.status).toBe(307);
+    expect(settings.url.pathname).toBe("/admin/settings");
 
-    expect(await proxy(request("/api/providers", {}, null, userViewCookies))).toBe(mocks.nextResponse);
-    expect(await proxy(request("/dashboard/providers", {}, null, userViewCookies))).toBe(mocks.nextResponse);
+    // Sub-paths carry across; Model Routes is renamed in the admin rail.
+    const connection = await proxy(request("/dashboard/providers/anthropic"));
+    expect(connection.url.pathname).toBe("/admin/providers/anthropic");
+
+    const routes = await proxy(request("/dashboard/combos"));
+    expect(routes.url.pathname).toBe("/admin/router");
+  });
+
+  it("keeps account-safe pages under both prefixes for an administrator", async () => {
+    mocks.getDashboardAccount.mockResolvedValue({
+      id: "admin-1",
+      role: "admin",
+      isActive: true,
+    });
+
+    // These are an administrator's *own* keys and usage — no shell rewrite.
+    expect(await proxy(request("/dashboard/usage", {}, "admin-token"))).toBe(mocks.nextResponse);
+    expect(await proxy(request("/dashboard/api-keys", {}, "admin-token"))).toBe(mocks.nextResponse);
+    expect(await proxy(request("/dashboard/account", {}, "admin-token"))).toBe(mocks.nextResponse);
+  });
+
+  it("keeps Activity administrator-only without consulting a separate view mode", async () => {
+    mocks.getDashboardAccount.mockResolvedValue({
+      id: "admin-1",
+      role: "admin",
+      isActive: true,
+    });
+
+    const adminActivity = await proxy(request("/dashboard/activity"));
+    expect(adminActivity.status).toBe(307);
+    expect(adminActivity.url.pathname).toBe("/admin/activity");
+
+    mocks.getDashboardAccount.mockResolvedValue({ id: "user-1", role: "user", isActive: true });
+    const userActivity = await proxy(request("/dashboard/activity"));
+    expect(userActivity.status).toBe(307);
+    expect(userActivity.url.pathname).toBe("/dashboard");
   });
 });
 describe("dashboard guard helpers", () => {

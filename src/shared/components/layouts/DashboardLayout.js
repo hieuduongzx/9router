@@ -36,7 +36,12 @@ export default function DashboardLayout({ children, variant = "user" }) {
   const fullBleed = FULL_BLEED_ROUTES.has(pathname);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    // `h-dvh`, not `h-screen`: `100vh` is the viewport *including* the mobile
+    // browser's collapsible URL bar, so the shell would stand taller than what
+    // is actually visible and the document itself would gain a second scroll —
+    // the page kept scrolling after the content ended and the sticky header slid
+    // away with it. `dvh` tracks the visible viewport, so nothing overflows.
+    <div className="flex h-dvh w-full overflow-hidden bg-background">
       {sidebarOpen ? (
         <button
           type="button"
@@ -76,11 +81,15 @@ export default function DashboardLayout({ children, variant = "user" }) {
       </div>
 
       <main className="flex h-full min-w-0 flex-1 flex-col">
-        {/* Remounted per route so the header's internal state resets. */}
-        <Header key={pathname} onMenuClick={() => setSidebarOpen(true)} />
+        {/* Not keyed by pathname: the header reads its page title from the
+            pathname reactively, and remounting it re-ran the identity fetch on
+            every navigation just to arrive at the same answer. */}
+        <Header variant={variant} onMenuClick={() => setSidebarOpen(true)} />
         <div
           className={cn(
-            "custom-scrollbar flex-1",
+            // `overscroll-contain` keeps a wheel/touch gesture that has already
+            // reached this box's end from chaining out to the document.
+            "custom-scrollbar flex-1 overscroll-contain",
             fullBleed
               ? "flex flex-col overflow-hidden"
               : "overflow-y-auto p-4 sm:p-6 xl:p-8",

@@ -11,9 +11,9 @@ export default function SegmentedControl({
   className,
 }) {
   const sizes = {
-    sm: "h-7 text-xs",
-    md: "h-9 text-sm",
-    lg: "h-10 text-sm",
+    sm: "h-7 text-[13px] leading-4",
+    md: "h-7 text-[13px] leading-4",
+    lg: "h-9 text-sm leading-4",
   };
 
   return (
@@ -28,7 +28,7 @@ export default function SegmentedControl({
           key={option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-sm px-3 font-mono font-medium transition-colors",
+            "inline-flex shrink-0 items-center justify-center rounded-sm px-3 font-sans font-medium transition-colors",
             sizes[size],
             value === option.value
               ? "bg-surface text-foreground border border-border"

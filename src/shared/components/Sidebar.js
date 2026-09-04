@@ -12,7 +12,6 @@ import {
   Route,
   Search,
   ShieldCheck,
-  User,
   X,
 } from "lucide-react";
 
@@ -203,7 +202,12 @@ export default function Sidebar({ variant = "user", onClose }) {
   const searchParams = useSearchParams();
   const accountTab = searchParams?.get("tab") || "profile";
 
-  const [isAdmin, setIsAdmin] = useState(variant === "admin");
+  // Which shell is mounted *is* the answer: `/admin/*` is only reachable with an
+  // admin session (dashboardGuard). This used to be re-derived from an
+  // `/api/auth/status` fetch that was never repeated on navigation, so the rail
+  // could disagree with the layout it was rendered in and silently drop rows.
+  const isAdmin = variant === "admin";
+
   const [enableTranslator, setEnableTranslator] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -244,26 +248,18 @@ export default function Sidebar({ variant = "user", onClose }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isDrawer]);
 
+  // Only the admin rail has a translator-gated row, so only it needs settings.
   useEffect(() => {
-    const loadAuthStatus = () =>
-      fetch("/api/auth/status", { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          const admin = data.isAdminView === true;
-          setIsAdmin(admin);
-          if (!admin) return null;
-          return fetch("/api/settings")
-            .then((res) => (res.ok ? res.json() : null))
-            .then((settings) => {
-              if (settings?.enableTranslator) setEnableTranslator(true);
-            });
-        })
-        .catch(() => {});
-
-    loadAuthStatus();
-    window.addEventListener("account-profile-updated", loadAuthStatus);
-    return () => window.removeEventListener("account-profile-updated", loadAuthStatus);
-  }, []);
+    if (!isAdmin) return undefined;
+    const controller = new AbortController();
+    fetch("/api/settings", { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((settings) => {
+        if (settings?.enableTranslator) setEnableTranslator(true);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [isAdmin]);
 
   useEffect(() => {
     fetch("/api/version")
@@ -434,18 +430,6 @@ export default function Sidebar({ variant = "user", onClose }) {
               )}
             </div>
           ))}
-
-          {variant === "admin" ? (
-            <div className="mt-4 border-t pt-3">
-              <NavRow
-                href="/dashboard"
-                label="My Dashboard"
-                icon={User}
-                collapsed={collapsed}
-                onClick={onClose}
-              />
-            </div>
-          ) : null}
         </nav>
 
         <div

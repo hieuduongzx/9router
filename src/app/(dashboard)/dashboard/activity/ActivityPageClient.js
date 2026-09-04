@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SegmentedControl, Badge, PeriodDropdown } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import SystemUsageTab from "./components/SystemUsageTab";
 import ProviderActivityTab from "./components/ProviderActivityTab";
 import RequestActivityTab from "./components/RequestActivityTab";
@@ -16,6 +17,7 @@ const TABS = [
 export default function ActivityPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const shellPath = useShellPath();
   const [period, setPeriod] = useState("24h");
   const requestedTab = searchParams.get("tab");
   const activeTab = TABS.some((tab) => tab.value === requestedTab) ? requestedTab : "overview";
@@ -24,7 +26,7 @@ export default function ActivityPageClient() {
     if (value === activeTab) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
-    router.push(`/dashboard/activity?${params.toString()}`, { scroll: false });
+    router.push(`${shellPath("/dashboard/activity")}?${params.toString()}`, { scroll: false });
   };
 
   return (

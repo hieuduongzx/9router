@@ -9,6 +9,7 @@ import Card from "@/shared/components/Card";
 import Input from "@/shared/components/Input";
 import StatTile from "@/shared/components/StatTile";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { Icon } from "@/shared/components/ui/icon";
 
 const EMPTY_PASSWORDS = { current: "", next: "", confirm: "" };
@@ -100,6 +101,7 @@ function ProfileSkeleton() {
 function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const shellPath = useShellPath();
   const tabParam = searchParams?.get("tab") || "profile";
   const activeTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "profile";
 
@@ -127,7 +129,8 @@ function AccountPage() {
     if (nextTab === "profile") params.delete("tab");
     else params.set("tab", nextTab);
     const query = params.toString();
-    router.replace(query ? `/dashboard/account?${query}` : "/dashboard/account");
+    const base = shellPath("/dashboard/account");
+    router.replace(query ? `${base}?${query}` : base);
   };
 
   const loadWallet = useCallback(async (signal) => {
@@ -674,11 +677,11 @@ function AccountPage() {
           <Card padding="lg">
             <h2 className="font-mono text-sm font-semibold text-foreground">Quick links</h2>
             <div className="mt-4 space-y-2">
-              <Link href="/dashboard/api-keys" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
+              <Link href={shellPath("/dashboard/api-keys")} className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
                 <Icon name="vpn_key" className="size-[18px] text-muted-foreground" />
                 Manage API keys
               </Link>
-              <Link href="/dashboard/usage" className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
+              <Link href={shellPath("/dashboard/usage")} className="flex items-center gap-2 rounded-sm border border-border px-3 py-2.5 text-sm text-foreground hover:bg-surface-2">
                 <Icon name="bar_chart" className="size-[18px] text-muted-foreground" />
                 View usage
               </Link>

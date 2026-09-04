@@ -86,13 +86,13 @@ export default function EndpointSection() {
                 </span>
               </div>
               <div className="flex min-w-0 items-center gap-2 p-3">
-                <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap bg-foreground px-3 py-2.5 font-mono text-xs text-white">
+                <code className="terminal-block min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-sm px-3 py-2.5 text-xs">
                   {baseUrl}
                 </code>
                 <button
                   type="button"
                   onClick={() => copy(baseUrl, "landing-base-url")}
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm border border-border bg-white text-muted-foreground transition-colors hover:border-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
+                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground transition-colors hover:border-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   aria-label="Copy API base URL"
                 >
                   <Icon name={copied === "landing-base-url" ? "check" : "content_copy"} className="size-[18px]" aria-hidden="true" />
@@ -101,7 +101,7 @@ export default function EndpointSection() {
             </div>
           </div>
 
-          <CropFrame className="min-w-0 self-start border border-border bg-white">
+          <CropFrame className="min-w-0 self-start border border-border bg-card">
             <div className="flex flex-col border-b border-border bg-muted sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center px-4 py-3">
                 <span className="font-mono text-xs font-semibold text-foreground">quickstart</span>
@@ -115,8 +115,8 @@ export default function EndpointSection() {
                     onClick={() => setActiveClient(client.id)}
                     className={`h-10 border-r border-border px-4 font-mono text-xs font-semibold last:border-r-0 sm:h-12 ${
                       activeClient === client.id
-                        ? "bg-foreground text-white"
-                        : "bg-white text-muted-foreground hover:text-foreground"
+                        ? "bg-foreground text-background"
+                        : "bg-card text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {client.label}
@@ -125,14 +125,14 @@ export default function EndpointSection() {
               </div>
             </div>
 
-            <div className="relative bg-foreground">
-              <pre className="min-h-[330px] overflow-x-auto p-5 pb-16 font-mono text-[12px] leading-6 text-muted-foreground sm:p-6 sm:pb-16">
+            <div className="relative terminal-block rounded-none border-0">
+              <pre className="min-h-[330px] overflow-x-auto p-5 pb-16 font-mono text-[12px] leading-6 sm:p-6 sm:pb-16">
                 <code>{snippet}</code>
               </pre>
               <button
                 type="button"
                 onClick={() => copy(snippet, "landing-snippet")}
-                className="absolute bottom-4 right-4 inline-flex h-9 items-center gap-2 rounded-sm border border-foreground/30 bg-foreground px-3 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:border-foreground/15 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+                className="absolute bottom-4 right-4 inline-flex h-9 items-center gap-2 rounded-sm border border-white/20 bg-white/10 px-3 font-mono text-xs font-semibold text-white/70 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
               >
                 <Icon name={copied === "landing-snippet" ? "check" : "content_copy"} className="size-[16px]" aria-hidden="true" />
                 {copied === "landing-snippet" ? "Copied" : "Copy"}

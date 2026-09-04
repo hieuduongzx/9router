@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Card } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { Icon } from "@/shared/components/ui/icon";
 
 // Derive simple connected/configured/not-installed status from API payload
@@ -15,8 +16,9 @@ function getStatus(status) {
 
 export default function ToolSummaryCard({ toolId, tool, status }) {
   const s = getStatus(status);
+  const shellPath = useShellPath();
   return (
-    <Link href={`/dashboard/cli-tools/${toolId}`} className="block">
+    <Link href={`${shellPath("/dashboard/cli-tools")}/${toolId}`} className="block">
       <Card padding="sm" className="h-full overflow-hidden hover:border-primary/50 transition-colors cursor-pointer">
         <div className="flex h-full flex-col gap-2">
           <div className="flex items-center gap-3">

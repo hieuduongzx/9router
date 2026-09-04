@@ -7,6 +7,7 @@ import { RequestLogger } from "@/shared/components";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
 import {
+  CHART_BAR,
   CHART_COLORS,
   CHART_TICK,
   CHART_TOOLTIP_LABEL,
@@ -127,7 +128,7 @@ export default function RequestActivityTab({ period }) {
                 <XAxis dataKey="name" tick={CHART_TICK} axisLine={false} tickLine={false} />
                 <YAxis tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={formatLatency} />
                 <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [formatLatency(value), "Latency"]} />
-                <Bar dataKey="value" fill={CHART_COLORS.info} maxBarSize={56} isAnimationActive={false} />
+                <Bar dataKey="value" fill={CHART_BAR} maxBarSize={56} isAnimationActive={false} />
               </BarChart>
 
             </ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No latency samples in this period.</div>}

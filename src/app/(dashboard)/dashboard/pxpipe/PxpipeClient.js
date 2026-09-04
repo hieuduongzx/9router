@@ -11,7 +11,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, Button, SegmentedControl, StatTile } from "@/shared/components";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { Icon } from "@/shared/components/ui/icon";
+import { CHART_COLORS, CHART_TICK, CHART_TOOLTIP_LABEL, CHART_TOOLTIP_STYLE } from "@/shared/utils/chartTheme";
 
 const fmtTokens = (n) => {
   if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`;
@@ -50,6 +52,7 @@ const REASON_LABELS = {
 };
 
 export default function PxpipeClient() {
+  const shellPath = useShellPath();
   const [status, setStatus] = useState(null);
   const [health, setHealth] = useState(null);
   const [stats, setStats] = useState(null);
@@ -100,7 +103,7 @@ export default function PxpipeClient() {
           PXPIPE Dashboard
         </h2>
         <div className="flex items-center gap-2">
-          <a href="/dashboard/token-saver" className="text-xs text-primary underline hover:opacity-80">
+          <a href={shellPath("/dashboard/token-saver")} className="text-xs text-primary underline hover:opacity-80">
             Token Saver settings
           </a>
           <Button size="sm" variant="ghost" onClick={refresh} disabled={loading}>
@@ -166,15 +169,15 @@ export default function PxpipeClient() {
             <AreaChart data={stats.timeline} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradPxpipe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CHART_COLORS.cost} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={CHART_COLORS.cost} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtTokens} width={48} />
-              <Tooltip formatter={(v) => [fmtTokens(v), "Tokens saved"]} labelFormatter={(d) => d} />
-              <Area type="monotone" dataKey="tokensSavedEst" stroke="#10b981" fill="url(#gradPxpipe)" strokeWidth={2} />
+              <XAxis dataKey="date" tick={CHART_TICK} tickFormatter={(d) => d.slice(5)} />
+              <YAxis tick={CHART_TICK} tickFormatter={fmtTokens} width={48} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(v) => [fmtTokens(v), "Tokens saved"]} labelFormatter={(d) => d} />
+              <Area type="monotone" dataKey="tokensSavedEst" stroke={CHART_COLORS.cost} fill="url(#gradPxpipe)" strokeWidth={2} isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         ) : (

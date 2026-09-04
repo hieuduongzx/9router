@@ -94,16 +94,16 @@ export default function ModelCatalogPreview() {
           </div>
         </div>
 
-        <div className="overflow-hidden border border-border bg-white">
-          <div className="flex flex-col gap-3 border-b border-border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="overflow-hidden border border-border bg-card">
+          <div className="flex flex-col gap-3 border-b border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto pb-1 sm:pb-0" aria-label="Filter models by provider">
               <button
                 type="button"
                 onClick={() => setActiveProvider("all")}
                 className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-sm border px-3 font-mono text-xs font-semibold transition-colors ${
                   activeProvider === "all"
-                    ? "border-foreground bg-foreground text-white"
-                    : "border-border bg-white text-muted-foreground hover:border-foreground/10 hover:text-foreground"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-card text-muted-foreground hover:border-foreground/10 hover:text-foreground"
                 }`}
               >
                 All
@@ -119,8 +119,8 @@ export default function ModelCatalogPreview() {
                     onClick={() => setActiveProvider(provider.name)}
                     className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-xs font-semibold transition-colors ${
                       active
-                        ? "border-foreground bg-foreground text-white"
-                        : "border-border bg-white text-muted-foreground hover:border-foreground/10 hover:text-foreground"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-card text-muted-foreground hover:border-foreground/10 hover:text-foreground"
                     }`}
                   >
                     <LobeProviderIcon iconKey={provider.iconKey} name={provider.name} className="size-5 border-0 bg-transparent" />
@@ -167,7 +167,7 @@ export default function ModelCatalogPreview() {
 
           {!loading && !error && visibleModels.length > 0 && (
             <>
-              <div className="divide-y divide-zinc-200 lg:hidden">
+              <div className="divide-y divide-border lg:hidden">
                 {visibleModels.map((model) => (
                   <article key={`mobile-${model.id}`} className="p-4">
                     <div className="flex items-start gap-3">
@@ -207,7 +207,7 @@ export default function ModelCatalogPreview() {
                       <th className="px-5 py-3 text-right">Output /M</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200">
+                  <tbody className="divide-y divide-border">
                     {visibleModels.map((model) => (
                       <tr key={model.id} className="transition-colors hover:bg-muted">
                         <td className="max-w-[320px] px-5 py-4">

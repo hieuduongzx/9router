@@ -73,12 +73,15 @@ export default function StatTile({
             className={cn("size-2 shrink-0 rounded-sm", CHIP_COLORS[chip] || CHIP_COLORS.muted)}
             aria-hidden
           />
-          <span className="truncate text-xs font-medium text-muted-foreground">{label}</span>
+          <span className="truncate text-xs font-medium leading-4 text-muted-foreground">{label}</span>
         </div>
         {action}
       </div>
       <div className="flex items-baseline gap-x-2 gap-y-1">
-        <span className="font-mono text-2xl font-semibold tabular-nums tracking-tight sm:text-[28px]">
+        <span
+          className="font-sans text-[18px] leading-6 font-semibold tabular-nums"
+          style={{ letterSpacing: "-0.1px" }}
+        >
           {value}
         </span>
         {unit ? <span className="text-sm text-muted-foreground">{unit}</span> : null}

@@ -267,7 +267,7 @@ export default function LoginPage() {
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 lg:hidden">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center border border-border bg-primary text-[hsl(var(--primary-foreground))]">
+                <span className="flex size-10 items-center justify-center border border-border bg-primary text-primary-foreground">
                   <Icon name="route" className="size-[20px]" />
                 </span>
                 <div>
@@ -306,8 +306,8 @@ export default function LoginPage() {
 
                 {accountAvailable && registrationEnabled && (
                   <div className="mt-7 grid grid-cols-2 border border-border p-1">
-                    <button type="button" onClick={() => switchMode("login")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "login" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-muted-foreground hover:text-foreground"}`}>Sign in</button>
-                    <button type="button" onClick={() => switchMode("register")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "register" ? "bg-primary text-[hsl(var(--primary-foreground))]" : "text-muted-foreground hover:text-foreground"}`}>Register</button>
+                    <button type="button" onClick={() => switchMode("login")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "login" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>Sign in</button>
+                    <button type="button" onClick={() => switchMode("register")} className={`rounded-sm px-3 py-2 font-mono text-sm font-medium transition-colors ${mode === "register" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>Register</button>
                   </div>
                 )}
 

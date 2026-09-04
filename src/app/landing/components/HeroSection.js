@@ -37,14 +37,14 @@ export default function HeroSection() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/login?mode=register"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-6 font-mono text-sm font-semibold text-white transition-colors hover:bg-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/30 focus-visible:ring-offset-2"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-6 font-mono text-sm font-semibold text-background transition-colors hover:bg-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2"
             >
               Get your API key
               <Icon name="arrow_forward" className="size-[18px]" aria-hidden="true" />
             </Link>
             <Link
               href="/models"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-foreground/10 bg-white px-6 font-mono text-sm font-semibold text-foreground transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-border bg-card px-6 font-mono text-sm font-semibold text-foreground transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               Browse models
               <Icon name="arrow_outward" className="size-[18px]" aria-hidden="true" />
@@ -54,10 +54,10 @@ export default function HeroSection() {
           <p className="mt-4 font-mono text-xs text-muted-foreground">published pricing · wallet balance · usage tracking</p>
         </div>
 
-        <CropFrame className="relative mx-auto w-full max-w-lg border border-border bg-white lg:mx-0">
+        <CropFrame className="relative mx-auto w-full max-w-lg border border-border bg-card lg:mx-0">
           <div className="flex items-center justify-between border-b border-border bg-muted px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-white text-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-card text-foreground">
                 <Icon name="api" className="size-[17px]" aria-hidden="true" />
               </span>
               <div className="min-w-0">
@@ -73,11 +73,11 @@ export default function HeroSection() {
 
           <div className="p-5 sm:p-6">
             <p className="text-xs font-medium text-muted-foreground">Base URL</p>
-            <code className="mt-2 block overflow-x-auto whitespace-nowrap bg-foreground px-4 py-4 font-mono text-sm font-semibold text-white">
+            <code className="terminal-block mt-2 block overflow-x-auto whitespace-nowrap rounded-md px-4 py-4 text-sm font-semibold">
               {baseUrl}
             </code>
 
-            <dl className="mt-5 divide-y divide-zinc-200 border-y border-border">
+            <dl className="mt-5 divide-y divide-border border-y border-border">
               <div className="grid grid-cols-[7rem_1fr] gap-3 py-3">
                 <dt className="font-mono text-[11px] font-semibold text-muted-foreground">CHAT</dt>
                 <dd className="font-mono text-xs font-semibold text-foreground">POST /v1/chat/completions</dd>

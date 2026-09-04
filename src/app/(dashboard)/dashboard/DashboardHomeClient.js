@@ -141,18 +141,17 @@ export default function DashboardHomeClient() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [balanceCents, setBalanceCents] = useState(0);
 
+  // Always the signed-in account's own traffic. This used to read a view-mode
+  // flag from /api/auth/status and silently switch to `scope=system` for an
+  // administrator, so the *user* dashboard reported whole-host numbers under
+  // labels like "Account balance". System-wide figures belong to /admin, which
+  // asks for that scope explicitly.
   const fetchDashboardData = useCallback(async (signal) => {
-    const auth = await fetchJson("/api/auth/status", signal).catch(() => null);
-    const admin = auth?.isAdminView === true;
-    setIsAdmin(admin);
-    const scope = admin ? "&scope=system" : "";
-
     const results = await Promise.allSettled([
-      fetchJson(`/api/usage/stats?period=${period}${scope}`, signal),
-      fetchJson(`/api/usage/chart?period=${period}${scope}`, signal),
+      fetchJson(`/api/usage/stats?period=${period}`, signal),
+      fetchJson(`/api/usage/chart?period=${period}`, signal),
       fetchJson("/api/keys", signal),
       fetchJson("/api/account/wallet", signal),
     ]);
@@ -247,23 +246,20 @@ export default function DashboardHomeClient() {
   const successfulRequests = outcomeData.find((entry) => entry.id === "success")?.value || 0;
   const successRate = outcomeTotal ? successfulRequests / outcomeTotal : 0;
 
-  // Model mix
+  // Top models — ranked by spend, with request counts shown alongside. The bar
+  // length tracks the leading spend so every row reads against the same scale.
   const modelData = useMemo(() => {
-    const entries = Object.values(stats?.byModel || {})
+    return Object.values(stats?.byModel || {})
       .map((model) => ({
         name: model.rawModel || "Unknown model",
-        value: Number(model.requests) || 0,
+        requests: Number(model.requests) || 0,
+        cost: Number(model.cost) || 0,
       }))
-      .filter((model) => model.value > 0)
-      .sort((a, b) => b.value - a.value);
-    if (entries.length <= 4) return entries;
-    const rest = entries.slice(4);
-    return [
-      ...entries.slice(0, 4),
-      { name: "Other models", value: rest.reduce((sum, item) => sum + item.value, 0), isOther: true },
-    ];
+      .filter((model) => model.requests > 0)
+      .sort((a, b) => (b.cost - a.cost) || (b.requests - a.requests))
+      .slice(0, 6);
   }, [stats]);
-  const modelTotal = modelData.reduce((sum, model) => sum + model.value, 0);
+  const modelTopCost = modelData.reduce((max, model) => Math.max(max, model.cost), 0);
 
   // Recent requests
   const recentRequests = useMemo(() => {
@@ -542,10 +538,10 @@ export default function DashboardHomeClient() {
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>
-                    <th className="px-5 py-2.5">Model</th>
+                    <th className="px-4 py-2.5">Model</th>
                     <th className="px-4 py-2.5">Route</th>
                     <th className="px-4 py-2.5 text-right">Tokens</th>
-                    <th className="px-5 py-2.5 text-right">Time</th>
+                    <th className="px-4 py-2.5 text-right">Time</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -604,35 +600,35 @@ export default function DashboardHomeClient() {
 
         <div className="flex min-w-0 flex-col gap-5">
           <Card padding="none" className="min-w-0 overflow-hidden">
-            <CardSectionTitle title="Model mix" />
+            <CardSectionTitle title="Top models" />
             {modelData.length ? (
               <div className="flex flex-col gap-3.5 px-5 py-4">
                 {modelData.map((model, index) => {
-                  const share = modelTotal ? (model.value / modelTotal) * 100 : 0;
-                  const color = model.isOther
-                    ? "var(--muted-foreground)"
-                    : CHART_RAMP[index % CHART_RAMP.length];
+                  const share = modelTopCost ? (model.cost / modelTopCost) * 100 : 0;
+                  const color = CHART_RAMP[index % CHART_RAMP.length];
 
                   return (
                     <div key={model.name} className="min-w-0">
                       <div className="flex items-baseline justify-between gap-3">
-                        <span
-                          className={cn(
-                            "min-w-0 truncate text-sm",
-                            model.isOther ? "text-muted-foreground" : "text-foreground",
-                          )}
-                          title={model.name}
-                        >
-                          {model.name}
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span
+                            className="min-w-0 truncate text-sm text-foreground"
+                            title={model.name}
+                          >
+                            {model.name}
+                          </span>
+                          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
+                            {formatExact(model.requests)}
+                          </span>
                         </span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {formatPercent(share)}
+                        <span className="shrink-0 font-mono text-xs tabular-nums text-success">
+                          {formatCurrency(model.cost)}
                         </span>
                       </div>
                       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full"
-                          style={{ width: `${Math.min(100, share)}%`, backgroundColor: color }}
+                          className="h-full rounded-full"
+                          style={{ width: `${Math.max(2, Math.min(100, share))}%`, backgroundColor: color }}
                           aria-hidden
                         />
                       </div>

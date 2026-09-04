@@ -7,6 +7,15 @@
  * rounded, hairline, one small shadow.
  */
 
+/**
+ * Brand-blue series for single-metric charts. Lines use the lighter tone,
+ * bars the deeper one. Fixed (theme-independent) so the chart reads the same
+ * on light and dark grounds. Multi-series charts keep the data-role palette
+ * below (tokens/requests/cost/…) — that colour carries meaning, not decoration.
+ */
+export const CHART_LINE = "var(--chart-line)";
+export const CHART_BAR = "var(--chart-bar)";
+
 export const CHART_COLORS = {
   tokens: "var(--chip-tokens)", // violet
   requests: "var(--chip-requests)", // amber
@@ -30,7 +39,7 @@ export const CHART_RAMP = [
 export const CHART_OTHER = "var(--muted-foreground)";
 
 /** Series stroke for single-metric trend lines. */
-export const TREND_STROKE = "var(--primary)";
+export const TREND_STROKE = CHART_LINE;
 
 export const CHART_TICK = {
   fill: "var(--muted-foreground)",

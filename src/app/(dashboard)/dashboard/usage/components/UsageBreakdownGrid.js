@@ -5,8 +5,9 @@ import PropTypes from "prop-types";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import Card from "@/shared/components/Card";
 import SegmentedControl from "@/shared/components/SegmentedControl";
+import { CHART_RAMP, CHART_OTHER, CHART_TOOLTIP_LABEL, CHART_TOOLTIP_STYLE } from "@/shared/utils/chartTheme";
 
-const COLORS = ["#2563eb", "#60a5fa", "#93c5fd", "#cbd5e1", "#94a3b8"];
+const COLORS = [...CHART_RAMP, CHART_OTHER];
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const COMPACT_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
 
@@ -53,7 +54,7 @@ function AllocationCard({ title, rows, labelKey }) {
                   <Pie data={chartData} dataKey="value" innerRadius={43} outerRadius={63} stroke="none" isAnimationActive={false}>
                     {chartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={(value) => [mode === "cost" ? `$${Number(value).toFixed(4)}` : COMPACT_FORMAT.format(value), mode === "cost" ? "Thực tế" : "Token"]} />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [mode === "cost" ? `$${Number(value).toFixed(4)}` : COMPACT_FORMAT.format(value), mode === "cost" ? "Thực tế" : "Token"]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">

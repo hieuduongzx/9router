@@ -5,10 +5,6 @@ import { getPrimaryAdmin, getUserById, publicUser } from "@/lib/db/repos/usersRe
 import { isOidcConfigured } from "@/lib/auth/oidc";
 import { isSamlLoginEnabled } from "@/lib/auth/saml.js";
 import { getDashboardAuthSession, renewDashboardAuthCookie } from "@/lib/auth/dashboardSession";
-import {
-  DASHBOARD_VIEW_COOKIE,
-  resolveDashboardViewMode,
-} from "@/shared/constants/dashboardView";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
@@ -28,11 +24,6 @@ export async function GET(request) {
         await renewDashboardAuthCookie(cookieStore, request, session);
       } catch {}
     }
-    const viewMode = resolveDashboardViewMode(
-      activeAccount?.role,
-      cookieStore.get(DASHBOARD_VIEW_COOKIE)?.value,
-    );
-    const canSwitchDashboardView = activeAccount?.role === "admin";
     const oidcName = String(session?.oidcName || "").trim();
     const oidcEmail = String(session?.oidcEmail || "").trim();
     const samlName = String(session?.samlName || "").trim();
@@ -46,7 +37,6 @@ export async function GET(request) {
     const samlConfigured = isSamlLoginEnabled(settings);
     const ssoOnly = ["sso", "saml", "oidc"].includes(authMode);
     const selectedSsoConfigured = ssoType === "saml" ? samlConfigured : oidcConfigured;
-
     return NextResponse.json({
       requireLogin: settings.requireLogin !== false,
       authMode,
@@ -65,9 +55,6 @@ export async function GET(request) {
           : (activeAccount?.username || ""),
       loginMethod: samlLogin ? "SAML" : oidcLogin ? "OIDC" : activeAccount ? "Account" : "",
       role: activeAccount?.role || ((oidcLogin || samlLogin) ? "user" : null),
-      viewMode,
-      isAdminView: canSwitchDashboardView && viewMode === "admin",
-      canSwitchDashboardView,
       user: activeAccount ? publicUser(activeAccount) : null,
       oidcName: oidcName || null,
       oidcEmail: oidcEmail || null,
@@ -91,9 +78,6 @@ export async function GET(request) {
       displayName: "",
       loginMethod: "",
       role: null,
-      viewMode: "user",
-      isAdminView: false,
-      canSwitchDashboardView: false,
       user: null,
       oidcName: null,
       oidcEmail: null,

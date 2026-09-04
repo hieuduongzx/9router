@@ -13,7 +13,7 @@ export default function PeriodDropdown({ value, onChange, disabled = false, clas
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "h-8 appearance-none rounded-sm border border-border bg-surface py-1 pl-3 pr-8 font-mono text-xs font-medium text-foreground",
+          "h-7 appearance-none rounded-sm border border-border bg-surface pl-3 pr-8 font-sans text-[13px] font-medium leading-4 text-foreground",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary",
           "disabled:cursor-not-allowed disabled:opacity-50"
         )}

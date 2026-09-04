@@ -11,6 +11,7 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS,
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { translate } from "@/i18n/runtime";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
@@ -37,6 +38,8 @@ function sleep(ms) {
 
 export default function ProviderDetailClient({ providerId, embedded = false, onClose }) {
   const router = useRouter();
+  const shellPath = useShellPath();
+  const providersHref = shellPath("/dashboard/providers");
   const { getCaps } = useModelCaps();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1302,7 +1305,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         {embedded ? (
           <button type="button" onClick={onClose} className="mt-4 text-primary">Close</button>
         ) : (
-          <Link href="/dashboard/providers" className="mt-4 inline-block text-primary">Back to Providers</Link>
+          <Link href={providersHref} className="mt-4 inline-block text-primary">Back to Providers</Link>
         )}
       </div>
     );
@@ -1325,7 +1328,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
       <div className="min-w-0">
         {!embedded && (
           <Link
-            href="/dashboard/providers"
+            href={providersHref}
             className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
           >
             <Icon name="arrow_back" className="size-[18px]" />
@@ -1449,7 +1452,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                         const res = await fetch(`/api/provider-nodes/${providerId}`, { method: "DELETE" });
                         if (res.ok) {
                           if (embedded) onClose?.();
-                          else router.push("/dashboard/providers");
+                          else router.push(providersHref);
                         }
                       } catch (error) {
                         console.log("Error deleting provider node:", error);

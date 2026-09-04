@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PropTypes from "prop-types";
-import { Menu, Search, ShieldCheck, User, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 
 import ProviderIcon from "./ProviderIcon";
 import AccountMenu from "./AccountMenu";
@@ -18,31 +18,30 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import { notify } from "@/store/notificationStore";
 import { getPageMeta } from "@/shared/constants/pageMeta";
 import { translate } from "@/i18n/runtime";
-import { DASHBOARD_VIEW_ADMIN, DASHBOARD_VIEW_USER } from "@/shared/constants/dashboardView";
 
-/** Routes a user-view session may stay on after switching out of admin view. */
-const USER_VIEW_SAFE_PREFIXES = [
-  "/dashboard/api-keys",
-  "/dashboard/usage",
-  "/dashboard/models",
-  "/dashboard/account",
-];
-
-export default function Header({ onMenuClick, showMenuButton = true }) {
+/**
+ * The header no longer carries a shell switch.
+ *
+ * There used to be a quick admin/user toggle here that wrote a
+ * `dashboard_view_mode` cookie, while the avatar menu and the admin rail
+ * switched shells by plain navigation without touching it. Three switches, one
+ * of which persisted state, meant the URL you were on and the mode the server
+ * believed you were in drifted apart constantly — an admin standing in /admin
+ * could be refused Activity, lose pricing controls and have nav rows vanish.
+ *
+ * Which shell you are in is now simply which route group you are in, and the
+ * only way to change it is `AccountMenu`.
+ */
+export default function Header({ onMenuClick, showMenuButton = true, variant = "user" }) {
   const pathname = usePathname();
-  const [viewMode, setViewMode] = useState(DASHBOARD_VIEW_USER);
-  const [canSwitchDashboardView, setCanSwitchDashboardView] = useState(false);
-  const [switchingView, setSwitchingView] = useState(false);
   const [account, setAccount] = useState(null);
 
   const { title, description, breadcrumbs } = getPageMeta(pathname);
 
-  // One auth read serves both the view-mode switch and the identity menu.
   useEffect(() => {
     let cancelled = false;
 
@@ -52,8 +51,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
-        setViewMode(data?.viewMode || DASHBOARD_VIEW_USER);
-        setCanSwitchDashboardView(data?.canSwitchDashboardView === true);
         setAccount({
           displayName: data?.displayName || data?.oidcName || data?.oidcEmail || "",
           role: data?.role || "",
@@ -61,8 +58,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         });
       } catch {
         if (cancelled) return;
-        setViewMode(DASHBOARD_VIEW_USER);
-        setCanSwitchDashboardView(false);
         setAccount(null);
       }
     }
@@ -81,38 +76,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
       if (res.ok) window.location.assign("/login");
     } catch {
       notify.error("Could not sign out. Try again.");
-    }
-  };
-
-  const handleViewModeToggle = async () => {
-    if (switchingView) return;
-    const nextMode = viewMode === DASHBOARD_VIEW_ADMIN ? DASHBOARD_VIEW_USER : DASHBOARD_VIEW_ADMIN;
-    setSwitchingView(true);
-    try {
-      const response = await fetch("/api/auth/view-mode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: nextMode }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "Unable to switch dashboard view");
-      if (body.viewMode !== DASHBOARD_VIEW_ADMIN && body.viewMode !== DASHBOARD_VIEW_USER) {
-        throw new Error("Invalid dashboard view response");
-      }
-
-      // A full navigation, not a router push: the view mode is a cookie the
-      // server reads for route gating, so every RSC payload has to be refetched.
-      if (body.viewMode === DASHBOARD_VIEW_ADMIN) {
-        window.location.assign("/admin");
-        return;
-      }
-      const safe =
-        pathname === "/dashboard" ||
-        USER_VIEW_SAFE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-      window.location.assign(safe ? pathname : "/dashboard");
-    } catch {
-      notify.error("Could not switch dashboard view. Try again.");
-      setSwitchingView(false);
     }
   };
 
@@ -176,16 +139,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
 
       <div className="flex shrink-0 items-center gap-1.5">
         <HeaderSearch />
-        {canSwitchDashboardView ? (
-          <>
-            <Separator orientation="vertical" className="mx-0.5 h-6" />
-            <ViewModeToggle
-              mode={viewMode}
-              pending={switchingView}
-              onToggle={handleViewModeToggle}
-            />
-          </>
-        ) : null}
         {account?.displayName ? (
           <>
             <Separator orientation="vertical" className="mx-0.5 h-6" />
@@ -193,6 +146,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
               displayName={account.displayName}
               role={account.role}
               creditCents={account.creditCents}
+              variant={variant}
               onLogout={handleLogout}
             />
           </>
@@ -205,38 +159,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
 Header.propTypes = {
   onMenuClick: PropTypes.func,
   showMenuButton: PropTypes.bool,
-};
-
-function ViewModeToggle({ mode, pending, onToggle }) {
-  const adminView = mode === DASHBOARD_VIEW_ADMIN;
-  const ModeIcon = adminView ? ShieldCheck : User;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          role="switch"
-          aria-checked={adminView}
-          aria-label="Admin dashboard view"
-          aria-busy={pending}
-          disabled={pending}
-          onClick={onToggle}
-        >
-          <ModeIcon />
-          <span className="hidden sm:inline">{adminView ? "Admin" : "User"}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Switch to {adminView ? "user" : "admin"} view</TooltipContent>
-    </Tooltip>
-  );
-}
-
-ViewModeToggle.propTypes = {
-  mode: PropTypes.oneOf([DASHBOARD_VIEW_ADMIN, DASHBOARD_VIEW_USER]).isRequired,
-  pending: PropTypes.bool.isRequired,
-  onToggle: PropTypes.func.isRequired,
+  variant: PropTypes.oneOf(["user", "admin"]),
 };
 
 /** Search box for pages that register one; hidden otherwise. */

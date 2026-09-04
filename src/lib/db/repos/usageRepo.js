@@ -1255,12 +1255,35 @@ export async function getModelRanking(period = "7d", options = {}) {
   const db = await getAdapter();
   const sort = options.sort === "tokens" ? "tokens" : "requests";
 
+  // Map a member model (e.g. "provider/model") onto the public combo name when
+  // that model belongs to a combo — the leaderboard should rank the route the
+  // client called ("gemini"), not the upstream provider id ("xxx/gemini").
+  let comboByModel = new Map();
+  try {
+    const { getCombos } = await import("./combosRepo.js");
+    const combos = await getCombos();
+    for (const combo of combos || []) {
+      for (const member of combo.models || []) {
+        const raw = String(typeof member === "string" ? member : (member?.model || member?.id || "")).trim();
+        if (!raw) continue;
+        // First combo wins; a model in two combos keeps the first mapping.
+        if (!comboByModel.has(raw)) comboByModel.set(raw, combo.name);
+      }
+    }
+  } catch { /* ranking still works without combos */ }
+
+  const displayNameFor = (rawModel) => {
+    const raw = String(rawModel || "unknown");
+    return comboByModel.get(raw) || raw;
+  };
+
   const acc = new Map();
   const bucketFor = (rawModel) => {
-    let entry = acc.get(rawModel);
+    const key = displayNameFor(rawModel);
+    let entry = acc.get(key);
     if (!entry) {
       entry = {
-        rawModel,
+        rawModel: key,
         requests: 0,
         promptTokens: 0,
         completionTokens: 0,
@@ -1268,7 +1291,7 @@ export async function getModelRanking(period = "7d", options = {}) {
         cost: 0,
         lastUsed: "",
       };
-      acc.set(rawModel, entry);
+      acc.set(key, entry);
     }
     return entry;
   };

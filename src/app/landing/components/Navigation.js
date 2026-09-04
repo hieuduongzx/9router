@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
+import ThemeToggle from "@/shared/components/ThemeToggle";
 import { cn } from "@/shared/utils/cn";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -101,6 +102,7 @@ export default function Navigation() {
 
         {/* Right actions */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <ThemeToggle />
           <AnnouncementsButton open={announcementsOpen} onOpenChange={setAnnouncementsOpen} />
 
           <div

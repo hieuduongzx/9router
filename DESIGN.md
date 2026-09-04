@@ -27,7 +27,7 @@ A `--radius` token drives the rest of the radius scale via `@theme inline`. Butt
 
 ## Color
 
-Near-monochrome with a single accent (blue 600) for primary actions. Data-role chips on stat tiles are the only saturated colour on screen, in the same palette as before:
+Near-monochrome with a **near-black** accent for primary actions (buttons, icons, toggles, links, focus rings). In dark mode the accent inverts to near-white so controls stay visible on the dark ground. The accent is a token (`--primary` / `--info` / `--ring`), so the whole app recolors from one place. Data-role chips on stat tiles are the only saturated colour on screen, in the same palette as before:
 
 - **Tokens** — violet
 - **Requests** — amber
@@ -55,10 +55,18 @@ The `material-symbols` font and its 606 ligature usages are gone.
 A single `<DashboardLayout variant="user|admin">` mounts:
 
 - the **sidebar** (a single component, one nav config in `src/shared/constants/dashboardNav.js` — previously there were two ~600-line near-duplicates and a dead third copy)
-- the **header** (title, breadcrumbs, view-mode switch, identity menu, optional per-page search)
+- the **header** (title, breadcrumbs, identity menu, optional per-page search)
 - a **content scroll region** with consistent page padding
 
 Both sidebars used to be a copy-pasted pair. They are now one component, `variant` is the only difference that matters, and the admin rail's submenu logic (Media Providers) is in the same component as the user rail's tabs.
+
+### One switch between the two shells
+
+Which shell you are in *is* which route group you are in: `/dashboard/*` is the user shell, `/admin/*` is the admin shell. The only control that changes it is the avatar dropdown — "Admin panel" from the user side, "My dashboard" from the admin side.
+
+There used to be a second, persistent notion of the same thing: a quick toggle in the header wrote a `dashboard_view_mode` cookie, while the avatar menu and the admin rail switched shells by plain navigation without touching it. With three switches and only one of them writing state, the URL and the cookie desynchronised routinely, and the mismatch was silent but load-bearing — an administrator standing in `/admin` could be bounced out of Activity, lose pricing controls, and have nav rows disappear.
+
+The cookie, the `POST /api/auth/view-mode` route and the header toggle are gone. `dashboardGuard` redirects admin-only dashboard paths to their `/admin` twin so a shared page's `/dashboard/...` link can't walk you out of the shell, and `useShellPath` prefixes links on the pages that are legitimately reachable under both.
 
 Routes that manage their own scrolling (`/dashboard/basic-chat`, `/dashboard/console-log`, …) opt out via a `FULL_BLEED_ROUTES` set in the layout, instead of every page re-discovering the same workaround.
 

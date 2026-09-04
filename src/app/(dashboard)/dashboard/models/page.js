@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, Input, Select, SegmentedControl, Tooltip } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import LobeProviderIcon from "@/shared/components/LobeProviderIcon";
 import { formatRate, isFreePricing } from "@/shared/utils/modelPricing";
 import { MODEL_CAPABILITIES as CAPABILITIES } from "@/shared/utils/comboModelConfig";
@@ -40,6 +41,9 @@ export default function ModelsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { copied, copy } = useCopyToClipboard();
+  const shellPath = useShellPath();
+  // Model Routes is /dashboard/combos for a user and /admin/router for an admin.
+  const routesHref = shellPath("/dashboard/combos");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,7 +145,7 @@ export default function ModelsPage() {
         {/* Title lives in the shared Header; only the sub-line stays here. */}
         <p className="max-w-2xl text-sm text-muted-foreground">
           Public API model list. Configure route thinking, Caps, and prices in{" "}
-          <Link href="/dashboard/combos" className="font-medium text-primary hover:underline">
+          <Link href={routesHref} className="font-medium text-primary hover:underline">
             Model Routes
           </Link>
           .
@@ -297,11 +301,6 @@ export default function ModelsPage() {
                               {model.provider}
                             </span>
                           </span>
-                          {free && (
-                            <span className="shrink-0 rounded-sm border border-success/25 bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success">
-                              Free
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td className="px-2 py-2.5 align-middle font-mono text-xs tabular-nums text-foreground">
@@ -396,7 +395,7 @@ export default function ModelsPage() {
           </p>
           {!filtersActive && (
             <Link
-              href="/dashboard/combos"
+              href={routesHref}
               className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs font-medium text-primary hover:underline"
             >
               <Icon name="arrow_forward" className="size-[16px]" />

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, Badge, Button, AddCustomEmbeddingModal, NoAuthProxyCard, ProviderInfoCard } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, isCustomEmbeddingProvider } from "@/shared/constants/providers";
 import ConnectionsCard from "@/app/(dashboard)/dashboard/providers/components/ConnectionsCard";
 import ModelsCard from "@/app/(dashboard)/dashboard/providers/components/ModelsCard";
@@ -19,6 +20,8 @@ import { Icon } from "@/shared/components/ui/icon";
 export default function MediaProviderDetailPage() {
   const { kind, id } = useParams();
   const router = useRouter();
+  const shellPath = useShellPath();
+  const listingHref = `${shellPath("/dashboard/media-providers")}/${kind}`;
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
   const isCustom = isCustomEmbeddingProvider(id) && kind === "embedding";
 
@@ -26,7 +29,7 @@ export default function MediaProviderDetailPage() {
     if (!confirm("Delete this Custom Embedding node?")) return;
     try {
       const res = await fetch(`/api/provider-nodes/${id}`, { method: "DELETE" });
-      if (res.ok) router.push(`/dashboard/media-providers/${kind}`);
+      if (res.ok) router.push(listingHref);
     } catch (error) {
       console.log("Error deleting custom embedding node:", error);
     }
@@ -74,7 +77,7 @@ export default function MediaProviderDetailPage() {
       {/* Back */}
       <div>
         <Link
-          href={`/dashboard/media-providers/${kind}`}
+          href={listingHref}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
           <Icon name="arrow_back" className="size-[18px]" />

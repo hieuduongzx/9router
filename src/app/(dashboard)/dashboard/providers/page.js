@@ -416,33 +416,33 @@ export default function ProvidersPage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <section
-        className="border border-border bg-surface/35 p-2.5 sm:p-3"
+        className="rounded-xl border border-border bg-card p-4"
         aria-label="Provider search"
       >
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <label className="group relative min-w-0 flex-1">
             <span className="sr-only">Search providers</span>
-            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-[18px] text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-[16px] text-muted-foreground transition-colors group-focus-within:text-primary" />
             <input
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search providers by name..."
-              className="h-10 w-full appearance-none rounded-sm border border-border bg-bg pl-10 pr-10 font-mono text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/70 hover:border-muted-foreground/60 focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/15"
+              className="h-7 w-full appearance-none rounded-sm border border-border bg-background pl-9 pr-9 font-sans text-[13px] font-medium leading-4 text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/70 hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 aria-label="Clear provider search"
               >
-                <Icon name="close" className="size-[17px]" />
+                <Icon name="close" className="size-[14px]" />
               </button>
             )}
           </label>
-          <div className="flex h-10 shrink-0 items-center justify-between gap-3 border border-border bg-bg px-3 sm:justify-start">
-            <span className="font-mono text-xs font-medium text-muted-foreground">
+          <div className="flex h-7 shrink-0 items-center justify-between gap-3 rounded-sm border border-border bg-background px-3 sm:justify-start">
+            <span className="font-sans text-[13px] font-medium leading-4 text-muted-foreground">
               Active only
             </span>
             <Toggle
@@ -457,7 +457,7 @@ export default function ProvidersPage() {
             className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
             aria-live="polite"
           >
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            <span className="font-sans text-[13px] font-medium tabular-nums text-muted-foreground">
               {matchingProviderCount} {hasSearchQuery || activeOnly ? "matches" : "providers"}
             </span>
           </div>

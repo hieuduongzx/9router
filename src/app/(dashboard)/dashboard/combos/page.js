@@ -846,7 +846,7 @@ function ModelProviderFormModal({ provider, onClose, onSaved }) {
           </div>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid gap-2 sm:grid-cols-2">
           <Button type="button" variant="ghost" fullWidth size="sm" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
@@ -1172,7 +1172,9 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
           </div>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        {/* Grid, not a flex row: Button carries `shrink-0`, so `fullWidth`
+            siblings in a row would each demand 100% and overflow the dialog. */}
+        <div className={`grid gap-2 ${combo.pricingSource === "custom" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           {combo.pricingSource === "custom" && (
             <Button type="button" variant="ghost" size="sm" fullWidth onClick={handleReset} loading={resetting} disabled={busy}>
               Restore default

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, ConfirmModal, PeriodDropdown, SegmentedControl, StatTile } from "@/shared/components";
 import { getRelativeTime } from "@/shared/utils";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import RequestDetailsTab from "@/app/(dashboard)/dashboard/usage/components/RequestDetailsTab";
 import ActionMenu from "../components/ActionMenu";
 import CreditAdjustModal from "../components/CreditAdjustModal";
@@ -59,6 +60,7 @@ function InfoRow({ label, children }) {
 
 export default function UserDetailsClient({ initialUser, currentUserId }) {
   const router = useRouter();
+  const shellPath = useShellPath();
   const [user, setUser] = useState(initialUser);
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
@@ -122,7 +124,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
       const response = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Unable to delete account");
-      router.push("/dashboard/users");
+      router.push(shellPath("/dashboard/users"));
     } catch (reason) {
       setError(reason.message);
       setSaving(false);

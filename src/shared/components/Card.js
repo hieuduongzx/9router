@@ -16,8 +16,8 @@ const PADDINGS = {
   none: "p-0",
   xs: "p-3",
   sm: "p-4",
-  md: "p-6",
-  lg: "p-8",
+  md: "px-4 py-6",
+  lg: "px-6 py-8",
 };
 
 export default function Card({

@@ -3,11 +3,13 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import PropTypes from "prop-types";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import ProviderDetailClient from "../[id]/ProviderDetailClient";
 import { Icon } from "@/shared/components/ui/icon";
 
 export default function ProviderSettingsLightbox({ providerId, providerName, onClose }) {
   const closeButtonRef = useRef(null);
+  const shellPath = useShellPath();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -39,7 +41,7 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
-              href={`/dashboard/providers/${providerId}`}
+              href={`${shellPath("/dashboard/providers")}/${providerId}`}
               className="inline-flex min-h-11 items-center gap-2 rounded-sm px-3 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <Icon name="open_in_new" className="size-4" aria-hidden="true" />

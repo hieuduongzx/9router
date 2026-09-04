@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -39,15 +40,17 @@ const EXAMPLE_BODIES = {
   tts: (n) => ({ model: n, input: "Hello, this is a test.", voice: "alloy" }),
 };
 
-// Map combo.kind → listing route to go back to
-function getListingHref(kind) {
-  if (kind === "webSearch" || kind === "webFetch") return "/dashboard/media-providers/web";
-  return `/dashboard/media-providers/${kind}`;
+// Map combo.kind → listing route to go back to, in the current shell.
+function getListingHref(basePath, kind) {
+  if (kind === "webSearch" || kind === "webFetch") return `${basePath}/web`;
+  return `${basePath}/${kind}`;
 }
 
 export default function ComboDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const shellPath = useShellPath();
+  const basePath = shellPath("/dashboard/media-providers");
   const [combo, setCombo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -167,7 +170,7 @@ export default function ComboDetailPage() {
   const handleDelete = async () => {
     if (!confirm(`Delete combo "${combo.name}"?`)) return;
     const res = await fetch(`/api/combos/${id}`, { method: "DELETE" });
-    if (res.ok) router.push(getListingHref(combo.kind));
+    if (res.ok) router.push(getListingHref(basePath, combo.kind));
   };
 
   const handleTest = async () => {
@@ -238,7 +241,7 @@ export default function ComboDetailPage() {
   const curlExample = examplePath
     ? `curl -X POST http://localhost:20128${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\\n  -d '${JSON.stringify(exampleBody)}'`
     : "";
-  const backHref = getListingHref(combo.kind);
+  const backHref = getListingHref(basePath, combo.kind);
 
   return (
     <div className="flex flex-col gap-6">

@@ -29,7 +29,7 @@ export default function Footer() {
         <div className="mb-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_0.75fr_0.75fr]">
           <div>
             <div className="mb-5 flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center border border-foreground bg-foreground text-white">
+              <div className="flex size-8 items-center justify-center border border-foreground bg-foreground text-background">
                 <Icon name="route" className="size-[17px]" aria-hidden="true" />
               </div>
               <h3 className="font-mono text-lg font-semibold tracking-tight text-foreground">Router2k</h3>
@@ -37,7 +37,7 @@ export default function Footer() {
             <p className="mb-6 max-w-sm text-sm leading-6 text-muted-foreground">
               One OpenAI-compatible API for leading AI models. Compare pricing, manage your wallet, and track every request from one account.
             </p>
-            <div className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 font-mono text-[11px] text-muted-foreground">
+            <div className="inline-flex items-center gap-2 border border-border bg-card px-3 py-2 font-mono text-[11px] text-muted-foreground">
               <span className="size-1.5 bg-success" />
               WALLET-BASED API ACCESS
             </div>
