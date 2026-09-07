@@ -85,6 +85,11 @@ export default function SettingsPage() {
   const [proxyLoading, setProxyLoading] = useState(false);
   const [proxyTestLoading, setProxyTestLoading] = useState(false);
 
+  const [isRemoteHost] = useState(() => (
+    typeof window !== "undefined" &&
+    !["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+  ));
+
   useEffect(() => {
     const timer = setTimeout(() => setLocale(getLocaleFromCookie()), 0);
     return () => clearTimeout(timer);
@@ -1784,7 +1789,7 @@ export default function SettingsPage() {
         {/* App Info — no version string in the UI; the API still reports it. */}
         <div className="py-4 text-center text-xs text-muted-foreground sm:text-sm">
           <p className="font-mono">{APP_CONFIG.name}</p>
-          <p className="mt-1">Local Mode - All data stored on your machine</p>
+          <p className="mt-1">{isRemoteHost ? "Remote Mode" : "Local Mode - All data stored on your machine"}</p>
         </div>
       </div>
 

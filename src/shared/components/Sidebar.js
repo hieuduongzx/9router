@@ -262,13 +262,16 @@ export default function Sidebar({ variant = "user", onClose }) {
   }, [isAdmin]);
 
   useEffect(() => {
-    fetch("/api/version")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.hasUpdate) setUpdateInfo(data);
-      })
+    const controller = new AbortController();
+    // Check independently for both shells. The same Sidebar is mounted for
+    // users and admins, and a cached response or shell transition must not
+    // hide the release notice from regular accounts.
+    fetch("/api/version", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setUpdateInfo(data?.hasUpdate ? data : null))
       .catch(() => {});
-  }, []);
+    return () => controller.abort();
+  }, [variant]);
 
   const handleCopyAndShutdown = async () => {
     copy(INSTALL_CMD);
@@ -358,33 +361,45 @@ export default function Sidebar({ variant = "user", onClose }) {
         {updateInfo ? (
           <div className={cn("shrink-0 border-b bg-muted/40", collapsed ? "flex justify-center py-2.5" : "p-2.5")}>
             {collapsed ? (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                onClick={() => setShowUpdateModal(true)}
-                aria-label="Update available"
-                title="Update available"
-              >
-                <Download />
-              </Button>
+              isAdmin ? (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setShowUpdateModal(true)}
+                  aria-label="Update available"
+                  title="Update available"
+                >
+                  <Download />
+                </Button>
+              ) : (
+                <span aria-label="Update available" title="Update available" className="flex size-8 items-center justify-center text-muted-foreground">
+                  <Download aria-hidden className="size-4" />
+                </span>
+              )
             ) : (
               <>
                 {/* Deliberately no version number — see DESIGN.md. */}
                 <p className="text-sm font-medium">A newer release is available</p>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <Button size="xs" onClick={() => setShowUpdateModal(true)}>
-                    <Download />
-                    Update
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    onClick={() => copy(INSTALL_CMD)}
-                    title={INSTALL_CMD}
-                  >
-                    {copied ? "Copied" : "Command"}
-                  </Button>
-                </div>
+                {isAdmin ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Button size="xs" onClick={() => setShowUpdateModal(true)}>
+                      <Download />
+                      Update
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => copy(INSTALL_CMD)}
+                      title={INSTALL_CMD}
+                    >
+                      {copied ? "Copied" : "Command"}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ask an administrator to install the update.
+                  </p>
+                )}
               </>
             )}
           </div>
