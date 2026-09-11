@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import PropTypes from "prop-types";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
-import { Card, Button, Badge, Input, Modal, CardSkeleton, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal, Toggle, Select, EditConnectionModal, NoAuthProxyCard, ConfirmModal } from "@/shared/components";
+import { Card, Button, Badge, Input, Modal, CardSkeleton, OAuthModal, KiroOAuthWrapper, CursorAuthModal, XiaomiMimoAuthModal, IFlowCookieModal, GitLabAuthModal, Toggle, Select, EditConnectionModal, NoAuthProxyCard, ConfirmModal } from "@/shared/components";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -46,6 +46,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const [providerNode, setProviderNode] = useState(null);
   const [proxyPools, setProxyPools] = useState([]);
   const [showOAuthModal, setShowOAuthModal] = useState(false);
+  const [showXiaomiMimoModal, setShowXiaomiMimoModal] = useState(false);
   const [showIFlowCookieModal, setShowIFlowCookieModal] = useState(false);
   const [showAddApiKeyModal, setShowAddApiKeyModal] = useState(false);
   const [addConnectionError, setAddConnectionError] = useState("");
@@ -97,6 +98,11 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         setShowAgRiskModal(true);
         return;
       }
+    }
+    // Xiaomi Desktop: auto-import local credentials first, OAuth as fallback
+    if (providerId === "xiaomi-mimo") {
+      setShowXiaomiMimoModal(true);
+      return;
     }
     if (isOAuth) {
       openOAuthConnection();
@@ -1780,6 +1786,12 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           onClose={() => setShowOAuthModal(false)}
         />
       )}
+      {/* Xiaomi Desktop: auto-import local credentials modal */}
+      <XiaomiMimoAuthModal
+        isOpen={showXiaomiMimoModal}
+        onSuccess={handleOAuthSuccess}
+        onClose={() => setShowXiaomiMimoModal(false)}
+      />
       {providerId === "iflow" && (
         <IFlowCookieModal
           isOpen={showIFlowCookieModal}

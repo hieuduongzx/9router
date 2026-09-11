@@ -18,6 +18,7 @@ const authMocks = vi.hoisted(() => ({
   markAccountUnavailable: vi.fn(async () => ({ shouldFallback: true, cooldownMs: 0 })),
   clearAccountError: vi.fn(async () => {}),
   extractApiKey: vi.fn(() => null),
+  authorizeBillableApiKey: vi.fn(async () => ({ ok: true, apiKey: {}, owner: { id: "owner-1", role: "admin" } })),
   isValidApiKey: vi.fn(async () => true),
 }));
 const tokenMocks = vi.hoisted(() => ({
@@ -28,6 +29,8 @@ const tokenMocks = vi.hoisted(() => ({
 vi.mock("@/sse/services/auth.js", () => authMocks);
 vi.mock("@/sse/services/tokenRefresh.js", () => tokenMocks);
 vi.mock("@/lib/localDb", () => ({
+  getSettings: vi.fn(async () => ({ requireApiKey: false })),
+  getProviderConnectionById: vi.fn(async () => ({ id: "conn-5", provider: "xai" })),
   getComboByName: vi.fn(async () => null),
   getModelAliases: vi.fn(async () => ({})),
   getProviderNodes: vi.fn(async () => []),
