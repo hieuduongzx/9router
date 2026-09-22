@@ -6,6 +6,7 @@ import {
   Brush,
   ChartColumn,
   Coins,
+  Brain,
   Film,
   Gauge,
   GitFork,
@@ -51,10 +52,11 @@ const MEDIA_ICONS = {
   video: Film,
   tts: AudioLines,
   stt: Mic,
+  systemone: Brain,
 };
 
 /** Kinds with a finished management screen — the rest are API-only for now. */
-const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
+const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt", "systemone"];
 
 /**
  * Web fetch and web search share one screen, so the rail shows one row instead

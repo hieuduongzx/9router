@@ -5,6 +5,8 @@ import PropTypes from "prop-types";
 import OverviewCards from "@/app/(dashboard)/dashboard/usage/components/OverviewCards";
 import RequestDetailsTab from "@/app/(dashboard)/dashboard/usage/components/RequestDetailsTab";
 import UsageTrendSection from "@/app/(dashboard)/dashboard/usage/components/UsageTrendSection";
+import ProviderBarChart from "@/app/(dashboard)/dashboard/usage/components/ProviderBarChart";
+import TopModelsChart from "@/app/(dashboard)/dashboard/usage/components/TopModelsChart";
 import {
   normalizeUsageChartPoints,
   normalizeUsageChartSeries,
@@ -122,6 +124,13 @@ export default function UsageStats({
         fetching={chartFetching}
         error={chartError}
       />
+
+      {!loading && stats && (stats.byProvider || stats.byModel) ? (
+        <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+          <ProviderBarChart byProvider={stats.byProvider} />
+          <TopModelsChart byModel={stats.byModel} />
+        </div>
+      ) : null}
 
       {loading ? spinner : <RequestDetailsTab period={period} apiKeyId={apiKeyId} />}
     </div>

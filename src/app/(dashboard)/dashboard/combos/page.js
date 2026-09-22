@@ -43,7 +43,8 @@ const CAPACITY_ADAPTER_CAPS = [
   // pdf, videoInput temporarily hidden — no translator support yet for those blocks.
   { key: "audioInput", label: "Audio", icon: "graphic_eq", desc: "Audio input" },
 ];
-const DEFAULT_FALLBACK_MODEL = "oc/mimo-v2.5-free";
+const DEFAULT_FALLBACK_MODEL = "oc/mimo-v2.6-flash-free";
+const upgradeLegacyModel = (model) => (model === "oc/mimo-v2.5-free" ? DEFAULT_FALLBACK_MODEL : model);
 const EMPTY_CAP_ENTRY = { enabled: true, roundRobin: false, models: [] };
 const EMPTY_CAPACITY_ADAPTER = {
   vision: { ...EMPTY_CAP_ENTRY },
@@ -54,13 +55,13 @@ const EMPTY_CAPACITY_ADAPTER = {
 // Backward-compat: legacy stored form was an array of {model, enabled}.
 function normalizeCapEntry(entry) {
   if (Array.isArray(entry)) {
-    return { enabled: true, roundRobin: false, models: entry.map((e) => e?.model || e).filter(Boolean) };
+    return { enabled: true, roundRobin: false, models: entry.map((e) => upgradeLegacyModel(e?.model || e)).filter(Boolean) };
   }
   if (entry && typeof entry === "object") {
     return {
       enabled: entry.enabled !== false,
       roundRobin: !!entry.roundRobin,
-      models: Array.isArray(entry.models) ? entry.models.filter(Boolean) : [],
+      models: Array.isArray(entry.models) ? entry.models.map(upgradeLegacyModel).filter(Boolean) : [],
     };
   }
   return { ...EMPTY_CAP_ENTRY };
@@ -89,11 +90,9 @@ export default function CombosPage() {
   const [canEditPricing, setCanEditPricing] = useState(false);
   const [pricingCombo, setPricingCombo] = useState(null);
   const [sortBy, setSortBy] = useState("provider");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { copied, copy } = useCopyToClipboard();
-
-  useEffect(() => {
-    fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = async () => {
     try {
@@ -135,6 +134,12 @@ export default function CombosPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Mount load. fetchData sets state after the network response, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, []);
 
   const handleSetCapacityAdapter = async (next) => {
     setCapacityAdapter(next);
@@ -352,6 +357,62 @@ export default function CombosPage() {
     }
   };
 
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    const ids = combos.filter((combo) => selectedIds.includes(combo.id)).map((combo) => combo.id);
+    const count = ids.length;
+    setConfirmState({
+      title: "Delete selected routes",
+      message: `Delete ${count} selected route${count === 1 ? "" : "s"}? This cannot be undone.`,
+      onConfirm: async () => {
+        setBulkBusy(true);
+        setConfirmState(null);
+        try {
+          const results = await Promise.all(ids.map((id) => fetch(`/api/combos/${id}`, { method: "DELETE" })));
+          const removed = new Set(ids.filter((id, index) => results[index].ok));
+          setCombos((current) => current.filter((combo) => !removed.has(combo.id)));
+          setComboTests((current) => {
+            const next = { ...current };
+            for (const id of removed) delete next[id];
+            return next;
+          });
+          setSelectedIds((current) => current.filter((id) => !removed.has(id)));
+          const failed = results.filter((result) => !result.ok).length;
+          if (failed > 0) setPublishError(`Deleted with ${failed} failure${failed === 1 ? "" : "s"}.`);
+        } catch (error) {
+          console.log("Error bulk deleting routes:", error);
+          setPublishError("Failed to delete the selected routes.");
+        } finally {
+          setBulkBusy(false);
+        }
+      },
+    });
+  };
+
+  const handleBulkSetStrategy = async (strategy) => {
+    const chosen = combos.filter((combo) => selectedIds.includes(combo.id));
+    if (chosen.length === 0 || !strategy) return;
+    setBulkBusy(true);
+    try {
+      const updated = { ...comboStrategies };
+      for (const combo of chosen) {
+        if (strategy === "fallback") delete updated[combo.name];
+        else updated[combo.name] = { ...(updated[combo.name] || {}), fallbackStrategy: strategy };
+      }
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comboStrategies: updated }),
+      });
+      setComboStrategies(updated);
+    } catch (error) {
+      console.log("Error bulk updating route strategy:", error);
+      setPublishError("Failed to update strategy for the selected routes.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const handleTestCombo = async (combo, overrides = {}) => {
     const storedStrategy = comboStrategies[combo.name] || {};
     const strategy = overrides.strategy || storedStrategy.fallbackStrategy || "fallback";
@@ -409,6 +470,10 @@ export default function CombosPage() {
     }
     return list;
   }, [combos, sortBy, publishedIds]);
+
+  const selectedCombos = combos.filter((combo) => selectedIds.includes(combo.id));
+  const allSelected = sortedCombos.length > 0 && sortedCombos.every((combo) => selectedIds.includes(combo.id));
+  const someSelected = selectedCombos.length > 0;
 
   if (loading) {
     return (
@@ -481,10 +546,48 @@ export default function CombosPage() {
                   {publishError}
                 </div>
               )}
+              {someSelected && (
+                <div className="flex flex-col gap-2 border-b border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-mono text-xs text-muted-foreground">{selectedCombos.length} selected</p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="w-full min-w-[10rem] sm:w-44">
+                      <Select
+                        options={STRATEGY_OPTIONS}
+                        value=""
+                        placeholder="Set strategy"
+                        disabled={bulkBusy}
+                        onChange={(event) => {
+                          if (event.target.value) handleBulkSetStrategy(event.target.value);
+                        }}
+                        selectClassName="h-9 py-1 text-xs"
+                        aria-label="Set strategy for selected routes"
+                      />
+                    </div>
+                    <Button size="sm" variant="danger" disabled={bulkBusy} loading={bulkBusy} onClick={handleBulkDelete}>
+                      Delete ({selectedCombos.length})
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds([])}>
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1240px] table-fixed text-left text-sm">
                   <thead className="thead-data">
                     <tr className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
+                      <th className="w-10 px-2 py-2 font-medium">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(element) => {
+                            if (element) element.indeterminate = someSelected && !allSelected;
+                          }}
+                          onChange={() => setSelectedIds(allSelected ? [] : sortedCombos.map((combo) => combo.id))}
+                          aria-label="Select all routes"
+                          className="size-4 accent-primary"
+                        />
+                      </th>
                       <th className="w-[64px] px-3 py-2 font-medium">On</th>
                       <th className="w-[19%] px-3 py-2 font-medium">Route</th>
                       <th className="w-[16%] px-2 py-2 font-medium">Members</th>
@@ -519,6 +622,12 @@ export default function CombosPage() {
                         onSelectJudge={() => setJudgeCombo(combo)}
                         testState={comboTests[combo.id]}
                         onTest={(overrides) => handleTestCombo(combo, overrides)}
+                        selected={selectedIds.includes(combo.id)}
+                        onToggleSelect={() => setSelectedIds((current) => (
+                          current.includes(combo.id)
+                            ? current.filter((id) => id !== combo.id)
+                            : [...current, combo.id]
+                        ))}
                       />
                     ))}
                   </tbody>
@@ -1210,6 +1319,8 @@ function ComboTableRow({
   onEditPricing,
   testState,
   onTest,
+  selected = false,
+  onToggleSelect,
 }) {
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
@@ -1242,6 +1353,15 @@ function ComboTableRow({
           published ? "" : "opacity-50 hover:opacity-100"
         }`}
       >
+        <td className="px-2 py-2 align-middle">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            aria-label={`Select route ${combo.name}`}
+            className="size-4 accent-primary"
+          />
+        </td>
         <td className="px-3 py-2 align-middle">
           <Toggle
             size="sm"

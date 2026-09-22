@@ -172,7 +172,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const apiKeyConnectionLabel =
     providerId === "xai" ? "xAI API Key"
     : providerId === "kimi" ? "Kimi API Key"
-    : providerId === "qoder" ? "PAT"
+    : (providerId === "qoder" || providerId === "qoder-cn") ? "PAT"
     : "API Key";
   const providerStorageAlias = isCompatible ? providerId : providerAlias;
   const providerDisplayAlias = isCompatible
@@ -564,8 +564,13 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         if (kind && kind !== "llm") continue;
         let modelId = String(model.id || model.name || model.model || "").trim();
         if (!modelId) continue;
-        for (const prefix of new Set([providerStorageAlias, providerDisplayAlias])) {
-          if (modelId.startsWith(`${prefix}/`)) modelId = modelId.slice(prefix.length + 1);
+        const prefixes = new Set([providerStorageAlias, providerDisplayAlias]);
+        if (providerId === "qoder" || providerId === "qoder-cn") {
+          prefixes.add("qoder");
+          prefixes.add("qoder-cn");
+        }
+        for (const prefix of prefixes) {
+          if (prefix && modelId.startsWith(`${prefix}/`)) modelId = modelId.slice(prefix.length + 1);
         }
         if (providerId === "gemini" && modelId.startsWith("models/")) {
           modelId = modelId.slice("models/".length);

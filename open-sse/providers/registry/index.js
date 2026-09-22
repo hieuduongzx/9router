@@ -29,6 +29,7 @@ import p26 from "./deepseek.js";
 import p27 from "./edge-tts.js";
 import p28 from "./elevenlabs.js";
 import p29 from "./exa.js";
+import p30 from "./fal-ai.js";
 import p31 from "./featherless.js";
 import p32 from "./firecrawl.js";
 import p33 from "./fireworks.js";
@@ -68,6 +69,7 @@ import p66 from "./ollama.js";
 import p123 from "./ollama-search.js";
 import p67 from "./openai.js";
 import p68 from "./opencode-go.js";
+import p68z from "./opencode-zen.js";
 import p69 from "./opencode.js";
 import p70 from "./openrouter.js";
 import p71 from "./perplexity-web.js";
@@ -75,6 +77,7 @@ import p72 from "./perplexity.js";
 import p73 from "./perplexity-agent.js";
 import p74 from "./playht.js";
 import p75 from "./qoder.js";
+import p125 from "./qoder-cn.js";
 import p77 from "./recraft.js";
 import p78 from "./runwayml.js";
 import p79 from "./sdwebui.js";
@@ -155,6 +158,7 @@ const registry = [
   p27,
   p28,
   p29,
+  p30,
   p31,
   p32,
   p33,
@@ -194,6 +198,7 @@ const registry = [
   p123,
   p67,
   p68,
+  p68z,
   p69,
   p70,
   p71,
@@ -201,6 +206,7 @@ const registry = [
   p73,
   p74,
   p75,
+  p125,
   p77,
   p78,
   p79,
