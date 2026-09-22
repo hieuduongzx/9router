@@ -49,3 +49,53 @@ export function comboRoutedModels(combo) {
   const disabled = new Set(disabledList);
   return models.filter((model) => !disabled.has(model));
 }
+
+/**
+ * A route member belongs to a provider when its prefix is one of that
+ * provider's ids or aliases (`cx/gpt-5` for Codex). A provider-as-model
+ * entry is the prefix alone (`cx`).
+ * @param {unknown} member
+ * @param {Set<string>} prefixes
+ */
+export function memberOwnedByProvider(member, prefixes) {
+  const raw = String(member || "").trim();
+  if (!raw || !(prefixes instanceof Set) || prefixes.size === 0) return false;
+  const slash = raw.indexOf("/");
+  const head = slash === -1 ? raw : raw.slice(0, slash);
+  return prefixes.has(head);
+}
+
+/**
+ * Turn every member of one provider on or off inside a route.
+ * Members of other providers keep the off-switch they already had.
+ * Returns the current list unchanged (same contents) when nothing matches.
+ * @param {string[]} models
+ * @param {string[]} disabledMembers
+ * @param {Set<string>} prefixes
+ * @param {boolean} enabled
+ * @returns {string[]}
+ */
+export function withProviderMembersEnabled(models, disabledMembers, prefixes, enabled) {
+  const list = Array.isArray(models) ? models : [];
+  const current = normalizeDisabledMembers(disabledMembers, list);
+  const owned = [];
+  for (const entry of list) {
+    const member = String(entry || "").trim();
+    if (member && memberOwnedByProvider(member, prefixes)) owned.push(member);
+  }
+  if (owned.length === 0) return current;
+
+  if (enabled) {
+    const drop = new Set(owned);
+    return current.filter((member) => !drop.has(member));
+  }
+
+  const seen = new Set(current);
+  const next = current.slice();
+  for (const member of owned) {
+    if (seen.has(member)) continue;
+    seen.add(member);
+    next.push(member);
+  }
+  return next;
+}

@@ -31,7 +31,7 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
   if (!providerId) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch justify-center sm:p-4 lg:p-8" role="dialog" aria-modal="true" aria-labelledby="provider-settings-title">
+    <div className="fixed inset-0 z-40 flex items-stretch justify-center sm:p-4 lg:p-8" role="dialog" aria-modal="true" aria-labelledby="provider-settings-title">
       <button type="button" className="absolute inset-0 bg-black/55" onClick={onClose} aria-label="Close provider settings" />
       <section className="relative flex min-h-0 w-full flex-col border-border bg-bg sm:max-w-7xl sm:border">
         <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 sm:px-5">

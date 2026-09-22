@@ -26,6 +26,7 @@ import AddCompatibleModal from "./components/AddCompatibleModal";
 import ProviderSettingsLightbox from "./components/ProviderSettingsLightbox";
 import { Icon } from "@/shared/components/ui/icon";
 import { STATUS_FILTER_OPTIONS, matchesStatusFilter } from "./utils";
+import { routerSyncNotice, syncRouterMembers } from "@/shared/utils/syncRouterMembers";
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -258,6 +259,15 @@ export default function ProvidersPage() {
         }),
       ),
     );
+    // Router members follow the provider switch. A provider that still has
+    // another live connection is left alone by the server.
+    try {
+      const sync = await syncRouterMembers(providerId, newActive);
+      const notice = routerSyncNotice(newActive, sync.updated);
+      if (notice) notify.success(notice);
+    } catch (error) {
+      notify.error(error.message || "Provider updated, but its router models could not be changed");
+    }
   };
 
   const handleBatchTest = async (mode, providerId = null) => {

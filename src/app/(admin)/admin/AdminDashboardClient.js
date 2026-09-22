@@ -17,7 +17,7 @@ import Card from "@/shared/components/Card";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
 import SectionLabel from "@/shared/components/SectionLabel";
 import StatTile from "@/shared/components/StatTile";
-import { USAGE_PERIODS } from "@/shared/constants/usagePeriods";
+import { USAGE_PERIODS, getUsagePeriodLabel } from "@/shared/constants/usagePeriods";
 import { cn } from "@/shared/utils/cn";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 import {
@@ -131,6 +131,98 @@ function EmptyState({ title, hint, className }) {
   );
 }
 
+const BREAKDOWN_LIMIT = 8;
+const HIDDEN_ACCOUNT_IDS = new Set(["__local__", "__unassigned__"]);
+
+function tokenTotal(row) {
+  return (Number(row?.promptTokens) || 0) + (Number(row?.completionTokens) || 0);
+}
+
+function byRequests(rows) {
+  return rows
+    .filter((row) => (Number(row?.requests) || 0) > 0)
+    .sort((a, b) => (Number(b.requests) || 0) - (Number(a.requests) || 0));
+}
+
+function splitRanking(rows) {
+  return {
+    rows: rows.slice(0, BREAKDOWN_LIMIT),
+    extra: Math.max(0, rows.length - BREAKDOWN_LIMIT),
+  };
+}
+
+function formatLatency(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
+  return `${Math.round(value)}ms`;
+}
+
+function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint }) {
+  return (
+    <Card padding="none" className="min-w-0 overflow-hidden">
+      <CardHead title={title}>
+        {href ? (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+          >
+            {hrefLabel}
+            <ArrowRight aria-hidden size={12} strokeWidth={2.5} />
+          </Link>
+        ) : null}
+      </CardHead>
+      {rows.length === 0 ? (
+        <EmptyState title="No traffic in this period" hint={emptyHint} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[32rem] text-left text-xs">
+            <caption className="sr-only">{title}</caption>
+            <thead className="thead-data">
+              <tr>
+                <th scope="col" className="px-5 py-3 font-mono font-medium">#</th>
+                <th scope="col" className="px-4 py-3 font-mono font-medium">Name</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
+                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Tokens</th>
+                <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Cost</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {rows.map((row, index) => (
+                <tr key={row.id} className="transition-colors hover:bg-bg-alt/60">
+                  <td className="px-5 py-3 font-mono tabular-nums text-muted-foreground">{index + 1}</td>
+                  <td className="max-w-64 px-4 py-3">
+                    {row.href ? (
+                      <Link
+                        href={row.href}
+                        className="block truncate font-mono font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                      >
+                        {row.primary}
+                      </Link>
+                    ) : (
+                      <p className="truncate font-mono font-medium text-foreground">{row.primary}</p>
+                    )}
+                    {row.secondary ? (
+                      <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">{row.secondary}</p>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatExact(row.requests)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">{formatNumber(row.tokens)}</td>
+                  <td className="px-5 py-3 text-right font-mono tabular-nums text-muted-foreground">{formatCurrency(row.cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {extra > 0 ? (
+            <p className="border-t border-border-subtle px-5 py-2.5 text-xs text-muted-foreground">
+              {extra} more in this period
+            </p>
+          ) : null}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function AdminDashboardClient() {
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [stats, setStats] = useState(null);
@@ -197,6 +289,49 @@ export default function AdminDashboardClient() {
   const chartHasData = chartData.some((point) => Number(point.tokens) > 0);
   const activeUsers = users.filter((u) => u.isActive).length;
   const activeProviders = providers.filter((p) => p.connected > 0).length;
+  const periodLabel = getUsagePeriodLabel(period);
+
+  const accountRanking = useMemo(() => splitRanking(byRequests(Object.values(stats?.byUser || {})).map((user) => ({
+    id: user.userId || user.username,
+    primary: user.username || "Unknown",
+    secondary: user.email || "",
+    requests: user.requests,
+    tokens: tokenTotal(user),
+    cost: user.cost,
+    href: user.userId && !HIDDEN_ACCOUNT_IDS.has(user.userId) ? `/admin/users/${user.userId}` : "",
+  }))), [stats]);
+
+  const modelRanking = useMemo(() => splitRanking(byRequests(Object.values(stats?.byModel || {})).map((model) => ({
+    id: `${model.rawModel || ""}|${model.provider || ""}`,
+    primary: model.rawModel || "Unknown",
+    secondary: model.provider || "",
+    requests: model.requests,
+    tokens: tokenTotal(model),
+    cost: model.cost,
+  }))), [stats]);
+
+  const providerRanking = useMemo(() => splitRanking(byRequests(Object.values(stats?.byProvider || {})).map((provider) => ({
+    id: provider.providerId || provider.provider,
+    primary: provider.provider || provider.providerId || "Unknown",
+    secondary: "",
+    requests: provider.requests,
+    tokens: tokenTotal(provider),
+    cost: provider.cost,
+  }))), [stats]);
+
+  const statusRows = useMemo(() => {
+    const byStatus = stats?.byStatus || {};
+    const rows = [
+      { key: "success", label: "Succeeded" },
+      { key: "error", label: "Failed" },
+      { key: "rate_limited", label: "Rate limited" },
+    ];
+    if ((Number(byStatus.other) || 0) > 0) rows.push({ key: "other", label: "Other" });
+    const total = rows.reduce((sum, row) => sum + (Number(byStatus[row.key]) || 0), 0);
+    return { rows, total, byStatus };
+  }, [stats]);
+  const latency = stats?.latency?.all;
+  const hasLatency = Boolean(latency && latency.count > 0);
 
   if (loading && !stats) return <AdminDashboardSkeleton />;
 
@@ -366,6 +501,76 @@ export default function AdminDashboardClient() {
           )}
         </div>
       </Card>
+
+      <section className="min-w-0">
+        <SectionLabel>Breakdown, {periodLabel}</SectionLabel>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <BreakdownTable
+            title="Top accounts"
+            href="/admin/activity"
+            hrefLabel="Activity"
+            rows={accountRanking.rows}
+            extra={accountRanking.extra}
+            emptyHint="Account traffic shows up here once requests are made with an API key."
+          />
+          <BreakdownTable
+            title="Top models"
+            rows={modelRanking.rows}
+            extra={modelRanking.extra}
+            emptyHint="Model traffic shows up here as requests flow through the gateway."
+          />
+          <BreakdownTable
+            title="Top providers"
+            href="/admin/providers"
+            hrefLabel="Providers"
+            rows={providerRanking.rows}
+            extra={providerRanking.extra}
+            emptyHint="Provider traffic shows up here once a connection serves a request."
+          />
+          <Card padding="none" className="min-w-0 overflow-hidden">
+            <CardHead title="Request outcomes" />
+            {statusRows.total === 0 ? (
+              <EmptyState
+                title="No traffic in this period"
+                hint="Succeeded, failed, and rate-limited requests are counted here."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[20rem] text-left text-xs">
+                  <caption className="sr-only">Request outcomes for {periodLabel}</caption>
+                  <thead className="thead-data">
+                    <tr>
+                      <th scope="col" className="px-5 py-3 font-mono font-medium">Outcome</th>
+                      <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
+                      <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle">
+                    {statusRows.rows.map((row) => {
+                      const count = Number(statusRows.byStatus[row.key]) || 0;
+                      return (
+                        <tr key={row.key}>
+                          <td className="px-5 py-3 font-mono font-medium text-foreground">{row.label}</td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatExact(count)}</td>
+                          <td className="px-5 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                            {formatPercent(statusRows.total > 0 ? (count / statusRows.total) * 100 : 0)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {hasLatency ? (
+                  <p className="border-t border-border-subtle px-5 py-2.5 font-mono text-xs text-muted-foreground">
+                    Latency p50 {formatLatency(latency.p50)} · p95 {formatLatency(latency.p95)}
+                    {Number.isFinite(latency.avg) ? ` · avg ${formatLatency(latency.avg)}` : ""}
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </Card>
+        </div>
+      </section>
 
       {/* Quick Links */}
       <section className="min-w-0">

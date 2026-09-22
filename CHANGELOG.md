@@ -1,6 +1,13 @@
 # Unreleased (Router2k)
 
 ## Features
+- **Providers**: turning a provider off from the provider table also switches off
+  that provider's models in every router. Turning it back on restores only those
+  models. A provider that still has another live connection (for example OAuth
+  still on while the API-key card is off) keeps its router models
+- **Admin**: the admin overview follows the period selector with top accounts,
+  top models, top providers, and request outcomes (succeeded / failed / rate
+  limited, plus latency when samples exist)
 - **Usage**: Model request history shows which API key made each request
   (key name only — the secret is never returned), including Activity Request Logs
 - **Usage**: Model request history shows Cached and Cache write token counts

@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 
 import {
   comboRoutedModels,
+  memberOwnedByProvider,
   normalizeDisabledMembers,
+  withProviderMembersEnabled,
 } from "../../open-sse/services/comboMembers.js";
 import { getComboModelsFromData } from "../../open-sse/services/combo.js";
 import { getComboCapabilities } from "../../src/lib/publishedModelsCatalog.js";
@@ -83,5 +85,44 @@ describe("advertised capabilities with switched-off members", () => {
       disabledMembers: ["codex/gpt-5.6-sol"],
       capabilityOverrides: { search: true },
     }).search).toBe(true);
+  });
+});
+
+describe("withProviderMembersEnabled", () => {
+  const prefixes = new Set(["codex", "cx"]);
+
+  it("matches a member by its provider prefix, including an alias", () => {
+    expect(memberOwnedByProvider("cx/gpt-5", prefixes)).toBe(true);
+    expect(memberOwnedByProvider("codex/gpt-5", prefixes)).toBe(true);
+    expect(memberOwnedByProvider("openai/gpt-4o", prefixes)).toBe(false);
+    expect(memberOwnedByProvider("codex", prefixes)).toBe(true);
+  });
+
+  it("switches off only this provider's members and leaves the rest routed", () => {
+    expect(withProviderMembersEnabled(
+      ["cx/gpt-5", "openai/gpt-4o", "cx/gpt-5-mini"],
+      ["openai/gpt-4o"],
+      prefixes,
+      false,
+    )).toEqual(["openai/gpt-4o", "cx/gpt-5", "cx/gpt-5-mini"]);
+  });
+
+  it("switches those members back on without clearing another provider's off switch", () => {
+    expect(withProviderMembersEnabled(
+      ["cx/gpt-5", "openai/gpt-4o"],
+      ["cx/gpt-5", "openai/gpt-4o"],
+      prefixes,
+      true,
+    )).toEqual(["openai/gpt-4o"]);
+  });
+
+  it("leaves the list unchanged when the route has none of this provider's models", () => {
+    const disabled = ["openai/gpt-4o"];
+    expect(withProviderMembersEnabled(
+      ["openai/gpt-4o", "anthropic/claude"],
+      disabled,
+      prefixes,
+      false,
+    )).toEqual(disabled);
   });
 });

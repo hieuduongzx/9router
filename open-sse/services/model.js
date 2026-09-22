@@ -29,6 +29,25 @@ export function resolveProviderAlias(aliasOrId) {
 }
 
 /**
+ * Ids and aliases that show up as the prefix of this provider's model strings.
+ * `cx/gpt-5` and `codex/gpt-5` are the same provider.
+ * @param {string} providerId
+ * @returns {Set<string>}
+ */
+export function providerMatchKeys(providerId) {
+  const keys = new Set();
+  const id = String(providerId || "").trim();
+  if (!id) return keys;
+  const canonical = ALIAS_TO_PROVIDER_ID[id] || id;
+  for (const [alias, mapped] of Object.entries(ALIAS_TO_PROVIDER_ID)) {
+    if (mapped === canonical) keys.add(alias);
+  }
+  keys.add(canonical);
+  keys.add(id);
+  return keys;
+}
+
+/**
  * Parse model string: "alias/model" or "provider/model" or just alias
  */
 export function parseModel(modelStr) {

@@ -8,6 +8,8 @@ import ProviderIcon from "@/shared/components/ProviderIcon";
 import { useShellPath } from "@/shared/hooks/useShellPath";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
 import { Icon } from "@/shared/components/ui/icon";
+import { useNotificationStore } from "@/store/notificationStore";
+import { routerSyncNotice, syncRouterMembers } from "@/shared/utils/syncRouterMembers";
 
 // Kinds that support combos (currently disabled for image/tts — temporarily hidden).
 // webSearch/webFetch handled by /web page.
@@ -145,6 +147,7 @@ export default function MediaProviderKindPage() {
   const [customNodes, setCustomNodes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [showAddCustomEmbedding, setShowAddCustomEmbedding] = useState(false);
+  const notify = useNotificationStore();
 
   // webSearch/webFetch listing pages are merged into /web
   useEffect(() => {
@@ -206,6 +209,13 @@ export default function MediaProviderKindPage() {
         })
       )
     );
+    try {
+      const sync = await syncRouterMembers(providerId, newActive);
+      const notice = routerSyncNotice(newActive, sync.updated);
+      if (notice) notify.success(notice);
+    } catch (error) {
+      notify.error(error.message || "Provider updated, but its router models could not be changed");
+    }
   };
 
   const handleCreateCombo = async () => {
