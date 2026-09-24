@@ -36,12 +36,11 @@ export default function DashboardLayout({ children, variant = "user" }) {
   const fullBleed = FULL_BLEED_ROUTES.has(pathname);
 
   return (
-    // `h-dvh`, not `h-screen`: `100vh` is the viewport *including* the mobile
-    // browser's collapsible URL bar, so the shell would stand taller than what
-    // is actually visible and the document itself would gain a second scroll —
-    // the page kept scrolling after the content ended and the sticky header slid
-    // away with it. `dvh` tracks the visible viewport, so nothing overflows.
-    <div className="flex h-dvh w-full overflow-hidden bg-background">
+    // `fixed inset-0` takes the shell out of document flow: the document body
+    // stays empty, so the viewport can never gain a second scrollbar next to
+    // the content scroller's. `h-dvh` (not `h-screen`) tracks the visible
+    // viewport when the mobile browser's URL bar collapses.
+    <div className="fixed inset-0 flex h-dvh w-full overflow-hidden bg-background">
       {sidebarOpen ? (
         <button
           type="button"
