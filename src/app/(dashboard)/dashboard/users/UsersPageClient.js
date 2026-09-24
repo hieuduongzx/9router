@@ -349,12 +349,12 @@ export default function UsersPageClient() {
                     <th scope="col" className="px-3 py-2.5 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="tbody-data">
                   {visibleUsers.map((user) => {
                     const isCurrent = user.id === currentUserId;
                     const busy = busyId === user.id;
                     return (
-                      <tr key={user.id} className={`transition-colors hover:bg-bg-alt/50 ${busy ? "opacity-60" : ""}`}>
+                      <tr key={user.id} className={busy ? "opacity-60" : ""}>
                         <td className="px-4 py-3">
                           <div className="flex min-w-0 items-center gap-3">
                             <span className="flex size-8 shrink-0 items-center justify-center border border-border bg-surface-2 font-mono text-xs font-semibold text-foreground">

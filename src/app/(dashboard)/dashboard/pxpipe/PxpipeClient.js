@@ -192,20 +192,20 @@ export default function PxpipeClient() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="thead-data">
-              <tr className="text-left text-xs font-mono text-muted-foreground border-b border-border">
-                <th className="py-2 pr-3">Time</th>
-                <th className="py-2 pr-3">Model</th>
-                <th className="py-2 pr-3 text-right">Original</th>
-                <th className="py-2 pr-3 text-right">Compressed</th>
-                <th className="py-2 pr-3 text-right">Saved</th>
-                <th className="py-2 pr-3 text-right">%</th>
-                <th className="py-2 pr-3 text-right">Duration</th>
-                <th className="py-2">Status</th>
+              <tr>
+                <th className="px-3 py-2.5">Time</th>
+                <th className="px-3 py-2.5">Model</th>
+                <th className="px-3 py-2.5 text-right">Original</th>
+                <th className="px-3 py-2.5 text-right">Compressed</th>
+                <th className="px-3 py-2.5 text-right">Saved</th>
+                <th className="px-3 py-2.5 text-right">%</th>
+                <th className="px-3 py-2.5 text-right">Duration</th>
+                <th className="px-3 py-2.5">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="tbody-data">
               {(stats?.recent || []).slice(0, 50).map((ev, i) => (
-                <tr key={`${ev.ts}-${i}`} className="border-b border-border/50">
+                <tr key={`${ev.ts}-${i}`}>
                   <td className="py-1.5 pr-3 whitespace-nowrap font-mono text-muted-foreground">
                     {new Date(ev.ts).toLocaleString()}
                   </td>

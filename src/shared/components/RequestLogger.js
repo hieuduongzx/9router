@@ -184,20 +184,20 @@ export default function RequestLogger({ period = "all" }) {
               <thead className="thead-data">
                 <tr>
                   {visibleColumns.map((column) => (
-                    <th key={column.id} className="whitespace-nowrap px-4 py-2.5 font-semibold uppercase tracking-wide">
+                    <th key={column.id} className="whitespace-nowrap px-4 py-2.5">
                       {column.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {logs.map((log, index) => (
+              <tbody className="tbody-data">
+                {logs.map((log) => (
                   <tr
                     key={log.detailId}
                     onClick={() => viewDetail(log)}
-                    className={`cursor-pointer transition-colors hover:bg-surface-2/70 ${
+                    className={`cursor-pointer ${
                       loadingDetailId === log.detailId ? "opacity-60" : ""
-                    } ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
+                    }`}
                   >
                     {visibleColumns.map((column) => (
                       <td key={column.id} className={activityCellClass(column.id)} title={activityCellTitle(column.id, log)}>

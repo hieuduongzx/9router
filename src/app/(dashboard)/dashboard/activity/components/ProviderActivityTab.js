@@ -241,17 +241,17 @@ export default function ProviderActivityTab({ period }) {
           <table className="w-full min-w-[760px] text-left text-xs">
             <thead className="thead-data">
               <tr>
-                <th className="px-5 py-3 font-mono font-medium">Provider</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Input</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Output</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Cost</th>
-                <th className="px-5 py-3 text-right font-mono font-medium">Last request</th>
+                <th className="px-5 py-3">Provider</th>
+                <th className="px-4 py-3 text-right">Requests</th>
+                <th className="px-4 py-3 text-right">Input</th>
+                <th className="px-4 py-3 text-right">Output</th>
+                <th className="px-4 py-3 text-right">Cost</th>
+                <th className="px-5 py-3 text-right">Last request</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="tbody-data">
               {providerUsage.map((item) => (
-                <tr key={item.providerId} className="hover:bg-bg-alt/60">
+                <tr key={item.providerId}>
                   <td className="px-5 py-3.5 font-mono font-medium text-foreground">{providerLabel(item.providerId, nodeNames)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-foreground">{formatNumber(item.requests)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{formatNumber(item.promptTokens)}</td>
@@ -278,17 +278,17 @@ export default function ProviderActivityTab({ period }) {
           <table className="w-full min-w-[820px] text-left text-xs">
             <thead className="thead-data">
               <tr>
-                <th className="px-5 py-3 font-mono font-medium">Account</th>
-                <th className="px-4 py-3 font-mono font-medium">Provider</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Tokens</th>
-                <th className="px-4 py-3 text-right font-mono font-medium">Cost</th>
-                <th className="px-5 py-3 text-right font-mono font-medium">Last request</th>
+                <th className="px-5 py-3">Account</th>
+                <th className="px-4 py-3">Provider</th>
+                <th className="px-4 py-3 text-right">Requests</th>
+                <th className="px-4 py-3 text-right">Tokens</th>
+                <th className="px-4 py-3 text-right">Cost</th>
+                <th className="px-5 py-3 text-right">Last request</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="tbody-data">
               {accountUsage.map((item, index) => (
-                <tr key={item.connectionId || `${item.accountName}-${index}`} className="hover:bg-bg-alt/60">
+                <tr key={item.connectionId || `${item.accountName}-${index}`}>
                   <td className="px-5 py-3.5 font-mono font-medium text-foreground">{item.accountName || "Unnamed account"}</td>
                   <td className="px-4 py-3.5 font-mono text-muted-foreground">{providerLabel(item.provider, nodeNames)}</td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-foreground">{formatNumber(item.requests)}</td>

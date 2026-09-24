@@ -155,9 +155,9 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="tbody-data">
                         {models.map(model => (
-                          <tr key={model} className="hover:bg-muted/50">
+                          <tr key={model}>
                             <td className="px-3 py-2 font-medium">{model}</td>
                             {PRICING_FIELDS.map(field => (
                               <td key={field} className="px-3 py-2">

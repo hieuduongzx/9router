@@ -383,13 +383,13 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                   <th scope="col" className="px-5 py-2.5 font-medium">Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="tbody-data">
                 {apiKeys.map((key) => {
                   const isVisible = visibleKeys.has(key.id);
                   const keyName = key.name || "Unnamed key";
                   const usage = key.usage;
                   return (
-                    <tr key={key.id} className="hover:bg-bg-alt/50">
+                    <tr key={key.id}>
                       <td className="px-5 py-3">
                         <p className="truncate text-sm font-medium text-foreground">{keyName}</p>
                         <div className="mt-1 flex items-center gap-1">
@@ -459,11 +459,11 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                   <th scope="col" className="px-5 py-2.5 text-right font-medium">Balance after</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="tbody-data">
                 {ledger.map((entry) => {
                   const positive = (entry.amountCents || 0) > 0;
                   return (
-                    <tr key={entry.id} className="hover:bg-bg-alt/50">
+                    <tr key={entry.id}>
                       <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</td>
                       <td className="px-3 py-3">
                         <Badge size="sm" variant={positive ? "success" : "error"}>{entry.type || "adjustment"}</Badge>

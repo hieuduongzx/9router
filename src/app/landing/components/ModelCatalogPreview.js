@@ -197,8 +197,8 @@ export default function ModelCatalogPreview() {
 
               <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[920px] border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-border bg-muted text-xs font-medium text-muted-foreground">
+                  <thead className="thead-data">
+                    <tr>
                       <th className="px-5 py-3">Model</th>
                       <th className="px-5 py-3">Provider</th>
                       <th className="px-5 py-3">Capabilities</th>
@@ -207,9 +207,9 @@ export default function ModelCatalogPreview() {
                       <th className="px-5 py-3 text-right">Output /M</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="tbody-data">
                     {visibleModels.map((model) => (
-                      <tr key={model.id} className="transition-colors hover:bg-muted">
+                      <tr key={model.id}>
                         <td className="max-w-[320px] px-5 py-4">
                           <p className="truncate font-mono text-sm font-semibold text-foreground">{model.id}</p>
                         </td>

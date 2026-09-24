@@ -1513,19 +1513,19 @@ export default function ProviderLimits() {
                     <span>{resetCreditsState.data.credits.length} reset credit{resetCreditsState.data.credits.length === 1 ? "" : "s"}</span>
                     <span>{resetCreditsState.data.availableCount ?? 0} available</span>
                   </div>
-                  <div className="overflow-x-auto rounded-sm border border-black/10 dark:border-white/10">
+                  <div className="overflow-x-auto rounded-sm border border-border">
                     <table className="w-full min-w-[560px] text-left text-sm">
                       <thead className="thead-data">
                         <tr>
-                          <th className="px-3 py-2 font-medium">Status</th>
-                          <th className="px-3 py-2 font-medium">Granted At</th>
-                          <th className="px-3 py-2 font-medium">Expires At</th>
-                          <th className="px-3 py-2 font-medium">Remaining</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Granted At</th>
+                          <th className="px-3 py-2">Expires At</th>
+                          <th className="px-3 py-2">Remaining</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="tbody-data">
                         {resetCreditsState.data.credits.map((credit, index) => (
-                          <tr key={`${credit.status}-${credit.expiresAt || index}`} className="border-t border-black/5 dark:border-white/5">
+                          <tr key={`${credit.status}-${credit.expiresAt || index}`}>
                             <td className="px-3 py-2">
                               <span className="bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                 {credit.status || "unknown"}

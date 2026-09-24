@@ -40,7 +40,7 @@ function AllocationCard({ title, rows, labelKey }) {
         <h2 className="font-mono text-sm font-semibold text-foreground">{title}</h2>
         <SegmentedControl
           size="sm"
-          options={[{ value: "tokens", label: "Theo Token" }, { value: "cost", label: "Theo Chi phí thực tế" }]}
+          options={[{ value: "tokens", label: "By token" }, { value: "cost", label: "By cost" }]}
           value={mode}
           onChange={setMode}
         />
@@ -54,7 +54,7 @@ function AllocationCard({ title, rows, labelKey }) {
                   <Pie data={chartData} dataKey="value" innerRadius={43} outerRadius={63} stroke="none" isAnimationActive={false}>
                     {chartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [mode === "cost" ? `$${Number(value).toFixed(4)}` : COMPACT_FORMAT.format(value), mode === "cost" ? "Thực tế" : "Token"]} />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value) => [mode === "cost" ? `$${Number(value).toFixed(4)}` : COMPACT_FORMAT.format(value), mode === "cost" ? "Cost" : "Tokens"]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -62,21 +62,21 @@ function AllocationCard({ title, rows, labelKey }) {
                 <span className="text-[10px] text-muted-foreground">{mode === "cost" ? "USD" : "token"}</span>
               </div>
             </>
-          ) : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Không có dữ liệu</div>}
+          ) : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No data</div>}
         </div>
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full min-w-[360px] text-left text-[11px]">
-            <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
-              <tr><th className="px-2 py-2">{labelKey === "endpoint" ? "Endpoint" : labelKey === "accountName" ? "Nhóm" : "Model"}</th><th className="px-2 py-2 text-right">Yêu cầu</th><th className="px-2 py-2 text-right">Token</th><th className="px-2 py-2 text-right">Thực tế</th></tr>
+            <thead className="thead-data">
+              <tr><th className="px-2 py-2">{labelKey === "endpoint" ? "Endpoint" : labelKey === "accountName" ? "Account" : "Model"}</th><th className="px-2 py-2 text-right">Requests</th><th className="px-2 py-2 text-right">Tokens</th><th className="px-2 py-2 text-right">Cost</th></tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="tbody-data">
               {rows.slice(0, 6).map((row) => <tr key={`${row[labelKey]}-${row.requests}`}>
                 <td className="max-w-[170px] truncate px-2 py-2 font-mono text-foreground" title={row[labelKey]}>{row[labelKey]}</td>
                 <td className="px-2 py-2 text-right font-mono tabular-nums text-muted-foreground">{NUMBER_FORMAT.format(row.requests || 0)}</td>
                 <td className="px-2 py-2 text-right font-mono tabular-nums text-foreground">{COMPACT_FORMAT.format((Number(row.promptTokens) || 0) + (Number(row.completionTokens) || 0))}</td>
                 <td className="px-2 py-2 text-right font-mono tabular-nums text-foreground">${(Number(row.cost) || 0).toFixed(4)}</td>
               </tr>)}
-              {!rows.length && <tr><td colSpan={4} className="px-2 py-8 text-center text-muted-foreground">Không có dữ liệu</td></tr>}
+              {!rows.length && <tr><td colSpan={4} className="px-2 py-8 text-center text-muted-foreground">No data</td></tr>}
             </tbody>
           </table>
         </div>
@@ -90,9 +90,9 @@ AllocationCard.propTypes = { title: PropTypes.string.isRequired, rows: PropTypes
 export default function UsageBreakdownGrid({ stats }) {
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-      <AllocationCard title="Phân bổ theo Model" rows={rowsFromObject(stats.byModel)} labelKey="rawModel" />
-      <AllocationCard title="Phân bổ sử dụng theo Nhóm" rows={rowsFromObject(stats.byAccount, "accountName")} labelKey="accountName" />
-      <AllocationCard title="Phân bổ Endpoint" rows={rowsFromObject(stats.byEndpoint, "endpoint")} labelKey="endpoint" />
+      <AllocationCard title="Allocation by model" rows={rowsFromObject(stats.byModel)} labelKey="rawModel" />
+      <AllocationCard title="Allocation by account" rows={rowsFromObject(stats.byAccount, "accountName")} labelKey="accountName" />
+      <AllocationCard title="Allocation by endpoint" rows={rowsFromObject(stats.byEndpoint, "endpoint")} labelKey="endpoint" />
     </div>
   );
 }

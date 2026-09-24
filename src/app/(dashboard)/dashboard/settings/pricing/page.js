@@ -126,7 +126,7 @@ export default function PricingSettingsPage() {
                   <th className="py-2 text-right">Custom</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="tbody-data">
                 {providers.map((provider) => {
                   const models = pricing[provider] || {};
                   const custom = Object.keys(models).length
@@ -135,7 +135,6 @@ export default function PricingSettingsPage() {
                   return (
                     <tr
                       key={provider}
-                      className="border-b transition-colors last:border-b-0 hover:bg-muted/50"
                     >
                       <td className="py-2.5 pr-4 font-medium text-foreground">{provider}</td>
                       <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">

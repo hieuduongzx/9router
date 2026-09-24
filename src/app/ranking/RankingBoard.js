@@ -276,18 +276,18 @@ export default function RankingBoard() {
 
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b bg-muted/40">
+                  <thead className="thead-data">
                     <tr>
-                      <th className="w-16 px-5 py-3 font-medium text-muted-foreground">Rank</th>
-                      <th className="px-5 py-3 font-medium text-muted-foreground">Model</th>
-                      <th className="px-5 py-3 text-right font-medium text-muted-foreground">Cost</th>
-                      <th className="px-5 py-3 text-right font-medium text-muted-foreground">Requests</th>
-                      <th className="px-5 py-3 text-right font-medium text-muted-foreground">Tokens</th>
-                      <th className="w-[220px] px-5 py-3 font-medium text-muted-foreground">Share</th>
-                      <th className="px-5 py-3 text-right font-medium text-muted-foreground">Last active</th>
+                      <th className="w-16 px-5 py-3">Rank</th>
+                      <th className="px-5 py-3">Model</th>
+                      <th className="px-5 py-3 text-right">Cost</th>
+                      <th className="px-5 py-3 text-right">Requests</th>
+                      <th className="px-5 py-3 text-right">Tokens</th>
+                      <th className="w-[220px] px-5 py-3">Share</th>
+                      <th className="px-5 py-3 text-right">Last active</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="tbody-data">
                     {models.map((model) => {
                       const value = Number(model[metric]) || 0;
                       const total =
@@ -295,7 +295,6 @@ export default function RankingBoard() {
                       return (
                         <tr
                           key={`${model.rank}-${model.model}`}
-                          className="border-b transition-colors last:border-b-0 hover:bg-muted/40"
                         >
                           <td className="px-5 py-3">
                             <span

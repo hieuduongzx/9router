@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
+import { Progress } from "@/shared/components/ui/progress";
 import SectionLabel from "@/shared/components/SectionLabel";
 import UsageOverTime from "@/app/(dashboard)/dashboard/usage/components/UsageOverTime";
 
@@ -64,6 +65,10 @@ export default function SystemUsageTab({ period }) {
   const summary = data?.summary || {};
   const users = data?.users || [];
   const totalTokens = (Number(summary.promptTokens) || 0) + (Number(summary.completionTokens) || 0);
+  const maxUserTokens = users.reduce(
+    (max, user) => Math.max(max, (Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0)),
+    0,
+  );
   // promptTokens already includes the cache-read portion, so it is the denominator.
   const inputTokens = Number(summary.promptTokens) || 0;
   const cachedTokens = Number(summary.cachedTokens) || 0;
@@ -132,25 +137,26 @@ export default function SystemUsageTab({ period }) {
           <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{users.length} identities</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-xs">
+          <table className="w-full min-w-[1120px] text-left text-xs">
             <caption className="sr-only">System activity grouped by account for the selected period</caption>
             <thead className="thead-data">
               <tr>
-                <th scope="col" className="px-5 py-3 font-mono font-medium">User</th>
-                <th scope="col" className="px-4 py-3 font-mono font-medium">API keys</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Active</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Input tokens</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium" title="Cache-read tokens, a subset of input tokens">Cached</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Output tokens</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Total tokens</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Cost</th>
-                <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Last request</th>
+                <th scope="col" className="px-5 py-3">User</th>
+                <th scope="col" className="px-4 py-3">API keys</th>
+                <th scope="col" className="px-4 py-3 text-right">Active</th>
+                <th scope="col" className="px-4 py-3 text-right">Requests</th>
+                <th scope="col" className="px-4 py-3 text-right">Input tokens</th>
+                <th scope="col" className="px-4 py-3 text-right" title="Cache-read tokens, a subset of input tokens">Cached</th>
+                <th scope="col" className="px-4 py-3 text-right">Output tokens</th>
+                <th scope="col" className="px-4 py-3 text-right">Total tokens</th>
+                <th scope="col" className="px-4 py-3 text-right">Cost</th>
+                <th scope="col" className="px-4 py-3 text-right">Share</th>
+                <th scope="col" className="px-5 py-3 text-right">Last request</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="tbody-data">
               {users.map((user) => (
-                <tr key={user.id} className="transition-colors hover:bg-bg-alt/60">
+                <tr key={user.id}>
                   <td className="px-5 py-3.5">
                     <p className="font-mono font-medium text-foreground">{user.username}</p>
                     {user.email && <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{user.email}</p>}
@@ -177,11 +183,30 @@ export default function SystemUsageTab({ period }) {
                     {formatNumber((Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0))}
                   </td>
                   <td className="px-4 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{MONEY_FORMAT.format(Number(user.cost) || 0)}</td>
+                  <td className="px-4 py-3.5">
+                    {(() => {
+                      const userTokens = (Number(user.promptTokens) || 0) + (Number(user.completionTokens) || 0);
+                      const sharePct = totalTokens > 0 ? (userTokens / totalTokens) * 100 : 0;
+                      return (
+                        <span className="flex items-center justify-end gap-2">
+                          <Progress
+                            value={maxUserTokens > 0 ? (userTokens / maxUserTokens) * 100 : 0}
+                            className="h-1 w-14 bg-muted"
+                            indicatorClassName="bg-primary"
+                            aria-hidden
+                          />
+                          <span className="w-10 shrink-0 text-right font-mono tabular-nums text-muted-foreground">
+                            {formatPercent(sharePct)}
+                          </span>
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-muted-foreground">{formatTime(user.lastRequest)}</td>
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-muted-foreground">No usage recorded for this period.</td></tr>
+                <tr><td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">No usage recorded for this period.</td></tr>
               )}
             </tbody>
           </table>

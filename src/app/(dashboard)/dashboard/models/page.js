@@ -274,8 +274,8 @@ export default function ModelsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {sortedModels.map((model, index) => {
+              <tbody className="tbody-data">
+                {sortedModels.map((model) => {
                   const supported = CAPABILITIES.filter(([key]) => model.capabilities?.[key]);
                   const visibleCaps = supported.slice(0, MAX_VISIBLE_CAPS);
                   const overflowCaps = supported.length - visibleCaps.length;
@@ -284,7 +284,7 @@ export default function ModelsPage() {
                   return (
                     <tr
                       key={model.id}
-                      className={`group transition-colors hover:bg-surface-2/60 ${index % 2 === 1 ? "bg-surface-2/30" : ""}`}
+                      className="group"
                     >
                       <td className="px-3 py-2.5 align-middle">
                         <div className="flex min-w-0 items-center gap-2">

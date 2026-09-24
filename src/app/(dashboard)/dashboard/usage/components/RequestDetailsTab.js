@@ -182,11 +182,11 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-max text-sm">
+            <table className="w-full min-w-max text-left text-xs">
               <caption className="sr-only">
                 Model request history for the current account and date filters
               </caption>
-              <thead className="border-b bg-muted/40">
+              <thead className="thead-data">
                 <tr>
                   {visibleColumns.map((column) => (
                     <th
@@ -199,7 +199,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="tbody-data">
                 {loading ? (
                   <tr>
                     <td colSpan={colSpan} className="px-4 py-12 text-center">
@@ -243,7 +243,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                         }
                       }}
                       aria-label={`Open request ${detail.id || index + 1}`}
-                      className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                      className="cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none"
                     >
                       {visibleColumns.map((column) => (
                         <td

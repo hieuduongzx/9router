@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { ArrowRight, RefreshCw, Users, Server, Activity, DollarSign } from "lucide-react";
 import Card from "@/shared/components/Card";
+import { Progress } from "@/shared/components/ui/progress";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
 import SectionLabel from "@/shared/components/SectionLabel";
 import StatTile from "@/shared/components/StatTile";
@@ -157,7 +158,26 @@ function formatLatency(value) {
   return `${Math.round(value)}ms`;
 }
 
-function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint }) {
+function ShareCell({ value, max, total }) {
+  const barPct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  const sharePct = total > 0 ? (value / total) * 100 : 0;
+  return (
+    <span className="flex items-center justify-end gap-2">
+      <Progress
+        value={barPct}
+        className="h-1 w-14 bg-muted"
+        indicatorClassName="bg-primary"
+        aria-hidden
+      />
+      <span className="w-10 shrink-0 text-right font-mono tabular-nums text-muted-foreground">
+        {formatPercent(sharePct)}
+      </span>
+    </span>
+  );
+}
+
+function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint, totalRequests }) {
+  const maxRequests = rows.reduce((max, row) => Math.max(max, Number(row.requests) || 0), 0);
   return (
     <Card padding="none" className="min-w-0 overflow-hidden">
       <CardHead title={title}>
@@ -175,20 +195,21 @@ function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint }) {
         <EmptyState title="No traffic in this period" hint={emptyHint} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-xs">
+          <table className="w-full min-w-[36rem] text-left text-xs">
             <caption className="sr-only">{title}</caption>
             <thead className="thead-data">
               <tr>
-                <th scope="col" className="px-5 py-3 font-mono font-medium">#</th>
-                <th scope="col" className="px-4 py-3 font-mono font-medium">Name</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Tokens</th>
-                <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Cost</th>
+                <th scope="col" className="px-5 py-3">#</th>
+                <th scope="col" className="px-4 py-3">Name</th>
+                <th scope="col" className="px-4 py-3 text-right">Requests</th>
+                <th scope="col" className="px-4 py-3 text-right">Tokens</th>
+                <th scope="col" className="px-4 py-3 text-right">Cost</th>
+                <th scope="col" className="px-5 py-3 text-right">Share</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="tbody-data">
               {rows.map((row, index) => (
-                <tr key={row.id} className="transition-colors hover:bg-bg-alt/60">
+                <tr key={row.id}>
                   <td className="px-5 py-3 font-mono tabular-nums text-muted-foreground">{index + 1}</td>
                   <td className="max-w-64 px-4 py-3">
                     {row.href ? (
@@ -207,7 +228,10 @@ function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint }) {
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatExact(row.requests)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">{formatNumber(row.tokens)}</td>
-                  <td className="px-5 py-3 text-right font-mono tabular-nums text-muted-foreground">{formatCurrency(row.cost)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">{formatCurrency(row.cost)}</td>
+                  <td className="px-5 py-3">
+                    <ShareCell value={Number(row.requests) || 0} max={maxRequests} total={totalRequests} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -322,13 +346,22 @@ export default function AdminDashboardClient() {
   const statusRows = useMemo(() => {
     const byStatus = stats?.byStatus || {};
     const rows = [
-      { key: "success", label: "Succeeded" },
-      { key: "error", label: "Failed" },
-      { key: "rate_limited", label: "Rate limited" },
+      { key: "success", label: "Succeeded", dot: "bg-success" },
+      { key: "error", label: "Failed", dot: "bg-danger" },
+      { key: "rate_limited", label: "Rate limited", dot: "bg-warning" },
     ];
-    if ((Number(byStatus.other) || 0) > 0) rows.push({ key: "other", label: "Other" });
+    if ((Number(byStatus.other) || 0) > 0) rows.push({ key: "other", label: "Other", dot: "bg-muted-foreground" });
     const total = rows.reduce((sum, row) => sum + (Number(byStatus[row.key]) || 0), 0);
     return { rows, total, byStatus };
+  }, [stats]);
+
+  const requestTotals = useMemo(() => {
+    const sumOf = (rows) => rows.reduce((sum, row) => sum + (Number(row.requests) || 0), 0);
+    return {
+      accounts: sumOf(Object.values(stats?.byUser || {})),
+      models: sumOf(Object.values(stats?.byModel || {})),
+      providers: sumOf(Object.values(stats?.byProvider || {})),
+    };
   }, [stats]);
   const latency = stats?.latency?.all;
   const hasLatency = Boolean(latency && latency.count > 0);
@@ -511,12 +544,14 @@ export default function AdminDashboardClient() {
             hrefLabel="Activity"
             rows={accountRanking.rows}
             extra={accountRanking.extra}
+            totalRequests={requestTotals.accounts}
             emptyHint="Account traffic shows up here once requests are made with an API key."
           />
           <BreakdownTable
             title="Top models"
             rows={modelRanking.rows}
             extra={modelRanking.extra}
+            totalRequests={requestTotals.models}
             emptyHint="Model traffic shows up here as requests flow through the gateway."
           />
           <BreakdownTable
@@ -525,6 +560,7 @@ export default function AdminDashboardClient() {
             hrefLabel="Providers"
             rows={providerRanking.rows}
             extra={providerRanking.extra}
+            totalRequests={requestTotals.providers}
             emptyHint="Provider traffic shows up here once a connection serves a request."
           />
           <Card padding="none" className="min-w-0 overflow-hidden">
@@ -540,20 +576,36 @@ export default function AdminDashboardClient() {
                   <caption className="sr-only">Request outcomes for {periodLabel}</caption>
                   <thead className="thead-data">
                     <tr>
-                      <th scope="col" className="px-5 py-3 font-mono font-medium">Outcome</th>
-                      <th scope="col" className="px-4 py-3 text-right font-mono font-medium">Requests</th>
-                      <th scope="col" className="px-5 py-3 text-right font-mono font-medium">Share</th>
+                      <th scope="col" className="px-5 py-3">Outcome</th>
+                      <th scope="col" className="px-4 py-3 text-right">Requests</th>
+                      <th scope="col" className="px-5 py-3 text-right">Share</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-subtle">
+                  <tbody className="tbody-data">
                     {statusRows.rows.map((row) => {
                       const count = Number(statusRows.byStatus[row.key]) || 0;
+                      const sharePct = statusRows.total > 0 ? (count / statusRows.total) * 100 : 0;
                       return (
                         <tr key={row.key}>
-                          <td className="px-5 py-3 font-mono font-medium text-foreground">{row.label}</td>
+                          <td className="px-5 py-3">
+                            <span className="inline-flex items-center gap-2 font-mono font-medium text-foreground">
+                              <span aria-hidden className={cn("size-2 shrink-0 rounded-sm", row.dot)} />
+                              {row.label}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatExact(count)}</td>
-                          <td className="px-5 py-3 text-right font-mono tabular-nums text-muted-foreground">
-                            {formatPercent(statusRows.total > 0 ? (count / statusRows.total) * 100 : 0)}
+                          <td className="px-5 py-3">
+                            <span className="flex items-center justify-end gap-2">
+                              <Progress
+                                value={sharePct}
+                                className="h-1 w-14 bg-muted"
+                                indicatorClassName={row.dot}
+                                aria-hidden
+                              />
+                              <span className="w-10 shrink-0 text-right font-mono tabular-nums text-muted-foreground">
+                                {formatPercent(sharePct)}
+                              </span>
+                            </span>
                           </td>
                         </tr>
                       );

@@ -535,25 +535,22 @@ export default function DashboardHomeClient() {
           />
           {recentRequests.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="border-b bg-muted/40">
+              <table className="w-full min-w-[520px] text-left text-xs">
+                <thead className="thead-data">
                   <tr>
-                    <th className="px-4 py-2.5">Model</th>
-                    <th className="px-4 py-2.5">Route</th>
-                    <th className="px-4 py-2.5 text-right">Tokens</th>
-                    <th className="px-4 py-2.5 text-right">Time</th>
+                    <th scope="col" className="px-5 py-3">Model</th>
+                    <th scope="col" className="px-4 py-3">Route</th>
+                    <th scope="col" className="px-4 py-3 text-right">Tokens</th>
+                    <th scope="col" className="px-5 py-3 text-right">Time</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="tbody-data">
                   {recentRequests.map((request, index) => {
                     const ok = isRequestOk(request.status);
                     return (
                       <tr
                         key={`${request.timestamp}-${request.model}-${index}`}
-                        className={cn(
-                          "border-b transition-colors last:border-b-0 hover:bg-muted/50",
-                          !ok && "bg-destructive/[0.04]",
-                        )}
+                        className={cn(!ok && "bg-destructive/[0.04]")}
                       >
                         <td className="max-w-[220px] px-5 py-3 text-foreground">
                           <span className="flex min-w-0 items-center gap-2">

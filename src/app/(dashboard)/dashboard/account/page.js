@@ -591,12 +591,12 @@ function AccountPage() {
                       <th className="px-4 py-2.5 text-right font-medium">Balance</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-subtle">
+                  <tbody className="tbody-data">
                     {wallet.entries.map((entry) => {
                       const positive = (entry.amountCents || 0) > 0;
                       const negative = (entry.amountCents || 0) < 0;
                       return (
-                        <tr key={entry.id} className="hover:bg-bg-alt/50">
+                        <tr key={entry.id}>
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
                             {formatDateTime(entry.createdAt)}
                           </td>

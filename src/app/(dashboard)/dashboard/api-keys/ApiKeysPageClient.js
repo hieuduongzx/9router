@@ -169,14 +169,14 @@ export default function ApiKeysPageClient() {
                   <th className="w-[14%] px-4 py-2.5 text-right font-medium sm:px-5">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="tbody-data">
                 {keys.map((key) => {
                   const isActive = key.isActive !== false;
                   const isVisible = visibleKeys.has(key.id);
                   return (
                     <tr
                       key={key.id}
-                      className={`transition-colors hover:bg-primary/[0.03] ${isActive ? "" : "bg-bg-alt/40"}`}
+                      className={isActive ? "" : "bg-bg-alt/40"}
                     >
                       <td className="px-4 py-3 sm:px-5">
                         <span className={`block truncate font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`} title={key.name}>

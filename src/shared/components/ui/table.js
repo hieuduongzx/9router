@@ -26,7 +26,7 @@ function TableHeader({ className, ...props }) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("thead-data", className)}
       {...props}
     />
   );
@@ -36,7 +36,7 @@ function TableBody({ className, ...props }) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn("tbody-data", className)}
       {...props}
     />
   );
@@ -56,10 +56,7 @@ function TableRow({ className, ...props }) {
   return (
     <tr
       data-slot="table-row"
-      className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-        className,
-      )}
+      className={cn("data-[state=selected]:bg-muted", className)}
       {...props}
     />
   );

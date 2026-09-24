@@ -314,6 +314,7 @@
   background-color: color-mix(in oklab, var(--color-muted) 55%, transparent);
 }
 .thead-data th {
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: none;
@@ -321,6 +322,19 @@
   color: var(--color-muted-foreground);
   white-space: nowrap;
   text-align: left;
+}
+
+/* Data-table body: subtle row separators + one shared hover tint. Replaces the
+   old mix of divide-*, zebra striping, and per-table hover colors. */
+.tbody-data > tr {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color 0.15s ease;
+}
+.tbody-data > tr:last-child {
+  border-bottom: 0;
+}
+.tbody-data > tr:hover {
+  background-color: color-mix(in oklab, var(--color-muted) 45%, transparent);
 }
 
 /* Stat tiles fuse edge-to-edge on shared 1px seams, inside one rounded frame,

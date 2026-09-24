@@ -601,12 +601,11 @@ export default function CombosPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {sortedCombos.map((combo, index) => (
+                  <tbody className="tbody-data">
+                    {sortedCombos.map((combo) => (
                       <ComboTableRow
                         key={combo.id}
                         combo={combo}
-                        index={index}
                         published={publishedIds.has(combo.id)}
                         publishing={publishingId === combo.id}
                         onTogglePublished={(enabled) => handleTogglePublished(combo, enabled)}
@@ -1303,7 +1302,6 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
 
 function ComboTableRow({
   combo,
-  index,
   modelProvider,
   published = false,
   publishing = false,
@@ -1349,7 +1347,7 @@ function ComboTableRow({
   return (
     <>
       <tr
-        className={`group transition-colors hover:bg-surface-2/60 ${index % 2 === 1 ? "bg-surface-2/30" : ""} ${
+        className={`group ${
           published ? "" : "opacity-50 hover:opacity-100"
         }`}
       >

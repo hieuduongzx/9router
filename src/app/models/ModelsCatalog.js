@@ -130,16 +130,16 @@ export default function ModelsCatalog() {
               </div>
               <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-                  <thead className="bg-card font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <tr className="border-b border-border">
+                  <thead className="thead-data">
+                    <tr>
                       <th className="px-5 py-4">Model</th>
                       <th className="px-5 py-4 text-right">Input /M</th>
                       <th className="px-5 py-4 text-right">Output /M</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="tbody-data">
                     {visible.map((model) => (
-                      <tr key={model.id} className="bg-card transition hover:bg-muted">
+                      <tr key={model.id}>
                         <td className="max-w-[320px] px-5 py-4">
                           <p className="truncate font-mono text-sm font-semibold text-foreground">{model.id}</p>
                         </td>
