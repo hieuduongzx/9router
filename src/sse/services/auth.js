@@ -266,8 +266,26 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const reason = typeof errorText === "string" ? errorText.slice(0, 200) : "Provider error";
   const lockUpdate = buildModelLockUpdate(githubResetAtMs ? null : model, cooldownMs);
 
+  // When enabled, move quota-limited accounts behind their provider peers while
+  // preserving the relative order of every other account.
+  const quotaError = Number(status) === 429 || /rate.?limit|quota|usage_limit_reached/i.test(reason);
+  const settings = quotaError ? await getSettings() : null;
+  const providerStrategies = settings?.providerStrategies || {};
+  const autoSwitchEnabled = providerStrategies[resolveProviderId(provider)]?.autoSwitchOnQuota === true;
+  const providerConnections = autoSwitchEnabled
+    ? await getProviderConnections({ provider: resolveProviderId(provider) })
+    : [];
+  const activeProviderConnections = providerConnections.filter((connection) => connection.isActive !== false);
+  const failedConnection = activeProviderConnections.find((connection) => connection.id === connectionId);
+  const isAlreadyLast = failedConnection && activeProviderConnections.length > 0
+    && activeProviderConnections.at(-1)?.id === failedConnection.id;
+  const autoSwitchPriority = autoSwitchEnabled && failedConnection && !isAlreadyLast
+    ? Math.max(0, ...activeProviderConnections.map((connection) => Number(connection.priority) || 0)) + 1
+    : null;
+
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
+    ...(autoSwitchPriority !== null ? { priority: autoSwitchPriority } : {}),
     testStatus: "unavailable",
     lastError: reason,
     errorCode: status,

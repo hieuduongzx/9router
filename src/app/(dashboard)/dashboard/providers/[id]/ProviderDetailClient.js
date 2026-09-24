@@ -68,6 +68,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
   const [providerStrategy, setProviderStrategy] = useState(null);
   const [providerStickyLimit, setProviderStickyLimit] = useState("");
+  const [autoSwitchOnQuota, setAutoSwitchOnQuota] = useState(false);
   const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
   const [suggestedModels, setSuggestedModels] = useState([]);
   const [liveModels, setLiveModels] = useState([]);
@@ -298,6 +299,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
       const override = (settingsData.providerStrategies || {})[providerId] || {};
       setProviderStrategy(override.fallbackStrategy || null);
       setProviderStickyLimit(override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "1");
+      setAutoSwitchOnQuota(override.autoSwitchOnQuota === true);
       const autoPingSettingsKey = AUTO_PING_SETTINGS_KEYS[providerId];
       const apCfg = autoPingSettingsKey ? settingsData[autoPingSettingsKey] || {} : {};
       setAutoPing({ enabled: apCfg.enabled === true, connections: apCfg.connections || {} });
@@ -344,7 +346,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     }
   };
 
-  const saveProviderStrategy = async (strategy, stickyLimit) => {
+  const saveProviderStrategy = async (strategy, stickyLimit, autoSwitch = autoSwitchOnQuota) => {
     try {
       const settingsRes = await fetch("/api/settings", { cache: "no-store" });
       const settingsData = settingsRes.ok ? await settingsRes.json() : {};
@@ -356,6 +358,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
       if (strategy === "round-robin" && stickyLimit !== "") {
         override.stickyRoundRobinLimit = Number(stickyLimit) || 3;
       }
+      if (autoSwitch) override.autoSwitchOnQuota = true;
 
       const updated = { ...current };
       if (Object.keys(override).length === 0) {
@@ -372,6 +375,11 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     } catch (error) {
       console.log("Error saving provider strategy:", error);
     }
+  };
+
+  const handleAutoSwitchOnQuotaToggle = (enabled) => {
+    setAutoSwitchOnQuota(enabled);
+    saveProviderStrategy(providerStrategy, providerStickyLimit, enabled);
   };
 
   const handleRoundRobinToggle = (enabled) => {
@@ -1434,7 +1442,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
               href={providerInfo.notice.apiKeyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-info sm:py-0.5"
+              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-info-foreground transition-colors hover:bg-info sm:py-0.5"
             >
               Get API Key →
             </a>
@@ -1576,6 +1584,10 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                     />
                   </div>
                 )}
+              </div>
+              <div className="flex items-center gap-2" title="Move quota-limited accounts to the end of this provider's priority list">
+                <span className="text-xs text-muted-foreground font-medium">Auto switch on quota</span>
+                <Toggle checked={autoSwitchOnQuota} onChange={handleAutoSwitchOnQuotaToggle} />
               </div>
             </div>
           </div>

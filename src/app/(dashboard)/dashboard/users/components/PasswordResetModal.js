@@ -72,7 +72,7 @@ export default function PasswordResetModal({ user, onClose, onUpdated }) {
               type="button"
               onClick={() => copy(temporaryPassword, "temp")}
               aria-label="Copy temporary password"
-              className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-bg-hover hover:text-foreground"
+              className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Icon name={copied === "temp" ? "check" : "content_copy"} className="size-4" />
             </button>

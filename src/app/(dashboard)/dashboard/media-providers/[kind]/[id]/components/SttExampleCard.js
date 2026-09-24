@@ -233,7 +233,7 @@ export function SttExampleCard({ providerId }) {
               <button
                 onClick={handleRun}
                 disabled={running || !audioFile || !modelFull}
-                className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon name="play_arrow" className="size-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined} />
                 {running ? "Transcribing..." : "Run"}

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { Card, Button, Toggle, Input } from "@/shared/components";
+import { Button as UIButton } from "@/shared/components/ui/button";
+import { useShellPath } from "@/shared/hooks/useShellPath";
 import Modal, { ConfirmModal } from "@/shared/components/Modal";
 import LanguageSwitcher from "@/shared/components/LanguageSwitcher";
 import { useTheme } from "@/shared/hooks/useTheme";
@@ -22,6 +25,7 @@ function getLocaleFromCookie() {
 
 export default function SettingsPage() {
   const { theme, setTheme, isDark } = useTheme();
+  const shellPath = useShellPath();
   const [locale, setLocale] = useState(() => getLocaleFromCookie());
   const [langOpen, setLangOpen] = useState(false);
   const [shutdownOpen, setShutdownOpen] = useState(false);
@@ -1618,6 +1622,22 @@ export default function SettingsPage() {
                 ? ` Combos rotate after ${settings.comboStickyRoundRobinLimit || 1} call${(settings.comboStickyRoundRobinLimit || 1) === 1 ? "" : "s"} per model.`
                 : " Combos always start with their first model."}
             </p>
+
+            {/* Model pricing */}
+            <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
+              <div className="flex-1 min-w-0">
+                <p className="font-mono font-medium text-sm sm:text-base">Model Pricing</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Per-model cost rates used for spend tracking
+                </p>
+              </div>
+              <UIButton asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                <Link href={shellPath("/dashboard/settings/pricing")}>
+                  Open pricing
+                  <Icon name="arrow_forward" />
+                </Link>
+              </UIButton>
+            </div>
           </div>
         </Card>
 

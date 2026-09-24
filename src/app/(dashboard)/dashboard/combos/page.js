@@ -992,7 +992,7 @@ function TestStateMark({ model, result }) {
 
   return (
     <span
-      className="inline-flex min-w-0 max-w-64 items-center gap-1.5 border border-border bg-surface-1 px-2 py-1"
+      className="inline-flex min-w-0 max-w-64 items-center gap-1.5 border border-border bg-muted px-2 py-1"
       title={`${model} — ${detail}`}
     >
       <Icon name={presentation.icon} className={`shrink-0 size-3.5 ${presentation.color} ${presentation.spin ? "animate-spin" : ""}`} />

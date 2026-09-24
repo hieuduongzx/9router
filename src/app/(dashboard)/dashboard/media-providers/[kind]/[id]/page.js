@@ -151,7 +151,7 @@ export default function MediaProviderDetailPage() {
               href={provider.notice.apiKeyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-info sm:py-0.5"
+              className="inline-flex justify-center rounded-sm bg-info px-2 py-1 text-xs font-medium text-info-foreground transition-colors hover:bg-info sm:py-0.5"
             >
               Get API Key →
             </a>

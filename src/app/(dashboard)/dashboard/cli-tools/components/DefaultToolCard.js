@@ -63,14 +63,14 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           value={modelValue}
           onChange={(e) => setModelValue(e.target.value)}
           placeholder="provider/model-id"
-          className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary rounded font-mono text-sm border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full sm:w-auto flex-1 px-3 py-2 bg-secondary rounded font-mono text-sm border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
         />
         <button
           onClick={() => setShowModelModal(true)}
           disabled={!hasActiveProviders}
           className={`shrink-0 px-3 py-2 rounded border font-mono text-sm transition-colors ${
             hasActiveProviders
-              ? "bg-bg-secondary border-border text-foreground hover:border-primary cursor-pointer"
+              ? "bg-secondary border-border text-foreground hover:border-primary cursor-pointer"
               : "opacity-50 cursor-not-allowed border-border"
           }`}
         >
@@ -80,7 +80,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
           <>
             <button
               onClick={() => handleCopy(modelValue, "model")}
-              className="shrink-0 px-3 py-2 bg-bg-secondary hover:bg-bg-tertiary rounded border border-border transition-colors"
+              className="shrink-0 px-3 py-2 bg-secondary hover:bg-accent rounded border border-border transition-colors"
             >
               <Icon name={copiedField === "model" ? "check" : "content_copy"} className="size-[18px]" />
             </button>
@@ -166,7 +166,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
                   </div>
                 ) : (
                   <div className="mt-2">
-                    <code className="w-full sm:w-auto flex-1 px-3 py-2 bg-bg-secondary text-sm font-mono border border-border truncate">
+                    <code className="w-full sm:w-auto flex-1 px-3 py-2 bg-secondary text-sm font-mono border border-border truncate">
                       {replaceVars(item.value)}
                     </code>
                   </div>

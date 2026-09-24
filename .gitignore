@@ -103,3 +103,6 @@ graphify-out/*
 .start-dev.ps1
 start-dev-silent.cjs
 debug.log
+
+# Windows reserved name — a stray 'nul' file crashes Turbopack CSS scanning
+nul

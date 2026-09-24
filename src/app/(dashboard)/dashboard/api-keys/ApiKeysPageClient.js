@@ -191,7 +191,7 @@ export default function ApiKeysPageClient() {
                           <button
                             type="button"
                             onClick={() => toggleKeyVisibility(key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title={isVisible ? "Hide key" : "Show key"}
                             aria-label={isVisible ? `Hide ${key.name}` : `Show ${key.name}`}
                           >
@@ -200,7 +200,7 @@ export default function ApiKeysPageClient() {
                           <button
                             type="button"
                             onClick={() => copy(key.key, key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title="Copy key"
                             aria-label={`Copy ${key.name}`}
                           >
@@ -237,7 +237,7 @@ export default function ApiKeysPageClient() {
                                 handleToggleKey(key.id, true);
                               }
                             }}
-                            className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                             title={isActive ? "Pause key" : "Resume key"}
                             aria-label={isActive ? `Pause ${key.name}` : `Resume ${key.name}`}
                           >

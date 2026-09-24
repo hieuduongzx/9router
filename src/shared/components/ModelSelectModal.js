@@ -536,9 +536,9 @@ export default function ModelSelectModal({
                     className={`
                       px-2 py-1 rounded-sm text-xs font-medium transition-all border hover:cursor-pointer flex items-center gap-1
                       ${isSelected
-                        ? "bg-primary text-white border-primary"
+                        ? "bg-primary text-primary-foreground border-primary"
                         : addedModelValues.includes(combo.name)
-                          ? "bg-primary border-primary text-white hover:bg-primary-hover"
+                          ? "bg-primary border-primary text-primary-foreground hover:bg-primary-hover"
                           : "bg-surface border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
                       }
                     `}
@@ -588,9 +588,9 @@ export default function ModelSelectModal({
                       ${isPlaceholder
                         ? "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary bg-surface italic"
                         : isSelected
-                          ? "bg-primary text-white border-primary"
+                          ? "bg-primary text-primary-foreground border-primary"
                           : addedModelValues.includes(model.value)
-                            ? "bg-primary border-primary text-white hover:bg-primary-hover"
+                            ? "bg-primary border-primary text-primary-foreground hover:bg-primary-hover"
                             : "bg-surface border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
                       }
                     `}

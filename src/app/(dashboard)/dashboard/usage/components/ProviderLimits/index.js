@@ -11,7 +11,10 @@ import {
   filterQuotasByVisibility,
   getHiddenQuotaRows,
   getQuotaVisibilityKey,
-  getConnectionLabel,
+  getAccountIdentity,
+  getShowAccountNamesPreference,
+  concealConnectionIdentity,
+  removeConcealedNameUpdate,
   getConnectionQuotaRemaining,
   sortVisibleConnections,
   buildLoadingState,
@@ -32,6 +35,7 @@ import {
   CLAUDE_REFRESH_INTERVAL_MS,
   DEPLETED_QUOTA_THRESHOLD,
   AUTO_REFRESH_STORAGE_KEY,
+  SHOW_ACCOUNT_NAMES_STORAGE_KEY,
   CONNECTIONS_PAGE_SIZE,
   ACCOUNT_PAGE_SIZE_OPTIONS,
   ACCOUNT_PAGE_SIZE_MAX,
@@ -70,18 +74,6 @@ function kiroMethodLabel(conn) {
   const m = conn.providerSpecificData?.authMethod;
   if (m && KIRO_METHOD_LABELS[m]) return KIRO_METHOD_LABELS[m];
   return conn.authType === "api_key" ? "API Key" : "OAuth";
-}
-
-function getConnectionSecondaryLabel(connection) {
-  if (connection.name?.trim() && connection.email?.trim() && connection.name.trim() !== connection.email.trim()) {
-    return connection.email.trim();
-  }
-
-  if (connection.name?.trim() && connection.displayName?.trim() && connection.name.trim() !== connection.displayName.trim()) {
-    return connection.displayName.trim();
-  }
-
-  return null;
 }
 
 // Region is stored for builder-id/idc/api_key flows; social and imported flows
@@ -136,9 +128,12 @@ export default function ProviderLimits() {
   const [loading, setLoading] = useState({});
   const [errors, setErrors] = useState({});
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [showAccountNames, setShowAccountNames] = useState(false);
   const [autoPingMaps, setAutoPingMaps] = useState({ claude: {}, codex: {} });
   const [lastUpdated, setLastUpdated] = useState(null);
   const [hasHydratedAutoRefresh, setHasHydratedAutoRefresh] = useState(false);
+  const [hasHydratedAccountNames, setHasHydratedAccountNames] = useState(false);
+  const accountNamesVisible = hasHydratedAccountNames && showAccountNames;
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [connectionsLoading, setConnectionsLoading] = useState(true);
@@ -217,7 +212,7 @@ export default function ProviderLimits() {
         return [];
       }
     },
-    [accountFilter, expiringFirst, page, pageSize, providerFilter],
+    [accountFilter, page, pageSize, providerFilter],
   );
 
   // Fetch quota for a specific connection
@@ -436,7 +431,9 @@ export default function ProviderLimits() {
         const res = await fetch(`/api/providers/${connectionId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(
+            removeConcealedNameUpdate(formData, !accountNamesVisible),
+          ),
         });
         if (res.ok) {
           await fetchConnections();
@@ -450,7 +447,7 @@ export default function ProviderLimits() {
         console.error("Error saving connection:", error);
       }
     },
-    [selectedConnection, fetchConnections, fetchQuota],
+    [selectedConnection, fetchConnections, fetchQuota, accountNamesVisible],
   );
 
   useEffect(() => {
@@ -541,6 +538,32 @@ export default function ProviderLimits() {
     if (typeof window === "undefined" || !hasHydratedAutoRefresh) return;
     window.localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(autoRefresh));
   }, [autoRefresh, hasHydratedAutoRefresh]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let storedPreference = null;
+    try {
+      storedPreference = window.localStorage.getItem(
+        SHOW_ACCOUNT_NAMES_STORAGE_KEY,
+      );
+    } catch {
+      // Keep the default when browser storage is unavailable.
+    }
+    setShowAccountNames(getShowAccountNamesPreference(storedPreference));
+    setHasHydratedAccountNames(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedAccountNames) return;
+    try {
+      window.localStorage.setItem(
+        SHOW_ACCOUNT_NAMES_STORAGE_KEY,
+        String(showAccountNames),
+      );
+    } catch {
+      // The toggle still works for this session when storage is unavailable.
+    }
+  }, [showAccountNames, hasHydratedAccountNames]);
 
   // Load auto-ping per-connection maps
   useEffect(() => {
@@ -723,6 +746,30 @@ export default function ProviderLimits() {
     [connections, quotaData, expiringFirst, providerFilter, quotaSortMode],
   );
 
+  const getVisibleAccountIdentity = (connection) => {
+    const index = sortedConnections.findIndex(
+      (candidate) => candidate.id === connection?.id,
+    );
+    return getAccountIdentity(
+      connection || {},
+      accountNamesVisible,
+      index >= 0 ? index : 0,
+    );
+  };
+
+  const editModalConnection = useMemo(() => {
+    if (!selectedConnection || accountNamesVisible) return selectedConnection;
+    const index = sortedConnections.findIndex(
+      (candidate) => candidate.id === selectedConnection.id,
+    );
+    const identity = getAccountIdentity(
+      selectedConnection,
+      false,
+      index >= 0 ? index : 0,
+    );
+    return concealConnectionIdentity(selectedConnection, identity.primary);
+  }, [selectedConnection, accountNamesVisible, sortedConnections]);
+
   // Connection is depleted when any quota entry hit the threshold
   const isConnectionDepleted = (conn) => {
     const quotas = quotaData[conn.id]?.quotas;
@@ -822,6 +869,17 @@ export default function ProviderLimits() {
       {/* Header Controls */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex min-h-8 items-center rounded-sm border border-black/10 bg-black/[0.02] px-2 dark:border-white/10 dark:bg-white/[0.03]">
+            <Toggle
+              id="show-account-names"
+              size="lg"
+              checked={accountNamesVisible}
+              disabled={!hasHydratedAccountNames}
+              onChange={setShowAccountNames}
+              label="Show account names"
+              className="gap-2 text-xs"
+            />
+          </div>
           <div className="relative">
             <button
               type="button"
@@ -1020,8 +1078,13 @@ export default function ProviderLimits() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {sortedConnections.map((conn) => {
+        {sortedConnections.map((conn, index) => {
           const quota = quotaData[conn.id];
+          const accountIdentity = getAccountIdentity(
+            conn,
+            accountNamesVisible,
+            index,
+          );
           const isLoading = loading[conn.id];
           const error = errors[conn.id];
 
@@ -1059,14 +1122,14 @@ export default function ProviderLimits() {
                       <h3 className="text-sm font-semibold text-foreground truncate">
                         {providerLabel(conn.provider)}
                       </h3>
-                      {getConnectionLabel(conn) ? (
+                      {accountIdentity.primary ? (
                         <p className="text-xs text-muted-foreground truncate">
-                          {getConnectionLabel(conn)}
+                          {accountIdentity.primary}
                         </p>
                       ) : null}
-                      {getConnectionSecondaryLabel(conn) ? (
+                      {accountIdentity.secondary ? (
                         <p className="text-[11px] text-muted-foreground/80 truncate">
-                          {getConnectionSecondaryLabel(conn)}
+                          {accountIdentity.secondary}
                         </p>
                       ) : null}
                       {conn.provider === "kiro" && (
@@ -1407,7 +1470,7 @@ export default function ProviderLimits() {
           setResetConfirmState(null);
         }}
         title="Reset Codex limit?"
-        message={`Use 1 Codex reset credit for ${getConnectionLabel(resetConfirmState?.connection || {}) || "this account"}. This cannot be undone. Remaining credits: ${resetConfirmState?.resetCreditCount ?? 0}.`}
+        message={`Use 1 Codex reset credit for ${getVisibleAccountIdentity(resetConfirmState?.connection || {}).primary || "this account"}. This cannot be undone. Remaining credits: ${resetConfirmState?.resetCreditCount ?? 0}.`}
         confirmText="Reset limit"
         cancelText="Cancel"
         variant="danger"
@@ -1421,7 +1484,7 @@ export default function ProviderLimits() {
               <div className="min-w-0">
                 <h3 className="font-mono text-sm font-semibold text-foreground">Codex Reset Credit Expiry</h3>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {getConnectionLabel(resetCreditsState.connection) || "Codex account"}
+                  {getVisibleAccountIdentity(resetCreditsState.connection).primary || "Codex account"}
                 </p>
               </div>
               <button
@@ -1489,7 +1552,7 @@ export default function ProviderLimits() {
 
       <EditConnectionModal
         isOpen={showEditModal}
-        connection={selectedConnection}
+        connection={editModalConnection}
         proxyPools={proxyPools}
         onSave={handleUpdateConnection}
         onClose={() => {

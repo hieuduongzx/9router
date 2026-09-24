@@ -15,7 +15,7 @@ function CopyButton({ value, label = "Copy link" }) {
   return (
     <button
       onClick={() => copy(value)}
-      className="px-2 py-1 rounded-sm bg-primary text-white font-mono text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1"
+      className="px-2 py-1 rounded-sm bg-primary text-primary-foreground font-mono text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1"
       title={value}
     >
       <Icon name={copied ? "check" : "content_copy"} className="size-[12px]" />
@@ -36,7 +36,7 @@ function SkillRow({ skill }) {
     >
       <div
         className={`size-9 flex items-center justify-center shrink-0 border ${
-          skill.isEntry ? "border-primary bg-primary text-white" : "border-border bg-surface-2 text-foreground"
+          skill.isEntry ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface-2 text-foreground"
         }`}
       >
         <Icon name={skill.icon} className="size-[18px]" />

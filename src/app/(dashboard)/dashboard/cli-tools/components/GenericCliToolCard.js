@@ -472,7 +472,7 @@ export default function GenericCliToolCard({
                           selectedModels.map((modelId) => (
                             <span
                               key={modelId}
-                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-bg-secondary text-xs text-text-main border border-border"
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-secondary text-xs text-text-main border border-border"
                             >
                               <span>{modelId}</span>
                               <button

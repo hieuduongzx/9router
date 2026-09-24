@@ -135,8 +135,6 @@ const ACCOUNT_DASHBOARD_PATHS = [
  *
  * `exact` entries have no child routes under `(admin)`; the rest carry their
  * sub-path across (`/dashboard/providers/anthropic` → `/admin/providers/anthropic`).
- * `/dashboard/settings/pricing` is deliberately absent: it lives outside both
- * route groups and has no admin twin to redirect to.
  */
 const ADMIN_SHELL_ROUTES = [
   { from: "/dashboard/activity", to: "/admin/activity", exact: true },
@@ -149,6 +147,7 @@ const ADMIN_SHELL_ROUTES = [
   { from: "/dashboard/pxpipe", to: "/admin/pxpipe", exact: true },
   { from: "/dashboard/quota", to: "/admin/quota", exact: true },
   { from: "/dashboard/settings", to: "/admin/settings", exact: true },
+  { from: "/dashboard/settings/pricing", to: "/admin/settings/pricing", exact: true },
   { from: "/dashboard/skills", to: "/admin/skills", exact: true },
   { from: "/dashboard/translator", to: "/admin/translator", exact: true },
   { from: "/dashboard/cli-tools", to: "/admin/cli-tools" },

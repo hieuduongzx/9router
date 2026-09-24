@@ -7,6 +7,7 @@ export const REFRESH_INTERVAL_MS = 60000;
 export const CLAUDE_REFRESH_INTERVAL_MS = 600000;
 export const DEPLETED_QUOTA_THRESHOLD = 5;
 export const AUTO_REFRESH_STORAGE_KEY = "quotaAutoRefresh";
+export const SHOW_ACCOUNT_NAMES_STORAGE_KEY = "quotaShowAccountNames";
 export const CONNECTIONS_PAGE_SIZE = 20;
 export const ACCOUNT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 export const ACCOUNT_PAGE_SIZE_MAX = 500;
@@ -27,6 +28,52 @@ export function getConnectionLabel(connection) {
     || connection.email?.trim()
     || connection.displayName?.trim()
     || null;
+}
+
+export function getAccountIdentity(connection, showAccountNames, index = 0) {
+  if (!showAccountNames) {
+    return {
+      primary: `Account ${index + 1}`,
+      secondary: null,
+    };
+  }
+
+  const primary = getConnectionLabel(connection);
+  let secondary = null;
+  if (
+    connection.name?.trim()
+    && connection.email?.trim()
+    && connection.name.trim() !== connection.email.trim()
+  ) {
+    secondary = connection.email.trim();
+  } else if (
+    connection.name?.trim()
+    && connection.displayName?.trim()
+    && connection.name.trim() !== connection.displayName.trim()
+  ) {
+    secondary = connection.displayName.trim();
+  }
+
+  return { primary, secondary };
+}
+
+export function getShowAccountNamesPreference(storedValue) {
+  return storedValue === "false" ? false : true;
+}
+
+export function concealConnectionIdentity(connection, label) {
+  return {
+    ...connection,
+    name: label,
+    email: null,
+    displayName: null,
+  };
+}
+
+export function removeConcealedNameUpdate(updates, concealIdentity) {
+  if (!concealIdentity) return updates;
+  const { name: _concealedName, ...safeUpdates } = updates;
+  return safeUpdates;
 }
 
 export function getConnectionQuotaRemaining(connection, quotaData) {
