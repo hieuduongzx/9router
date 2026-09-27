@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import {
-  UsageStats,
-  CardSkeleton,
-  PeriodDropdown,
-  Select,
-} from "@/shared/components";
+import { Suspense, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { RequestLogger, CardSkeleton, SegmentedControl } from "@/shared/components";
+import UsageStats from "@/shared/components/UsageStats";
+import RequestDetailsTab from "./components/RequestDetailsTab";
+
+const PERIODS = [
+  { value: "today", label: "Today" },
+  { value: "24h", label: "24h" },
+  { value: "7d", label: "7D" },
+  { value: "30d", label: "30D" },
+  { value: "60d", label: "60D" },
+  { value: "all", label: "All" },
+];
 
 export default function UsagePage() {
   return (
@@ -17,39 +24,54 @@ export default function UsagePage() {
 }
 
 function UsageContent() {
-  const [period, setPeriod] = useState("24h");
-  const [apiKeyId, setApiKeyId] = useState("all");
-  const [apiKeys, setApiKeys] = useState([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  useEffect(() => {
-    fetch("/api/keys", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setApiKeys(Array.isArray(d?.keys) ? d.keys : []))
-      .catch(() => {});
-  }, []);
+  const [period, setPeriod] = useState("today");
+
+  const tabFromUrl = searchParams.get("tab");
+  const activeTab = tabFromUrl && ["overview", "logs", "details"].includes(tabFromUrl)
+    ? tabFromUrl
+    : "overview";
+
+  const handleTabChange = (value) => {
+    if (value === activeTab) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", value);
+    router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
+  };
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <Select
-          aria-label="Filter by API key"
-          value={apiKeyId}
-          onChange={(event) => setApiKeyId(event.target.value)}
-          className="w-full sm:w-52"
+    <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
+      {/* Tabs + period selector on same row */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <SegmentedControl
           options={[
-            { value: "all", label: "All API keys" },
-            ...apiKeys.map((k) => ({
-              value: k.id,
-              label: k.name || (k.key ? `${k.key.slice(0, 12)}…` : k.id),
-            })),
+            { value: "overview", label: "Overview" },
+            { value: "details", label: "Details" },
           ]}
+          value={activeTab}
+          onChange={handleTabChange}
+          className="w-full sm:w-auto"
         />
-        <PeriodDropdown value={period} onChange={setPeriod} />
+        {activeTab === "overview" && (
+          <SegmentedControl
+            options={PERIODS}
+            value={period}
+            onChange={setPeriod}
+            size="sm"
+            className="w-full sm:w-auto"
+          />
+        )}
       </div>
 
-      <Suspense fallback={<CardSkeleton />}>
-        <UsageStats period={period} setPeriod={setPeriod} apiKeyId={apiKeyId} hidePeriodSelector />
-      </Suspense>
+      {activeTab === "overview" && (
+        <Suspense fallback={<CardSkeleton />}>
+          <UsageStats period={period} setPeriod={setPeriod} hidePeriodSelector />
+        </Suspense>
+      )}
+      {activeTab === "logs" && <RequestLogger />}
+      {activeTab === "details" && <RequestDetailsTab />}
     </div>
   );
 }

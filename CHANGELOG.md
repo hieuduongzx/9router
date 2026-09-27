@@ -62,6 +62,127 @@
 - **Dashboard**: removed the "New key" button from the header bar; API keys are
   reached from the rail
 
+# v0.5.91 (2026-09-26)
+
+## Features
+- **Providers**: add Token Harbor provider and four OpenAI-compatible aggregator providers (dahl, atria, agnes, bai)
+- **Claude**: forward `x-claude-code-session-id` on OAuth requests; merge client `anthropic-beta` flags and forward rate-limit headers; return thinking text to OpenAI-format clients
+- **Codex**: add GPT-6 Sol and Luna support
+- **CLI Tools**: support multiple model profiles for Codex CLI
+- **Hermes**: multi-role model config (delegation + auxiliary slots)
+- **OpenCode Go**: complete the Go catalog (40 models) with auto-fetch + family endpoint regex
+- **Usage**: show and redeem free limit resets for cc accounts
+- **Cline**: expose the `cline-free/*` tier and price it at zero
+- **Combos**: display vision adapter models in an ordered table view
+
+## Fixes
+- **Claude**: decloak tool names when `toolNameMap` misses (#4342); update spoofed cli version to 2.1.280 to support Opus 5.5
+- **Providers API**: make POST `/api/providers` O(1) and refuse silent key overwrite (#4350)
+- **Capabilities**: stop caching the catalog source per module copy (#4351)
+- **OAuth**: stop Zed paste-token crash and add IDE auto-import (#4359)
+- **Dashboard**: resolve combo limits with the server's capabilities (#4360); lazy-load charts and `marked`, preload in background on idle
+- **Responses**: carry the streamed output items in `response.completed` (#4307)
+- **STT**: dispatch live-API-only Gemini models over the Live WebSocket transport (#4006)
+- **Gemini**: guard terminal model turns and unresponded functionCalls in `normalizeGeminiContents`
+- **Command Code**: replay raw byte chunks to preserve all NDJSON lines
+- **Translator**: stop emitting empty `<think>` markers into OpenAI content
+- **CLI Tools**: refresh Codex settings after apply (#4347); keep existing `ANTHROPIC_AUTH_TOKEN` when applying Claude settings
+- **Tray**: native arm64 macOS menubar binary, no Rosetta required
+- **CLI**: filter model selector by active connections and noAuth providers
+- **Usage**: key live byApiKey stats by full api key to prevent team-key collision and preserve API key usage attribution
+
+
+
+## Features
+- **Providers**: turning a provider off from the provider table also switches off
+  that provider's models in every router. Turning it back on restores only those
+  models. A provider that still has another live connection (for example OAuth
+  still on while the API-key card is off) keeps its router models
+- **Admin**: the admin overview follows the period selector with top accounts,
+  top models, top providers, and request outcomes (succeeded / failed / rate
+  limited, plus latency when samples exist)
+- **Usage**: Model request history shows which API key made each request
+  (key name only — the secret is never returned), including Activity Request Logs
+- **Usage**: Model request history shows Cached and Cache write token counts
+  on Usage, Activity Request Logs, and the Users Requests tab
+- **Usage**: request tables have a Columns setting to show/hide fields.
+  API key and Cache write are hidden by default (Usage, Activity Request Logs,
+  and Users Requests share the same prefs)
+- **Accounts**: admin user detail page is split into Overview / API keys / Credit / Requests tabs
+- **Ranking**: public model leaderboard at `/ranking` (no sign-in) — most-used
+  models across the whole system ranked by requests or tokens over 1h / 24h /
+  7d / 30d / all-time windows, with share bars, medal ranks, auto-refresh, and
+  a summary tile row. Backed by `GET /api/ranking/models` (aggregate-only:
+  per-user, per-key, account, and cost dimensions never leave the server).
+  Aggregation reuses the usage stats dual-source strategy — `usageDaily`
+  rollups for whole-day windows (survives history retention pruning), indexed
+  live `usageHistory` scans for sub-day windows plus a lastUsed overlay. Linked
+  from the landing nav and the dashboard Traffic sidebar.
+- **Model Routes**: each member of a route can be switched off individually. The
+  member stays in the list (and keeps its fallback position) but is skipped by
+  routing, excluded from `/v1/models` and the published catalog, left out of
+  route tests, and dropped from the route's inherited Caps. A route with every
+  member off is treated as empty: it cannot be published and stops resolving.
+  Persisted per route as `combos.disabledMembers` (by model id, so reordering
+  or renaming a member never moves an off-switch to a different one).
+- **Dashboard**: the account identity control (avatar, name, `ROLE · BALANCE`,
+  profile link, sign out) moved from the foot of the sidebar rail to the right
+  end of the header bar, with a `+` top-up shortcut beside it that opens the
+  wallet's top-up form. The appearance (dark mode) and language toggles moved
+  the other way — out of the header and into the foot of the rail
+
+## Fixes
+- **Usage**: `/dashboard/usage` Model request history is scoped to the signed-in
+  account even for administrators — system-wide history stays on Activity / a
+  specific Users page (`?userId=`)
+- **Model Routes**: removed the "Test thinking default" probe from the route
+  editor — the static "cannot fully disable reasoning" warning already covers
+  the case, and the probe spent one live request per member per click
+- **Activity**: the System tab was missing cache entirely — it now carries a
+  Cache hit tile (cache-read share of input tokens, plus cache-write count) and
+  a Cached column in the per-account table. `GET /api/usage/system` returns
+  `cachedTokens` / `cacheCreationTokens`, aggregated in SQL out of the JSON
+  `tokens` column so OpenAI-style `cached_tokens` and Claude-style
+  `cache_read_input_tokens` both count
+- **Usage**: request details showed the raw provider id (e.g.
+  `openai-compatible-chat-<uuid>`) instead of the provider's name. Details and
+  request logs now carry a resolved `providerName` — custom provider nodes use
+  their operator name, registry providers their catalog name — while `provider`
+  keeps the raw id for filters and links
+- **Usage**: the Usage Details drawer hid the Cached and Cache write rows when
+  they were zero, which is exactly the case an operator checks for. Both always
+  render, and Cached shows its share of input tokens
+- **Dashboard**: removed the "New key" button from the header bar; API keys are
+  reached from the rail
+
+
+## Features
+- **Providers**: add Token Harbor provider and four OpenAI-compatible aggregator providers (dahl, atria, agnes, bai)
+- **Claude**: forward `x-claude-code-session-id` on OAuth requests; merge client `anthropic-beta` flags and forward rate-limit headers; return thinking text to OpenAI-format clients
+- **Codex**: add GPT-6 Sol and Luna support
+- **CLI Tools**: support multiple model profiles for Codex CLI
+- **Hermes**: multi-role model config (delegation + auxiliary slots)
+- **OpenCode Go**: complete the Go catalog (40 models) with auto-fetch + family endpoint regex
+- **Usage**: show and redeem free limit resets for cc accounts
+- **Cline**: expose the `cline-free/*` tier and price it at zero
+- **Combos**: display vision adapter models in an ordered table view
+
+## Fixes
+- **Claude**: decloak tool names when `toolNameMap` misses (#4342); update spoofed cli version to 2.1.280 to support Opus 5.5
+- **Providers API**: make POST `/api/providers` O(1) and refuse silent key overwrite (#4350)
+- **Capabilities**: stop caching the catalog source per module copy (#4351)
+- **OAuth**: stop Zed paste-token crash and add IDE auto-import (#4359)
+- **Dashboard**: resolve combo limits with the server's capabilities (#4360); lazy-load charts and `marked`, preload in background on idle
+- **Responses**: carry the streamed output items in `response.completed` (#4307)
+- **STT**: dispatch live-API-only Gemini models over the Live WebSocket transport (#4006)
+- **Gemini**: guard terminal model turns and unresponded functionCalls in `normalizeGeminiContents`
+- **Command Code**: replay raw byte chunks to preserve all NDJSON lines
+- **Translator**: stop emitting empty `<think>` markers into OpenAI content
+- **CLI Tools**: refresh Codex settings after apply (#4347); keep existing `ANTHROPIC_AUTH_TOKEN` when applying Claude settings
+- **Tray**: native arm64 macOS menubar binary, no Rosetta required
+- **CLI**: filter model selector by active connections and noAuth providers
+- **Usage**: key live byApiKey stats by full api key to prevent team-key collision and preserve API key usage attribution
+
 # v0.5.86 (2026-09-23)
 
 ## Features

@@ -126,6 +126,11 @@ import p120 from "./selfhosted-embedding.js";
 import p121 from "./fish-audio.js";
 import p122 from "./alitp-intl.js";
 import p124 from "./xquik.js";
+import p128 from "./tokenharbor.js";
+import p126 from "./dahl.js";
+import p127 from "./atria.js";
+import p129 from "./agnes.js";
+import p130 from "./bai.js";
 
 const registry = [
   p0,
@@ -253,6 +258,11 @@ const registry = [
   p121,
   p122,
   p124,
+  p128,
+  p126,
+  p127,
+  p129,
+  p130,
 ];
 
 export default registry;
