@@ -1,4 +1,4 @@
-// Web Fetch handler — dispatches to firecrawl, jina-reader, tavily, exa, tinyfish, ollama
+// Web Fetch handler — dispatches to firecrawl, jina-reader, tavily, exa, ollama, tinyfish
 // Returns normalized shape across all providers
 
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -117,9 +117,6 @@ export async function handleFetchCore({ url, format, maxCharacters, provider, pr
     if (provider === "exa") {
       return await runExa({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt });
     }
-    if (provider === "tinyfish") {
-      return await runTinyfish({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt });
-    }
     if (provider === "ollama") {
       return await runOllama({
         url,
@@ -131,6 +128,9 @@ export async function handleFetchCore({ url, format, maxCharacters, provider, pr
         startedAt,
         baseUrl: providerConfig?.baseUrl,
       });
+    }
+    if (provider === "tinyfish") {
+      return await runTinyfish({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt, baseUrl: providerConfig?.baseUrl });
     }
     return { success: false, status: 400, error: `Unsupported provider: ${provider}` };
   } catch (err) {
@@ -262,75 +262,30 @@ async function runExa({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery
 /**
  * TinyFish Fetch API — POST https://api.fetch.tinyfish.ai
  * Auth: X-API-Key. Docs: https://docs.tinyfish.ai/fetch-api
- * Free tier (no credits). Supports markdown | html | json.
  */
-async function runTinyfish({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt }) {
-  // TinyFish format enum: markdown | html | json (default markdown)
-  const format = ["markdown", "html", "json"].includes(fmt) ? fmt : "markdown";
+async function runTinyfish({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt, baseUrl }) {
+  if (!["markdown", "html"].includes(fmt)) return { success: false, status: 400, error: `Unsupported TinyFish format: ${fmt}` };
   const upstreamStart = Date.now();
-  const r = await tryFetch("https://api.fetch.tinyfish.ai", {
+  const r = await tryFetch(baseUrl, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(apiKey ? { "X-API-Key": apiKey } : {}),
-    },
-    body: JSON.stringify({
-      urls: [url],
-      format,
-      // Prefer live content for tool use; origin Cache-Control can still apply
-      ttl: 0,
-      per_url_timeout_ms: Math.min(Math.max(timeoutMs || DEFAULT_TIMEOUT_MS, 1000), 110000),
-    }),
+    headers: { "content-type": "application/json", "X-API-Key": apiKey },
+    body: JSON.stringify({ urls: [url], format: fmt }),
   }, timeoutMs);
-
-  if (!r.ok) {
-    return { success: false, status: r.timeout ? 504 : 502, error: r.error };
-  }
+  if (!r.ok) return { success: false, status: r.timeout ? 504 : 502, error: r.error };
   const upstreamMs = Date.now() - upstreamStart;
   const { json } = await readJsonOrText(r.res);
-  if (!r.res.ok) {
-    const msg = json?.error?.message || json?.error || `TinyFish error: ${r.res.status}`;
-    return { success: false, status: r.res.status, error: typeof msg === "string" ? msg : JSON.stringify(msg) };
-  }
-
-  // Per-URL errors do not fail the whole response
-  const perUrlErr = Array.isArray(json?.errors)
-    ? json.errors.find((e) => e?.url === url || !url)
-    : null;
-  if (perUrlErr && (!json?.results || json.results.length === 0)) {
-    return {
-      success: false,
-      status: perUrlErr.status || 502,
-      error: `TinyFish fetch failed: ${perUrlErr.error || "unknown"}`,
-    };
-  }
-
-  const first = json?.results?.[0] || {};
-  let rawText = first.text;
-  if (rawText && typeof rawText === "object") {
-    rawText = JSON.stringify(rawText, null, 2);
-  }
-  const text = truncate(typeof rawText === "string" ? rawText : "", maxCharacters);
-
+  if (!r.res.ok) return { success: false, status: r.res.status, error: json?.error?.message || `TinyFish error: ${r.res.status}` };
+  const failure = json?.errors?.[0];
+  if (failure) return { success: false, status: failure.status || 502, error: `TinyFish fetch failed: ${failure.error || "unknown error"}` };
+  const page = json?.results?.[0];
+  if (!page || typeof page.text !== "string") return { success: false, status: 502, error: "TinyFish returned no extractable content" };
+  const text = truncate(page.text, maxCharacters);
   return {
     success: true,
     data: {
-      ...buildData({
-        provider: "tinyfish",
-        url: first.final_url || first.url || url,
-        title: first.title || null,
-        format,
-        text,
-        costUsd: costPerQuery,
-        responseMs: Date.now() - startedAt,
-        upstreamMs: first.latency_ms ?? upstreamMs,
-      }),
-      metadata: {
-        author: first.author || null,
-        published_at: first.published_date || null,
-        language: first.language || null,
-        description: first.description || null,
-      },
+      ...buildData({ provider: "tinyfish", url, title: page.title, format: fmt, text, links: page.links,
+        costUsd: costPerQuery, responseMs: Date.now() - startedAt, upstreamMs }),
+      metadata: { author: page.author || null, published_at: page.published_date || null, language: page.language || null },
     },
   };
 }

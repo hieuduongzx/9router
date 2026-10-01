@@ -118,7 +118,6 @@ import p113 from "./morph.js";
 // import p114 from "./devin-cli.js";
 // import p104 from "./windsurf.js";
 import p115 from "./poolside.js";
-import p116 from "./tinyfish.js";
 import p117 from "./tokenrouter.js";
 import p118 from "./selfhosted-stt.js";
 import p119 from "./selfhosted-tts.js";
@@ -131,6 +130,9 @@ import p126 from "./dahl.js";
 import p127 from "./atria.js";
 import p129 from "./agnes.js";
 import p130 from "./bai.js";
+import p131 from "./tinyfish.js";
+import p132 from "./v1m.js";
+import p133 from "./muse.js";
 
 const registry = [
   p0,
@@ -250,7 +252,6 @@ const registry = [
   // p114, // devin-cli — hidden, spawns local agent with shell/fs access
   // p104, // windsurf — hidden, no tool calling
   p115,
-  p116,
   p117,
   p118,
   p119,
@@ -263,6 +264,9 @@ const registry = [
   p127,
   p129,
   p130,
+  p131,
+  p132,
+  p133,
 ];
 
 export default registry;

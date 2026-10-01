@@ -2,10 +2,17 @@
 import { Icon } from "@/shared/components/ui/icon";
 
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+
+// Hydration-safe client detection: the server snapshot is false so SSR renders
+// the neutral defaults, and the first client render reads `window` without a
+// setState-in-effect round trip.
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 // Providers using the dynamic-port local callback proxy.
 // Browser OAuth: popup → auto callback → auto exchange → poll-status.
@@ -68,19 +75,13 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
   const { copied, copy } = useCopyToClipboard();
 
   // State for client-only values to avoid hydration mismatch
-  const [isLocalhost, setIsLocalhost] = useState(false);
-  const [placeholderUrl, setPlaceholderUrl] = useState("/callback?code=...");
+  const isClient = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+  const isLocalhost = isClient
+    && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const placeholderUrl = isClient
+    ? `${window.location.origin}/callback?code=...`
+    : "/callback?code=...";
   const callbackProcessedRef = useRef(false);
-
-  // Detect if running on localhost (client-side only)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsLocalhost(
-        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-      );
-      setPlaceholderUrl(`${window.location.origin}/callback?code=...`);
-    }
-  }, []);
 
   // Define all useCallback hooks BEFORE the useEffects that reference them
 
@@ -177,7 +178,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
           return;
         }
 
-        if (data.error === "expired_token" || data.error === "access_denied") {
+        if (data.error === "expired_token" || data.error === "access_denied" || data.fatal) {
           throw new Error(data.errorDescription || data.error);
         }
 
@@ -293,6 +294,8 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         "qoder",
         "qoder-cn",
         "grok-cli",
+        "muse",
+        "glm",
       ];
       if (deviceCodeProviders.includes(provider)) {
         setIsDeviceCode(true);
@@ -335,6 +338,8 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
             }
           : (provider === "kimi" || provider === "kimi-coding")
           ? { _kimiDeviceId: data._kimiDeviceId }
+          : provider === "glm"
+          ? { _zcodePollToken: data._zcodePollToken }
           : null;
         startPolling(
           data.device_code,
@@ -923,18 +928,20 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
                   </Button>
                 </div>
               </div>
-              <div className="bg-primary/10 p-4 rounded-lg">
-                <p className="text-xs text-text-muted mb-1">Your Code</p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-2xl font-mono font-bold text-primary">{deviceData.user_code}</p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon={copied === "user_code" ? "check" : "content_copy"}
-                    onClick={() => copy(deviceData.user_code, "user_code")}
-                  />
+              {deviceData.user_code && (
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-xs text-text-muted mb-1">Your Code</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-2xl font-mono font-bold text-primary">{deviceData.user_code}</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={copied === "user_code" ? "check" : "content_copy"}
+                      onClick={() => copy(deviceData.user_code, "user_code")}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {polling && (
               <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
