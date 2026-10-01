@@ -109,6 +109,7 @@ import {
   PanelLeft,
   Paperclip,
   Pencil,
+  LogIn,
   PiggyBank,
   Play,
   Plus,
@@ -184,6 +185,10 @@ import { cn } from "@/shared/utils/cn";
  * font when a page needs a new glyph.
  */
 const ICON_MAP = {
+  desktop_windows: Computer,
+  edit_note: Pencil,
+  login: LogIn,
+  public: Globe,
   account_balance: Landmark,
   account_balance_wallet: Wallet,
   account_circle: CircleUser,

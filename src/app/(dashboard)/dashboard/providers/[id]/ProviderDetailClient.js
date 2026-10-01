@@ -62,6 +62,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const [modelsTestError, setModelsTestError] = useState("");
   const [testingModelIds, setTestingModelIds] = useState(() => new Set());
   const [testingAllModels, setTestingAllModels] = useState(false);
+  const [exportingModelIds, setExportingModelIds] = useState(() => new Set());
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
@@ -1106,20 +1107,90 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     }
   };
 
+  const handleExportToRouter = async (modelId) => {
+    if (exportingModelIds.has(modelId)) return;
+    setExportingModelIds((previous) => new Set(previous).add(modelId));
+    try {
+      const modelName = modelId.split("/").pop() || modelId;
+      const providersResponse = await fetch("/api/models/providers", { cache: "no-store" });
+      const providersData = await providersResponse.json().catch(() => ({}));
+      if (!providersResponse.ok) throw new Error(providersData.error || "Failed to load model providers");
+      const providerName = providerInfo?.name || providerId;
+      let modelProvider = (providersData.providers || []).find((provider) => provider.name?.toLowerCase() === providerName.toLowerCase());
+      if (!modelProvider) {
+        const createResponse = await fetch("/api/models/providers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: providerName, iconKey: providerId }),
+        });
+        const createData = await createResponse.json().catch(() => ({}));
+        if (createResponse.ok) modelProvider = createData;
+        else if (createResponse.status === 409) {
+          const refreshed = await fetch("/api/models/providers", { cache: "no-store" });
+          modelProvider = (await refreshed.json()).providers?.find((provider) => provider.name?.toLowerCase() === providerName.toLowerCase());
+        } else throw new Error(createData.error || "Failed to create model provider");
+      }
+      if (!modelProvider?.name) throw new Error("Model provider is unavailable");
+      const routeModel = `${providerStorageAlias}/${modelId}`;
+      const combosResponse = await fetch("/api/combos", { cache: "no-store" });
+      const combosData = await combosResponse.json().catch(() => ({}));
+      if (!combosResponse.ok) throw new Error(combosData.error || "Failed to load Model Router routes");
+      const existing = (combosData.combos || []).find((combo) => combo.name?.toLowerCase() === modelName.toLowerCase());
+      if (existing) {
+        if (existing.models?.includes(routeModel)) {
+          alert(`Model Router already contains ${modelName}.`);
+          return;
+        }
+        if (existing.modelProvider && existing.modelProvider.toLowerCase() !== modelProvider.name.toLowerCase()) {
+          throw new Error(`Route ${modelName} belongs to ${existing.modelProvider}, not ${modelProvider.name}.`);
+        }
+        const updateResponse = await fetch(`/api/combos/${existing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ models: [...(existing.models || []), routeModel], modelProvider: modelProvider.name }),
+        });
+        if (!updateResponse.ok) throw new Error("Failed to add model to Model Router");
+      } else {
+        const createResponse = await fetch("/api/combos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: modelName, models: [routeModel], kind: "llm", modelProvider: modelProvider.name }),
+        });
+        const createData = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok) throw new Error(createData.error || "Failed to create Model Router route");
+      }
+      alert(existing ? `Added ${modelName} to Model Router.` : `Created Model Router route ${modelName}.`);
+    } catch (error) {
+      alert(error?.message || "Failed to export model to Model Router");
+    } finally {
+      setExportingModelIds((previous) => {
+        const next = new Set(previous);
+        next.delete(modelId);
+        return next;
+      });
+    }
+  };
+
   const handleTestModel = async (modelId) => {
-    if (
-      testingAllModels
-      || testingModelIds.has(modelId)
-    ) return;
-    setTestingModelIds((previous) => new Set(previous).add(modelId));
-    const result = await probeModel(modelId);
-    setModelTestResults((previous) => ({ ...previous, [modelId]: result.ok ? "ok" : "error" }));
-    setModelsTestError(result.ok ? "" : (result.error || "Model not reachable"));
-    setTestingModelIds((previous) => {
-      const next = new Set(previous);
-      next.delete(modelId);
-      return next;
-    });
+    if (testingModelIds.has(modelId)) return;
+    setTestingModelIds((prev) => new Set(prev).add(modelId));
+    try {
+      const response = await fetch("/api/models/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: `${providerStorageAlias}/${modelId}` }),
+      });
+      const data = await response.json();
+      setModelTestResults((prev) => ({ ...prev, [modelId]: response.ok && data.ok ? "ok" : "error" }));
+    } catch {
+      setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
+    } finally {
+      setTestingModelIds((prev) => {
+        const next = new Set(prev);
+        next.delete(modelId);
+        return next;
+      });
+    }
   };
 
   const handleTestAllModels = async () => {
@@ -1165,8 +1236,10 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           onDeleteAlias={handleDeleteAlias}
           onAddCustomModel={(modelId) => handleAddCustomModel(modelId, "llm", providerStorageAlias)}
           onDeleteCustomModel={(modelId) => handleDeleteCustomModel(modelId, "llm", providerStorageAlias)}
-          onTestModel={handleTestModel}
-          modelTestResults={modelTestResults}
+           onTestModel={handleTestModel}
+           onExportToRouter={handleExportToRouter}
+           exportingModelIds={exportingModelIds}
+           modelTestResults={modelTestResults}
           testingModelIds={testingModelIds}
           connections={connections}
           isAnthropic={isAnthropicCompatible}
@@ -1212,8 +1285,10 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
               }
             }}
             testStatus={modelTestResults[model.id]}
-            onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
-            isTesting={testingModelIds.has(model.id)}
+             onTest={hasActiveConnection || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
+             onExportToRouter={() => handleExportToRouter(model.id)}
+             isExporting={exportingModelIds.has(model.id)}
+             isTesting={testingModelIds.has(model.id)}
             isCustom
             isFree={false}
             caps={getCaps(`${providerId}/${model.id}`)}
@@ -1805,7 +1880,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                     className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 hover:bg-amber-500/20 dark:text-amber-400 transition-colors"
                   >
                     <span>Allow China-hosted models</span>
-                    <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    <Icon name="open_in_new" className="inline-block h-[1em] w-[1em] align-middle text-[13px]" />
                   </a>
                 </div>
               );

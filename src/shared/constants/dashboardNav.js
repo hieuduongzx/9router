@@ -123,6 +123,7 @@ export const ADMIN_NAV_GROUPS = [
     label: "Overview",
     items: [
       { href: "/admin", label: "Dashboard", icon: House, exact: true },
+      { href: "/admin/usage", label: "Usage", icon: ChartColumn },
       { href: "/admin/activity", label: "Activity", icon: Activity },
     ],
   },

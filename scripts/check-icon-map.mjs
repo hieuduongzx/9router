@@ -51,6 +51,7 @@ function namesFromExpression(expr) {
 }
 
 const missing = new Map();
+const legacyFiles = [];
 
 function record(name, file) {
   if (mapped.has(name) || IGNORE.has(name)) return;
@@ -61,6 +62,7 @@ function record(name, file) {
 for (const file of files) {
   if (/ui[\\/]icon\.js$/.test(file)) continue;
   const src = readFileSync(file, "utf8");
+  if (/material-symbols-(outlined|rounded|sharp)/.test(src)) legacyFiles.push(file);
   for (const pattern of LITERAL_PATTERNS) {
     for (const match of src.matchAll(pattern)) record(match[1], file);
   }
@@ -69,7 +71,12 @@ for (const file of files) {
   }
 }
 
-if (missing.size === 0) {
+if (legacyFiles.length) {
+  console.error("Legacy icon-font markup is unsupported; use SVG <Icon />:");
+  for (const file of legacyFiles) console.error(`  ${file}`);
+}
+
+if (missing.size === 0 && legacyFiles.length === 0) {
   console.log(`all icon names resolve (${mapped.size} mapped)`);
   process.exit(0);
 }

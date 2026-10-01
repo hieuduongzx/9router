@@ -30,6 +30,8 @@ Keep these unless the user explicitly asks to remove or redesign them:
 - Local/self-hosted endpoints and the managed Cloud Endpoint.
 - The complete removal of built-in Cloudflare Tunnel and Tailscale provisioning, APIs, startup services, settings, CLI controls, and UI controls.
 - Existing local layout/design choices unless upstream logic requires a compatible UI addition.
+- Preserve the current Router2k dashboard shell in `src/shared/components/Sidebar.js` and `src/shared/components/layouts/DashboardLayout.js`, including Lucide/icon-map rendering, language switching, responsive navigation, admin/user boundaries, and translated labels.
+- Never restore the retired Material Symbols sidebar implementation. Raw strings such as `api`, `dns`, `layers`, or `settings` must not appear as visible sidebar text; icons must render through `src/shared/components/ui/icon.js`.
 
 Cloudflare Workers AI, Cloudflare proxy workers, and the managed Cloud Endpoint are independent features; do not remove them when enforcing the Tunnel invariant.
 
@@ -97,6 +99,7 @@ Recurring conflict guidance:
 - **Provider registry:** accept upstream additions/removals, retain Tinyfish, and verify there are no duplicate IDs.
 - **Grok Build / CLI tools:** accept new configuration logic and model capabilities; retain local/custom/cloud endpoint selection without Tunnel/Tailscale props; render Router2k in generated human-facing names.
 - **Topology/Header/Sidebar:** accept upstream performance and behavior changes; retain Router2k branding, account navigation, balance display, and role boundaries.
+- **Sidebar and dashboard shell:** treat the local `Sidebar.js` and `DashboardLayout.js` as high-risk fork files. Preserve the local Lucide `<Icon name="..." />` navigation and i18n implementation, selectively porting upstream behavior. Do not take a whole upstream file if it reintroduces `material-symbols-outlined`, hardcoded English labels, duplicate shell logic, traffic-light branding, or the old sidebar layout. Confirm `HeaderLanguage` and user/admin nav groups remain wired.
 - **Global CSS:** retain local palette/layout decisions while adding selectors required by upstream behavior.
 - **Kimi or provider consolidation:** accept upstream canonical provider IDs, then migrate local registry references instead of keeping obsolete duplicate providers.
 
@@ -133,6 +136,10 @@ Also verify:
 - Account ownership and admin boundaries remain enforced.
 - Removed `/api/tunnel/**` routes are not recreated.
 - `/api/settings` does not expose retired Tunnel/Tailscale keys.
+- `node scripts/check-icon-map.mjs` passes after any sidebar/shared-shell merge.
+- `Sidebar.js` and `DashboardLayout.js` contain no `material-symbols-outlined` references and no legacy duplicate shell.
+- Apply the icon audit across ALL active `src/` pages and shared components, not just the sidebar: `/admin/router` reuses dashboard combos; Providers, Quota, CLI Tools and OAuth modals also share dashboard implementations. The icon-map checker must reject legacy `material-symbols-*` markup anywhere in active JS. Convert incoming icon-font spans to SVG icons; do not restore the removed font to mask regressions.
+- Sidebar language controls and translated labels remain present; no navigation label is replaced by an icon key or hardcoded fallback.
 
 ### 6. Verify before committing
 
@@ -144,6 +151,12 @@ npx vitest run --config tests/vitest.config.js \
   tests/unit/dashboard-guard.test.js \
   tests/unit/db-sqlite-vs-lowdb.test.js \
   tests/unit/request-details-tab.test.js
+```
+
+Required after touching the sidebar or shared dashboard shell:
+
+```bash
+node scripts/check-icon-map.mjs
 ```
 
 Add every test file introduced or changed by upstream that covers provider, executor, translator, database, or CLI logic. Do not claim the full suite passed if it did not. If an upstream test is stale relative to upstream implementation, prove the mismatch, keep production logic intact, and report the exact failing file and reason.
@@ -175,6 +188,8 @@ Confirm:
 
 - Current upstream version is displayed.
 - Router2k branding, balance, account menu, and custom pages remain.
+- Sidebar icons render as SVG/Lucide icons, not visible names such as `api`, `dns`, or `layers`.
+- Sidebar language switching and translated navigation labels remain functional.
 - No page has runtime alerts or horizontal overflow at desktop and mobile widths.
 - Tunnel/Tailscale text and controls are absent.
 - Retired `/api/tunnel/**` routes return `404`.

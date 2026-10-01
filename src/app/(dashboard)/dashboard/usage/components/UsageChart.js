@@ -5,14 +5,15 @@ import PropTypes from "prop-types";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Card from "@/shared/components/Card";
 
-export default function UsageChart({ period = "7d" }) {
+export default function UsageChart({ period = "7d", scope }) {
   const [data, setData] = useState([]);
   const [mode, setMode] = useState("tokens");
   useEffect(() => {
     let mounted = true;
-    fetch(`/api/usage/chart?period=${period}`).then((response) => response.ok ? response.json() : []).then((result) => { if (mounted) setData(Array.isArray(result) ? result : result.points || []); }).catch(() => { if (mounted) setData([]); });
+    const scopeQuery = scope ? `&scope=${scope}` : "";
+    fetch(`/api/usage/chart?period=${period}${scopeQuery}`).then((response) => response.ok ? response.json() : []).then((result) => { if (mounted) setData(Array.isArray(result) ? result : result.points || []); }).catch(() => { if (mounted) setData([]); });
     return () => { mounted = false; };
-  }, [period]);
+  }, [period, scope]);
   const key = mode === "requests" ? "requests" : mode === "cost" ? "cost" : "tokens";
   return <Card className="flex min-w-0 flex-col gap-3 p-4">
     <div className="flex gap-2">{[["tokens", "Tokens"], ["requests", "Requests"], ["cost", "Cost"]].map(([value, label]) => <button key={value} onClick={() => setMode(value)} className={`rounded px-3 py-1 text-sm ${mode === value ? "bg-primary text-white" : "text-text-muted"}`}>{label}</button>)}</div>
@@ -20,4 +21,4 @@ export default function UsageChart({ period = "7d" }) {
   </Card>;
 }
 
-UsageChart.propTypes = { period: PropTypes.string };
+UsageChart.propTypes = { period: PropTypes.string, scope: PropTypes.string };

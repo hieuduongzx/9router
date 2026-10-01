@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPricing, updatePricing, resetPricing, resetAllPricing } from "@/lib/localDb.js";
 import { getDefaultPricing } from "open-sse/providers/pricing.js";
+import { canEditPricing } from "@/lib/auth/pricingAccess";
 
 /**
  * GET /api/pricing
@@ -25,6 +26,10 @@ export async function GET() {
  * Body: { provider: { model: { input: number, output: number, cached: number, ... } } }
  */
 export async function PATCH(request) {
+  if (!(await canEditPricing(request))) {
+    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
 
@@ -89,6 +94,10 @@ export async function PATCH(request) {
  * Query params: ?provider=xxx&model=yyy (optional)
  */
 export async function DELETE(request) {
+  if (!(await canEditPricing(request))) {
+    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");

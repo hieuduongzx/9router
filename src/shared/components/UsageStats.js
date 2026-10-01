@@ -1,4 +1,6 @@
 "use client";
+import { Icon } from "@/shared/components/ui/icon";
+
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -193,6 +195,12 @@ const TABLE_OPTIONS = [
   { value: "endpoint", label: "Usage by Endpoint" },
 ];
 
+// Account users only see their own traffic, so the operator-oriented breakdowns
+// (upstream connection accounts, raw endpoints) are hidden for them.
+const USER_TABLE_OPTIONS = TABLE_OPTIONS.filter(
+  (option) => option.value === "model" || option.value === "apiKey",
+);
+
 const PERIODS = [
   { value: "today", label: "Today" },
   { value: "24h", label: "24h" },
@@ -202,9 +210,12 @@ const PERIODS = [
   { value: "all", label: "All" },
 ];
 
-export default function UsageStats({ period: periodProp, setPeriod: setPeriodProp, hidePeriodSelector = false } = {}) {
+export default function UsageStats({ period: periodProp, setPeriod: setPeriodProp, hidePeriodSelector = false, variant = "user" } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // The admin shell gets system-wide data (scope=system + the admin-only live
+  // stream + provider topology); the user shell stays scoped to its own keys.
+  const isAdmin = variant === "admin";
 
   const sortBy = searchParams.get("sortBy") || "rawModel";
   const sortOrder = searchParams.get("sortOrder") || "asc";
@@ -224,6 +235,8 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   // Fetch connected providers once, deduplicate by provider type
   // Always include noAuth free providers (e.g. opencode) regardless of connections
   useEffect(() => {
+    // Topology is an operator view; /api/providers is admin-only anyway.
+    if (!isAdmin) return;
     Promise.all([
       fetch("/api/providers").then((r) => r.ok ? r.json() : null),
       fetch("/api/provider-nodes").then((r) => r.ok ? r.json() : null),
@@ -251,7 +264,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         setProviders([...unique, ...noAuthProviders]);
       })
       .catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   // Fetch filtered stats via REST when period changes
   useEffect(() => {
@@ -263,7 +276,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       setFetching(true);
     }
 
-    fetch(`/api/usage/stats?period=${period}`)
+    fetch(`/api/usage/stats?period=${period}${isAdmin ? "&scope=system" : ""}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data) {
@@ -276,10 +289,12 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         setLoading(false);
         setFetching(false);
       });
-  }, [period]);
+  }, [period, isAdmin]);
 
   // SSE connection - real-time updates for activeRequests + recentRequests only
   useEffect(() => {
+    // The stream is admin-only and system-wide; account users have no live feed.
+    if (!isAdmin) return;
     const es = new EventSource("/api/usage/stream");
 
     es.onmessage = (e) => {
@@ -305,7 +320,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
     es.onerror = () => setLoading(false);
 
     return () => es.close();
-  }, []);
+  }, [isAdmin]);
 
   const toggleSort = useCallback((tableType, field) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -435,11 +450,13 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
     }
   }, [stats, tableView, sortBy, sortOrder]);
 
+  const tableOptions = isAdmin ? TABLE_OPTIONS : USER_TABLE_OPTIONS;
+
   if (!stats && !loading) return <div className="text-text-muted">Failed to load usage statistics.</div>;
 
   const spinner = (
     <div className="flex items-center justify-center py-12 text-text-muted">
-      <span className="material-symbols-outlined text-[32px] animate-spin">progress_activity</span>
+      <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle text-[32px] animate-spin" />
     </div>
   );
 
@@ -461,7 +478,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
             ))}
           </div>
           {fetching && (
-            <span className="material-symbols-outlined text-[16px] text-text-muted animate-spin">progress_activity</span>
+            <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle text-[16px] text-text-muted animate-spin" />
           )}
         </div>
       )}
@@ -469,8 +486,8 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       {/* Overview cards */}
       {loading ? spinner : <OverviewCards stats={stats} />}
 
-      {/* Provider topology + Recent Requests */}
-      {loading ? spinner : (
+      {/* Provider topology + Recent Requests (operator view) */}
+      {isAdmin && (loading ? spinner : (
         <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
           <ProviderTopology
             providers={providers}
@@ -480,10 +497,10 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           />
           <RecentRequests requests={stats.recentRequests || []} />
         </div>
-      )}
+      ))}
 
       {/* Token / Cost chart - sync period */}
-      {loading ? spinner : <UsageChart period={period} />}
+      {loading ? spinner : <UsageChart period={period} scope={isAdmin ? "system" : undefined} />}
 
       {/* Provider and model breakdown charts */}
       {!loading && (stats.byProvider || stats.byModel) && (
@@ -502,7 +519,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
             className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto"
             style={{ colorScheme: 'auto' }}
           >
-            {TABLE_OPTIONS.map((opt) => (
+            {tableOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>

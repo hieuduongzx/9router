@@ -1,4 +1,6 @@
 "use client";
+import { Icon } from "@/shared/components/ui/icon";
+
 
 import { useState, useEffect } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
@@ -338,11 +340,9 @@ export default function GenericCliToolCard({
                 decoding="async"
               />
             ) : tool.icon ? (
-              <span className="material-symbols-outlined text-[28px]" style={{ color: tool.color }}>
-                {tool.icon}
-              </span>
+              <Icon name={tool.icon} className="inline-block h-[1em] w-[1em] align-middle text-[28px]" style={{ color: tool.color }} />
             ) : (
-              <span className="material-symbols-outlined text-[28px] text-primary">terminal</span>
+              <Icon name="terminal" className="inline-block h-[1em] w-[1em] align-middle text-[28px] text-primary" />
             )}
           </div>
           <div className="min-w-0">
@@ -367,16 +367,14 @@ export default function GenericCliToolCard({
             <p className="text-xs text-text-muted truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`inline-block h-[1em] w-[1em] align-middle text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </div>
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checking && (
             <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle animate-spin" />
               <span>Checking {tool.name}...</span>
             </div>
           )}
@@ -385,7 +383,7 @@ export default function GenericCliToolCard({
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-yellow-500">warning</span>
+                  <Icon name="warning" className="inline-block h-[1em] w-[1em] align-middle text-yellow-500" />
                   <div className="flex-1">
                     <p className="font-medium text-yellow-600 dark:text-yellow-400">{tool.name} not detected locally</p>
                     <p className="text-sm text-text-muted">Manual configuration is still available if 9router is deployed on a remote server.</p>
@@ -398,11 +396,11 @@ export default function GenericCliToolCard({
                     onClick={() => setShowManualConfigModal(true)}
                     className="!bg-yellow-500/20 !border-yellow-500/40 !text-yellow-700 dark:!text-yellow-300 hover:!bg-yellow-500/30"
                   >
-                    <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>
+                    <Icon name="content_copy" className="inline-block h-[1em] w-[1em] align-middle text-[18px] mr-1" />
                     Manual Config
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setShowInstallGuide(!showInstallGuide)}>
-                    <span className="material-symbols-outlined text-[18px] mr-1">{showInstallGuide ? "expand_less" : "help"}</span>
+                    <Icon name={showInstallGuide ? "expand_less" : "help"} className="inline-block h-[1em] w-[1em] align-middle text-[18px] mr-1" />
                     {showInstallGuide ? "Hide" : "How to Install"}
                   </Button>
                 </div>
@@ -432,7 +430,7 @@ export default function GenericCliToolCard({
                 {/* Endpoint (selector) */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Select Endpoint</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline" />
                   <BaseUrlSelect
                     value={customBaseUrl || getEffectiveBaseUrl()}
                     onChange={setCustomBaseUrl}
@@ -445,7 +443,7 @@ export default function GenericCliToolCard({
                 {currentBaseUrl ? (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                    <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline" />
                     <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
                       {currentBaseUrl}
                     </span>
@@ -455,7 +453,7 @@ export default function GenericCliToolCard({
                 {/* API Key */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline" />
                   <ApiKeySelect value={selectedApiKey} onChange={setSelectedApiKey} apiKeys={apiKeys} cloudEnabled={cloudEnabled} />
                 </div>
 
@@ -463,7 +461,7 @@ export default function GenericCliToolCard({
                 {tool.id === "pi" && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr] sm:items-start sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm mt-1">Models</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline mt-1.5">arrow_forward</span>
+                    <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline mt-1.5" />
                     <div className="flex-1 flex flex-col gap-2">
                       <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 bg-surface rounded border border-border">
                         {selectedModels.length === 0 ? (
@@ -480,7 +478,7 @@ export default function GenericCliToolCard({
                                 onClick={() => handleRemoveModel(modelId)}
                                 className="text-text-muted hover:text-red-500 rounded p-0.5"
                               >
-                                <span className="material-symbols-outlined text-[12px]">close</span>
+                                <Icon name="close" className="inline-block h-[1em] w-[1em] align-middle text-[12px]" />
                               </button>
                             </span>
                           ))
@@ -494,7 +492,7 @@ export default function GenericCliToolCard({
                           onClick={() => setModalOpen(true)}
                           disabled={!activeProviders?.length}
                         >
-                          <span className="material-symbols-outlined text-[14px] mr-1">add</span>
+                          <Icon name="add" className="inline-block h-[1em] w-[1em] align-middle text-[14px] mr-1" />
                           Add Model
                         </Button>
                         {activeProviders?.length > 0 && (
@@ -526,7 +524,7 @@ export default function GenericCliToolCard({
                 {tool.id !== "omp" && tool.id !== "pi" && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Model</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                    <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline" />
                     <div className="relative w-full min-w-0">
                       <input
                         type="text"
@@ -541,7 +539,7 @@ export default function GenericCliToolCard({
                           className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors"
                           title="Clear"
                         >
-                          <span className="material-symbols-outlined text-[14px]">close</span>
+                          <Icon name="close" className="inline-block h-[1em] w-[1em] align-middle text-[14px]" />
                         </button>
                       )}
                     </div>
@@ -601,7 +599,7 @@ export default function GenericCliToolCard({
                   size="sm"
                   onClick={() => setShowManualConfigModal(true)}
                 >
-                  <span className="material-symbols-outlined text-[18px] mr-1">code</span>
+                  <Icon name="code" className="inline-block h-[1em] w-[1em] align-middle text-[18px] mr-1" />
                   Manual Config
                 </Button>
               </div>

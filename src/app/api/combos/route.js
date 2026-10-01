@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCombos, createCombo, getComboByName, getModelProviderByName, getModelPricingCatalog } from "@/lib/localDb";
 import { canEditPricing } from "@/lib/auth/pricingAccess";
+import { comboRoutedModels } from "open-sse/services/comboMembers.js";
+import { resolveProviderId } from "@/shared/constants/providers";
 import { comboPricingTarget } from "@/lib/publishedModelsCatalog";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,23 @@ const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
 const normalizeModelProvider = (value) => (
   typeof value === "string" ? value.trim() : ""
 );
+
+async function getFirstMemberDefaultPricing(combo, combos, visited = new Set()) {
+  if (!combo || visited.has(combo.id)) return null;
+  visited.add(combo.id);
+  const firstMember = comboRoutedModels(combo)[0];
+  if (typeof firstMember !== "string" || !firstMember.trim()) return null;
+  const slash = firstMember.indexOf("/");
+  if (slash > 0 && slash < firstMember.length - 1) {
+    const provider = resolveProviderId(firstMember.slice(0, slash));
+    const model = firstMember.slice(slash + 1);
+    const [entry] = await getModelPricingCatalog([{ provider, model }]);
+    return entry?.defaultPricing || null;
+  }
+  if (slash >= 0) return null;
+  const nested = combos.find((candidate) => candidate.name === firstMember.trim());
+  return nested ? getFirstMemberDefaultPricing(nested, combos, visited) : null;
+}
 
 // GET /api/combos - Get all combos, each resolved against the pricing catalog.
 // Routes are where public prices are set, so the list carries its own rates
@@ -25,16 +44,19 @@ export async function GET(request) {
 
     return NextResponse.json({
       canEditPricing: editable,
-      combos: combos.map((combo, index) => {
+      combos: await Promise.all(combos.map(async (combo, index) => {
         const resolved = pricingEntries[index];
+        const defaultPricing = await getFirstMemberDefaultPricing(combo, combos);
         return {
           ...combo,
           pricingTarget: targets[index],
-          pricing: resolved?.pricing || null,
-          pricingSource: resolved?.source || "unpriced",
-          defaultPricing: resolved?.defaultPricing || null,
+          pricing: resolved?.source === "custom"
+            ? { ...(defaultPricing || {}), ...(resolved.pricing || {}) }
+            : defaultPricing,
+          pricingSource: resolved?.source === "custom" ? "custom" : defaultPricing ? "default" : "unpriced",
+          defaultPricing,
         };
-      }),
+      })),
     });
   } catch (error) {
     console.log("Error fetching combos:", error);

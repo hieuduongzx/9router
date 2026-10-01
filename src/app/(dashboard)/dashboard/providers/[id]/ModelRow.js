@@ -13,7 +13,10 @@ export default function ModelRow({
   isFree,
   onDeleteAlias,
   onTest,
+  onExportToRouter,
+  isExporting,
   isTesting,
+
   onDisable,
   caps,
 }) {
@@ -62,6 +65,19 @@ export default function ModelRow({
             aria-label={isTesting ? `Testing ${displayModel}` : `Test ${displayModel}`}
           >
             <Icon name={isTesting ? "progress_activity" : "science"} className={`size-4 ${isTesting ? "animate-spin motion-reduce:animate-none" : ""}`} />
+          </button>
+        )}
+
+        {onExportToRouter && (
+          <button
+            type="button"
+            onClick={onExportToRouter}
+            disabled={isExporting}
+            className="inline-flex size-11 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-sidebar hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-60"
+            title={isExporting ? "Exporting to Model Router" : "Export to Model Router"}
+            aria-label={`Export ${displayModel} to Model Router`}
+          >
+            <Icon name={isExporting ? "progress_activity" : "alt_route"} className={`size-4 ${isExporting ? "animate-spin motion-reduce:animate-none" : ""}`} />
           </button>
         )}
 
@@ -114,7 +130,10 @@ ModelRow.propTypes = {
   isFree: PropTypes.bool,
   onDeleteAlias: PropTypes.func,
   onTest: PropTypes.func,
+  onExportToRouter: PropTypes.func,
+  isExporting: PropTypes.bool,
   isTesting: PropTypes.bool,
+
   onDisable: PropTypes.func,
   caps: PropTypes.object,
 };

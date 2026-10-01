@@ -336,7 +336,7 @@ export function GenericExampleCard({ providerId, kind }) {
                   onClick={() => setQuestion("")}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  <Icon name="close" className="inline-block h-[1em] w-[1em] align-middle text-[14px]" />
                 </button>
               )}
             </div>

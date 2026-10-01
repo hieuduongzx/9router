@@ -15,15 +15,15 @@ const PERIODS = [
   { value: "all", label: "All" },
 ];
 
-export default function UsagePage() {
+export default function UsagePage({ variant = "user" }) {
   return (
     <Suspense fallback={<CardSkeleton />}>
-      <UsageContent />
+      <UsageContent variant={variant} />
     </Suspense>
   );
 }
 
-function UsageContent() {
+function UsageContent({ variant = "user" }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -67,7 +67,7 @@ function UsageContent() {
 
       {activeTab === "overview" && (
         <Suspense fallback={<CardSkeleton />}>
-          <UsageStats period={period} setPeriod={setPeriod} hidePeriodSelector />
+          <UsageStats period={period} setPeriod={setPeriod} hidePeriodSelector variant={variant} />
         </Suspense>
       )}
       {activeTab === "logs" && <RequestLogger />}

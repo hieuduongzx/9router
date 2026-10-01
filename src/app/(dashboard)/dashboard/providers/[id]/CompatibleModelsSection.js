@@ -6,7 +6,7 @@ import { Button } from "@/shared/components";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
 import ModelRow from "./ModelRow";
 
-export default function CompatibleModelsSection({ providerStorageAlias, providerDisplayAlias, modelAliases, customModels, copied, onCopy, onDeleteAlias, onAddCustomModel, onDeleteCustomModel, onTestModel, modelTestResults, testingModelIds, connections, isAnthropic }) {
+export default function CompatibleModelsSection({ providerStorageAlias, providerDisplayAlias, modelAliases, customModels, copied, onCopy, onDeleteAlias, onAddCustomModel, onDeleteCustomModel, onTestModel, onExportToRouter, exportingModelIds, modelTestResults, testingModelIds, connections, isAnthropic }) {
   const [newModel, setNewModel] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -74,7 +74,10 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
               onCopy={onCopy}
               onDeleteAlias={() => source === "custom" ? onDeleteCustomModel(id) : onDeleteAlias(alias)}
               onTest={connections.some((connection) => connection.isActive !== false) ? () => onTestModel(id) : undefined}
+              onExportToRouter={onExportToRouter ? () => onExportToRouter(id) : undefined}
+              isExporting={exportingModelIds?.has(id)}
               testStatus={modelTestResults[id]}
+
               isTesting={testingModelIds.has(id)}
               isCustom
             />
@@ -96,6 +99,8 @@ CompatibleModelsSection.propTypes = {
   onAddCustomModel: PropTypes.func.isRequired,
   onDeleteCustomModel: PropTypes.func.isRequired,
   onTestModel: PropTypes.func.isRequired,
+  onExportToRouter: PropTypes.func,
+  exportingModelIds: PropTypes.instanceOf(Set),
   modelTestResults: PropTypes.object.isRequired,
   testingModelIds: PropTypes.instanceOf(Set).isRequired,
   connections: PropTypes.arrayOf(PropTypes.shape({

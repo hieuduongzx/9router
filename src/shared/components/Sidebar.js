@@ -1,90 +1,279 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import PropTypes from "prop-types";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import PropTypes from "prop-types";
+import {
+  ChevronDown,
+  Download,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Route,
+  Search,
+  ShieldCheck,
+  X,
+} from "lucide-react";
+
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
-import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import {
+  ADMIN_NAV_GROUPS,
+  DASHBOARD_NAV_GROUPS,
+  flattenNavForPalette,
+  visibleNavItems,
+} from "@/shared/constants/dashboardNav";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import useSettingsStore from "@/store/settingsStore";
-import Button from "./Button";
+import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import JumpToPalette from "./JumpToPalette";
+import HeaderLanguage from "./HeaderLanguage";
+import ThemeToggle from "./ThemeToggle";
 import { ConfirmModal } from "./Modal";
 
-// const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
-const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt", "systemone"];
-// Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web
-const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
+/**
+ * The one dashboard rail, for both the user and admin shells.
+ *
+ * There used to be two ~600-line sidebars plus a dead third copy, each with its
+ * own `NavItem`, group label and update strip. `variant` is the only difference
+ * that mattered: which nav groups to read and what the brand row says.
+ */
+const VARIANTS = {
+  user: {
+    groups: DASHBOARD_NAV_GROUPS,
+    home: "/dashboard",
+    brand: APP_CONFIG.name,
+    brandIcon: Route,
+    navLabel: "Dashboard",
+  },
+  admin: {
+    groups: ADMIN_NAV_GROUPS,
+    home: "/admin",
+    brand: "Admin Panel",
+    brandIcon: ShieldCheck,
+    navLabel: "Admin dashboard",
+  },
+};
 
-const navItems = [
-  { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
-  { href: "/dashboard/providers", label: "Providers", icon: "dns" },
-  // { href: "/dashboard/basic-chat", label: "Basic Chat", icon: "chat" }, // Hidden
-  { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
-  { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
-  { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
-  { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
-  // { href: "/dashboard/pxpipe", label: "PXPIPE", icon: "image" },
-  { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },
-];
+function isPathActive(pathname, href, exact = false) {
+  // Strip the query so a `?tab=` row still matches its own pathname.
+  const base = href.split("?")[0];
+  if (exact) return pathname === base || pathname === `${base}/`;
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
 
-const debugItems = [
-  { href: "/dashboard/console-log", label: "Console Log", icon: "terminal" },
-  { href: "/dashboard/translator", label: "Translator", icon: "translate" },
-];
+function NavRow({
+  as: Comp = Link,
+  label,
+  icon: ItemIcon,
+  active,
+  collapsed,
+  nested = false,
+  trailing,
+  className,
+  ...props
+}) {
+  const row = (
+    <Comp
+      aria-current={active && Comp === Link ? "page" : undefined}
+      className={cn(
+        "group relative flex h-9 w-full items-center rounded-md text-sm outline-none transition-colors",
+        "focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        collapsed ? "justify-center px-0" : cn("gap-2.5 pr-2", nested ? "pl-2" : "pl-2.5"),
+        active
+          ? "bg-accent font-medium text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {ItemIcon ? (
+        <ItemIcon
+          aria-hidden
+          className={cn("size-4 shrink-0", active ? "text-foreground" : "text-muted-foreground")}
+        />
+      ) : null}
+      <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate text-left"}>{label}</span>
+      {collapsed ? null : trailing}
+    </Comp>
+  );
 
-const systemItems = [
-  { href: "/dashboard/proxy-pools", label: "Proxy Pools", icon: "lan" },
-  { href: "/dashboard/skills", label: "Skills", icon: "extension" },
-];
+  // Collapsed to 64px the label is `sr-only`, so a tooltip is the only way to
+  // read a row without expanding the rail.
+  if (!collapsed) return row;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{row}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
-export default function Sidebar({ onClose }) {
-  const pathname = usePathname();
-  const [mediaOpen, setMediaOpen] = useState(false);
-  const [isDisconnected, setIsDisconnected] = useState(false);
+function GroupLabel({ children, collapsed }) {
+  if (collapsed) {
+    return (
+      <div className="px-3 pb-1 pt-3">
+        <Separator />
+      </div>
+    );
+  }
+  return (
+    <p className="px-2.5 pb-1 pt-4 text-xs font-medium text-muted-foreground/80">{children}</p>
+  );
+}
+
+/** A nav item with children: a disclosure, not a destination. */
+function NavSubmenu({ item, pathname, collapsed, onNavigate, onExpandRail }) {
+  const sectionActive = isPathActive(pathname, item.href);
+  const [open, setOpen] = useState(sectionActive);
+  const [lastActive, setLastActive] = useState(sectionActive);
+
+  // Navigating into the section opens it; done during render so the panel is
+  // already open on the first paint after a route change.
+  if (sectionActive !== lastActive) {
+    setLastActive(sectionActive);
+    if (sectionActive) setOpen(true);
+  }
+
+  const expanded = open && !collapsed;
+
+  return (
+    <>
+      <NavRow
+        as="button"
+        type="button"
+        label={item.label}
+        icon={item.icon}
+        active={sectionActive}
+        collapsed={collapsed}
+        aria-expanded={expanded}
+        onClick={() => {
+          // A nested list has nowhere to render at 64px, so opening it has to
+          // expand the rail first.
+          if (collapsed) {
+            onExpandRail();
+            setOpen(true);
+            return;
+          }
+          setOpen((value) => !value);
+        }}
+        trailing={
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              expanded && "rotate-180",
+            )}
+          />
+        }
+      />
+      <div
+        inert={expanded ? undefined : true}
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="ml-[19px] border-l pl-1.5">
+            {item.children.map((child) => (
+              <NavRow
+                key={child.href}
+                href={child.href}
+                label={child.label}
+                icon={child.icon}
+                nested
+                active={isPathActive(pathname, child.href)}
+                onClick={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function Sidebar({ variant = "user", onClose }) {
+  const config = VARIANTS[variant] || VARIANTS.user;
+  const pathname = usePathname() || "";
+  const searchParams = useSearchParams();
+  const accountTab = searchParams?.get("tab") || "profile";
+
+  // Which shell is mounted *is* the answer: `/admin/*` is only reachable with an
+  // admin session (dashboardGuard). This used to be re-derived from an
+  // `/api/auth/status` fetch that was never repeated on navigation, so the rail
+  // could disagree with the layout it was rendered in and silently drop rows.
+  const isAdmin = variant === "admin";
+
+  const [enableTranslator, setEnableTranslator] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
   const [shutdownCountdown, setShutdownCountdown] = useState(0);
-  const [enableTranslator, setEnableTranslator] = useState(false);
   const { copied, copy } = useCopyToClipboard(2000);
+  const [storedCollapsed, setCollapsed] = useSidebarCollapsed();
 
   const INSTALL_CMD = UPDATER_CONFIG.installCmdLatest;
+  const isDrawer = Boolean(onClose);
+  // The mobile drawer is always full width — collapsing it makes no sense.
+  const collapsed = storedCollapsed && !isDrawer;
+
+  const navGroups = useMemo(
+    () =>
+      config.groups
+        .map((group) => ({
+          ...group,
+          items: visibleNavItems(group.items, { isAdmin, enableTranslator }),
+        }))
+        .filter((group) => group.items.length > 0),
+    [config.groups, isAdmin, enableTranslator],
+  );
+
+  const paletteItems = useMemo(() => flattenNavForPalette(navGroups), [navGroups]);
 
   useEffect(() => {
-    useSettingsStore.getState().fetchSettings().then((data) => {
-      if (data?.enableTranslator) setEnableTranslator(true);
-    });
-  }, []);
+    if (isDrawer) return undefined;
+    const onKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isDrawer]);
 
-  // Lazy check for new npm version in background after initial render
+  // Only the admin rail has a translator-gated row, so only it needs settings.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetch("/api/version")
-        .then(res => res.json())
-        .then(data => { if (data.hasUpdate) setUpdateInfo(data); })
-        .catch(() => {});
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isAdmin) return undefined;
+    const controller = new AbortController();
+    fetch("/api/settings", { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((settings) => {
+        if (settings?.enableTranslator) setEnableTranslator(true);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [isAdmin]);
 
-  const isActive = (href) => {
-    if (href === "/dashboard/endpoint") {
-      return pathname === "/dashboard" || pathname.startsWith("/dashboard/endpoint");
-    }
-    return pathname.startsWith(href);
-  };
+  useEffect(() => {
+    const controller = new AbortController();
+    // Check independently for both shells. The same Sidebar is mounted for
+    // users and admins, and a cached response or shell transition must not
+    // hide the release notice from regular accounts.
+    fetch("/api/version", { cache: "no-store", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setUpdateInfo(data?.hasUpdate ? data : null))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [variant]);
 
-  // Open manual update panel (no countdown yet — user must click Copy to trigger shutdown)
-  const handleUpdate = () => {
-    setShowUpdateModal(false);
-    setIsUpdating(true);
-  };
-
-  // Triggered by Copy button inside ManualUpdatePanel: copy + countdown + shutdown
   const handleCopyAndShutdown = async () => {
-    try { await navigator.clipboard.writeText(INSTALL_CMD); } catch { /* clipboard blocked */ }
     copy(INSTALL_CMD);
     let remaining = UPDATER_CONFIG.shutdownCountdownSec;
     setShutdownCountdown(remaining);
@@ -99,350 +288,272 @@ export default function Sidebar({ onClose }) {
     }, 1000);
   };
 
-  const handleCancelUpdate = () => {
-    setIsUpdating(false);
-    setShutdownCountdown(0);
-  };
-
-  // Note: legacy updater poll removed. New flow: copy install cmd + shutdown server,
-  // user runs the command manually in another terminal.
-
+  const BrandIcon = config.brandIcon;
 
   return (
     <>
-      <aside className="flex w-72 flex-col border-r border-border-subtle bg-vibrancy backdrop-blur-xl transition-colors duration-300 min-h-full">
-        {/* Traffic lights */}
-        <div className="flex items-center gap-2 px-6 pt-5 pb-2">
-          <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
-          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
-          <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
-        </div>
-
-        {/* Logo */}
-        <div className="px-6 py-4 flex flex-col gap-2">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-9 rounded-[10px] bg-gradient-to-br from-brand-500 to-brand-700 shadow-[var(--shadow-warm)]">
-              <span className="material-symbols-outlined text-white text-[20px]">hub</span>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-lg font-semibold tracking-tight text-text-main">
-                {APP_CONFIG.name}
-              </h1>
-              <span className="text-xs text-text-muted">v{APP_CONFIG.version}</span>
-            </div>
-          </Link>
-          {updateInfo && (
-            <div className="flex flex-col gap-1.5 rounded p-1 -m-1">
-              <span className="text-xs font-semibold text-green-600 dark:text-amber-500">
-                ↑ New version available: v{updateInfo.latestVersion}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowUpdateModal(true)}
-                  className="px-2 py-1 rounded bg-green-600 hover:bg-green-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white text-[11px] font-semibold transition-colors cursor-pointer"
-                >
-                  Update now
-                </button>
-                <button
-                  onClick={() => copy(INSTALL_CMD)}
-                  title="Copy install command"
-                  className="flex-1 text-left hover:opacity-80 transition-opacity cursor-pointer min-w-0"
-                >
-                  <code className="block text-[10px] text-green-600/80 dark:text-amber-400/70 font-mono truncate">
-                    {copied ? "✓ copied!" : INSTALL_CMD}
-                  </code>
-                </button>
-              </div>
-            </div>
+      <aside
+        className={cn(
+          "flex h-full min-h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground",
+          "transition-[width] duration-200 ease-out",
+          collapsed ? "w-16" : "w-64",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center border-b",
+            collapsed ? "justify-center px-0" : "gap-2 px-3",
           )}
+        >
+          <Link
+            href={config.home}
+            onClick={onClose}
+            className={cn(
+              "flex items-center rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              collapsed ? "justify-center" : "min-w-0 flex-1 gap-2.5 px-1 py-1.5",
+            )}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <BrandIcon aria-hidden className="size-4" />
+            </span>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate font-semibold"}>
+              {config.brand}
+            </span>
+          </Link>
+          {onClose ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Close sidebar"
+              className="shrink-0 lg:hidden"
+            >
+              <X />
+            </Button>
+          ) : null}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-2 space-y-0.5 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                isActive(item.href)
-                  ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive(item.href) ? "fill-1" : "group-hover:text-primary transition-colors"
-                )}
-              >
-                {item.icon}
-              </span>
-              <span className="text-[13px] font-medium">{item.label}</span>
-            </Link>
-          ))}
-
-          {/* System section */}
-          <div className="pt-3 mt-2 space-y-0.5">
-            <p className="px-4 text-xs font-semibold text-text-muted/60 uppercase tracking-wider mb-2">
-              System
-            </p>
-
-            {/* Media Providers accordion */}
-            <button
-              onClick={() => setMediaOpen((v) => !v)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                pathname.startsWith("/dashboard/media-providers")
-                  ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span className="material-symbols-outlined text-[18px]">perm_media</span>
-              <span className="text-[13px] font-medium flex-1 text-left">Media Providers</span>
-              {MEDIA_PROVIDER_KINDS.some((k) => VISIBLE_MEDIA_KINDS.includes(k.id) && k.isNew) && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] bg-green-500/15 text-green-400">NEW</span>
-              )}
-              <span className="material-symbols-outlined text-[14px] transition-transform" style={{ transform: mediaOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-                expand_more
-              </span>
-            </button>
-            {mediaOpen && (
-              <div className="pl-4">
-                {MEDIA_PROVIDER_KINDS.filter((k) => VISIBLE_MEDIA_KINDS.includes(k.id)).map((kind) => (
-                  <Link
-                    key={kind.id}
-                    href={`/dashboard/media-providers/${kind.id}`}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-1 rounded-lg transition-all group",
-                      pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
-                        ? "bg-primary/10 text-primary"
-                        : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                    )}
-                  >
-                    <span className="material-symbols-outlined text-[16px]">{kind.icon}</span>
-                    <span className="text-sm">{kind.label}</span>
-                    {kind.isNew && (
-                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] bg-green-500/15 text-green-400">NEW</span>
-                    )}
-                  </Link>
-                ))}
-                <Link
-                  key={COMBINED_WEB_ITEM.id}
-                  href={COMBINED_WEB_ITEM.href}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-1 rounded-lg transition-all group",
-                    pathname.startsWith(COMBINED_WEB_ITEM.href)
-                      ? "bg-primary/10 text-primary"
-                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                  )}
-                >
-                  <span className="material-symbols-outlined text-[16px]">{COMBINED_WEB_ITEM.icon}</span>
-                  <span className="text-sm">{COMBINED_WEB_ITEM.label}</span>
-                </Link>
-              </div>
+        <div className={cn("shrink-0 border-b", collapsed ? "flex justify-center py-2.5" : "p-2.5")}>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Jump to page"
+            aria-label="Jump to page"
+            aria-keyshortcuts="Meta+K Control+K"
+            className={cn(
+              "flex items-center rounded-md border bg-background text-muted-foreground shadow-xs transition-colors",
+              "hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              collapsed ? "size-8 justify-center" : "h-8 w-full gap-2 px-2.5",
             )}
+          >
+            <Search aria-hidden className="size-3.5 shrink-0" />
+            {collapsed ? null : (
+              <>
+                <span className="min-w-0 flex-1 truncate text-left text-sm">Jump to...</span>
+                <kbd className="shrink-0 rounded border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground">
+                  ⌘K
+                </kbd>
+              </>
+            )}
+          </button>
+        </div>
 
-            {systemItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                )}
-              >
-                <span
-                  className={cn(
-                    "material-symbols-outlined text-[18px]",
-                    isActive(item.href) ? "fill-1" : "group-hover:text-primary transition-colors"
-                  )}
+        {updateInfo ? (
+          <div className={cn("shrink-0 border-b bg-muted/40", collapsed ? "flex justify-center py-2.5" : "p-2.5")}>
+            {collapsed ? (
+              isAdmin ? (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setShowUpdateModal(true)}
+                  aria-label="Update available"
+                  title="Update available"
                 >
-                  {item.icon}
+                  <Download />
+                </Button>
+              ) : (
+                <span aria-label="Update available" title="Update available" className="flex size-8 items-center justify-center text-muted-foreground">
+                  <Download aria-hidden className="size-4" />
                 </span>
-                <span className="text-[13px] font-medium">{item.label}</span>
-              </Link>
-            ))}
-
-            {/* Debug items (inside System section, before Settings) */}
-            {debugItems.map((item) => {
-              const show = item.href !== "/dashboard/translator" || enableTranslator;
-              return show ? (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                    isActive(item.href)
-                      ? "bg-primary/10 text-primary"
-                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "material-symbols-outlined text-[18px]",
-                      isActive(item.href) ? "fill-1" : "group-hover:text-primary transition-colors"
-                    )}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="text-[13px] font-medium">{item.label}</span>
-                </Link>
-              ) : null;
-            })}
-
-            {/* 9English */}
-            <a
-              href="https://9english.net/"
-              target="_blank"
-              rel="noreferrer"
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group w-full",
-                "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span className="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors">
-                translate
-              </span>
-              <span className="text-[13px] font-medium">9English</span>
-            </a>
-
-            {/* Settings */}
-            <Link
-              href="/dashboard/profile"
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
-                isActive("/dashboard/profile")
-                  ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
-              )}
-            >
-              <span
-                className={cn(
-                  "material-symbols-outlined text-[18px]",
-                  isActive("/dashboard/profile") ? "fill-1" : "group-hover:text-primary transition-colors"
+              )
+            ) : (
+              <>
+                {/* Deliberately no version number — see DESIGN.md. */}
+                <p className="text-sm font-medium">A newer release is available</p>
+                {isAdmin ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Button size="xs" onClick={() => setShowUpdateModal(true)}>
+                      <Download />
+                      Update
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => copy(INSTALL_CMD)}
+                      title={INSTALL_CMD}
+                    >
+                      {copied ? "Copied" : "Command"}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ask an administrator to install the update.
+                  </p>
                 )}
-              >
-                settings
-              </span>
-              <span className="text-[13px] font-medium">Settings</span>
-            </Link>
+              </>
+            )}
           </div>
+        ) : null}
+
+        <nav
+          aria-label={config.navLabel}
+          className={cn(
+            "custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-4",
+            collapsed ? "px-2" : "px-2",
+          )}
+        >
+          {navGroups.map((group) => (
+            <div key={group.id}>
+              <GroupLabel collapsed={collapsed}>{group.label}</GroupLabel>
+              {group.items.map((item) =>
+                item.children?.length ? (
+                  <NavSubmenu
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    collapsed={collapsed}
+                    onNavigate={onClose}
+                    onExpandRail={() => setCollapsed(false)}
+                  />
+                ) : (
+                  <NavRow
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    collapsed={collapsed}
+                    // `match` rows are one page differing only by `?tab=`, so
+                    // the active row is decided by the query, not the path.
+                    active={
+                      item.match
+                        ? isPathActive(pathname, item.href) && accountTab === item.match
+                        : isPathActive(pathname, item.href, item.exact)
+                    }
+                    onClick={onClose}
+                  />
+                ),
+              )}
+            </div>
+          ))}
         </nav>
 
+        <div
+          className={cn(
+            "flex shrink-0 items-center border-t",
+            collapsed ? "flex-col gap-1 py-2" : "h-12 justify-between px-2",
+          )}
+        >
+          <div className={cn("flex items-center gap-1", collapsed && "flex-col")}>
+            <ThemeToggle />
+            <HeaderLanguage />
+          </div>
+          {isDrawer ? null : (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-pressed={collapsed}
+            >
+              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
+          )}
+        </div>
       </aside>
 
-      {/* Update Confirmation Modal */}
+      <JumpToPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
+
       <ConfirmModal
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
-        onConfirm={handleUpdate}
-        title="Update 9Router"
-        message={`Show install command for v${updateInfo?.latestVersion || ""}? You can copy it and shutdown to install manually.`}
-        confirmText="Show Command"
-        cancelText="Cancel"
+        onConfirm={() => {
+          setShowUpdateModal(false);
+          setIsUpdating(true);
+        }}
+        title={`Update ${APP_CONFIG.name}`}
+        message="Show the install command? You can copy it and shut the server down to install manually."
+        confirmText="Show command"
         variant="primary"
       />
 
-      {/* Disconnected / Updating Overlay */}
-      {(isDisconnected || isUpdating) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6">
+      {isUpdating || isDisconnected ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-6">
           {isUpdating ? (
             <ManualUpdatePanel
-              latestVersion={updateInfo?.latestVersion}
               installCmd={INSTALL_CMD}
               copied={copied}
-              onCopyAndShutdown={handleCopyAndShutdown}
-              onCancel={handleCancelUpdate}
               countdown={shutdownCountdown}
               isDisconnected={isDisconnected}
+              onCopyAndShutdown={handleCopyAndShutdown}
+              onCancel={() => {
+                setIsUpdating(false);
+                setShutdownCountdown(0);
+              }}
             />
           ) : (
-            <div className="text-center p-8">
-              <div className="flex items-center justify-center size-16 rounded-full bg-red-500/20 text-red-500 mx-auto mb-4">
-                <span className="material-symbols-outlined text-[32px]">power_off</span>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Server Disconnected</h2>
-              <p className="text-text-muted mb-6">The proxy server has been stopped.</p>
-              <Button variant="secondary" onClick={() => globalThis.location.reload()}>
-                Reload Page
+            <div className="w-full max-w-sm rounded-xl border bg-card p-6 text-center shadow-lg">
+              <p className="font-semibold">Server disconnected</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                The proxy server has been stopped.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => globalThis.location.reload()}
+              >
+                Reload page
               </Button>
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </>
   );
 }
 
 Sidebar.propTypes = {
+  variant: PropTypes.oneOf(["user", "admin"]),
   onClose: PropTypes.func,
 };
 
-function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdown, onCancel, countdown, isDisconnected }) {
+function ManualUpdatePanel({
+  installCmd,
+  copied,
+  countdown,
+  isDisconnected,
+  onCopyAndShutdown,
+  onCancel,
+}) {
   const isCountingDown = countdown > 0;
   return (
-    <div className="w-full max-w-lg rounded-xl bg-neutral-900/95 border border-white/10 p-6 text-white">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/20 text-amber-400">
-          <span className="material-symbols-outlined text-[24px]">content_copy</span>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">Update 9Router{latestVersion ? ` to v${latestVersion}` : ""}</h2>
-          <p className="text-xs text-white/60">
-            {isDisconnected
-              ? "Server stopped. Paste the command into a terminal to install."
-              : isCountingDown
-                ? `Command copied. Server will stop in ${countdown}s...`
-                : "Click the button below to copy the install command and shutdown."}
-          </p>
-        </div>
+    <div className="w-full max-w-lg rounded-xl border bg-card p-6 shadow-lg">
+      <p className="font-semibold">Manual update</p>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Copy the install command, then shut the server down to update.
+      </p>
+      <div className="terminal-block mt-4 overflow-x-auto p-3">
+        <span className="terminal-prompt">$ </span>
+        {installCmd}
       </div>
-
-      <p className="text-sm text-white/80 mb-2">Install command:</p>
-      <div className="w-full px-3 py-2 rounded bg-white/5 mb-4">
-        <code className="text-xs font-mono text-amber-400 break-all">{installCmd}</code>
-      </div>
-
-      <ol className="text-xs text-white/70 space-y-1 list-decimal list-inside mb-4">
-        <li>Click <strong>Copy & Shutdown</strong> below.</li>
-        <li>Paste the command into your terminal and press Enter.</li>
-        <li>Run <code className="px-1 rounded bg-white/10 text-green-400">9router</code> again after install.</li>
-      </ol>
-
-      {isDisconnected ? (
-        <Button variant="secondary" fullWidth onClick={() => globalThis.location.reload()}>
-          Reload Page
+      <div className="mt-4 flex gap-2">
+        <Button onClick={onCopyAndShutdown} disabled={isCountingDown || isDisconnected}>
+          {isCountingDown ? `Shutting down in ${countdown}s...` : copied ? "Copied" : "Copy & shut down"}
         </Button>
-      ) : (
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={isCountingDown}>
-            Cancel
-          </Button>
-          <Button variant="primary" fullWidth onClick={onCopyAndShutdown} disabled={isCountingDown}>
-            {copied ? "✓ Copied — shutting down..." : isCountingDown ? `Shutting down in ${countdown}s` : "Copy & Shutdown"}
-          </Button>
-        </div>
-      )}
+        <Button variant="outline" onClick={onCancel} disabled={isCountingDown}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
-
-ManualUpdatePanel.propTypes = {
-  latestVersion: PropTypes.string,
-  installCmd: PropTypes.string.isRequired,
-  copied: PropTypes.bool,
-  onCopyAndShutdown: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-  countdown: PropTypes.number,
-  isDisconnected: PropTypes.bool,
-};

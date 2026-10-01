@@ -414,12 +414,12 @@ export default function ClaudeToolCard({
                 {/* 1M context */}
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">1M context</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <Icon name="arrow_forward" className="inline-block h-[1em] w-[1em] align-middle hidden text-text-muted text-[14px] sm:inline" />
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input type="checkbox" checked={oneMContext} onChange={(e) => handleOneMContextToggle(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
                     <span className="text-xs text-text-muted">Append [1m] to the model name</span>
                     <Tooltip text="Claude Code otherwise assumes a 200K window, which clamps the auto-compact window above. Applied to every mapped model — only enable it for models that really accept 1M.">
-                      <span className="material-symbols-outlined text-text-muted text-[14px] cursor-help">info</span>
+                      <Icon name="info" className="inline-block h-[1em] w-[1em] align-middle text-text-muted text-[14px] cursor-help" />
                     </Tooltip>
                   </label>
                 </div>

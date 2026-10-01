@@ -48,6 +48,31 @@ describe("published route pricing", () => {
     expect(listPrice).toBeCloseTo(1_000_000 * 5 / 1e6 + 100_000 * 25 / 1e6, 6);
   });
 
+  it("uses the first member catalog rate as the route default, including nested routes", async () => {
+    const { createCombo } = db;
+    await createCombo({ name: "nested-pricing", models: ["openai/gpt-4o-mini"] });
+    await createCombo({ name: "nested-pricing-parent", models: ["nested-pricing"], modelProvider: ROUTE_OWNER });
+
+    const { GET } = await import("@/app/api/combos/route.js");
+    const response = await GET(new Request("http://localhost/api/combos"));
+    const data = await response.json();
+    const route = data.combos.find((combo) => combo.name === "nested-pricing-parent");
+
+    expect(route.defaultPricing).toMatchObject({ input: 0.15, output: 0.6 });
+    expect(route.pricing).toMatchObject({ input: 0.15, output: 0.6 });
+  });
+
+  it("keeps custom route prices ahead of first-member catalog defaults", async () => {
+    await db.updatePricing({ [ROUTE_OWNER.toLowerCase()]: { "nested-pricing-parent": { input: 1, output: 2 } } });
+    const { GET } = await import("@/app/api/combos/route.js");
+    const response = await GET(new Request("http://localhost/api/combos"));
+    const data = await response.json();
+    const route = data.combos.find((combo) => combo.name === "nested-pricing-parent");
+
+    expect(route.pricing).toMatchObject({ input: 1, output: 2 });
+    expect(route.defaultPricing).toMatchObject({ input: 0.15, output: 0.6 });
+  });
+
   it("uses the route's own price once an administrator sets one", async () => {
     await db.updatePricing({ [ROUTE_OWNER.toLowerCase()]: { [ROUTE_NAME]: { input: 1, output: 2 } } });
 
