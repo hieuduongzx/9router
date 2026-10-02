@@ -6,7 +6,8 @@ import Card from "@/shared/components/Card";
 import StatTile from "@/shared/components/StatTile";
 import { Progress } from "@/shared/components/ui/progress";
 import SectionLabel from "@/shared/components/SectionLabel";
-import UsageOverTime from "@/app/(dashboard)/dashboard/usage/components/UsageOverTime";
+import UsageTimeChart from "@/app/(dashboard)/dashboard/usage/components/UsageTimeChart";
+import UsageBreakdownGrid from "@/app/(dashboard)/dashboard/usage/components/UsageBreakdownGrid";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -28,20 +29,28 @@ function formatTime(value) {
 
 export default function SystemUsageTab({ period }) {
   const [data, setData] = useState(null);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/usage/system?period=${encodeURIComponent(period)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error || "Unable to load system usage");
+    Promise.all([
+      fetch(`/api/usage/system?period=${encodeURIComponent(period)}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      }),
+      fetch(`/api/usage/stats?period=${encodeURIComponent(period)}&scope=system`, {
+        cache: "no-store",
+        signal: controller.signal,
+      }),
+    ])
+      .then(async ([systemResponse, statsResponse]) => {
+        const body = await systemResponse.json().catch(() => ({}));
+        if (!systemResponse.ok) throw new Error(body.error || "Unable to load system usage");
         setError("");
         setData(body);
+        if (statsResponse.ok) setStats(await statsResponse.json().catch(() => null));
       })
       .catch((reason) => {
         if (reason?.name !== "AbortError") setError(reason.message || "Unable to load system usage");
@@ -126,7 +135,9 @@ export default function SystemUsageTab({ period }) {
         </div>
       </section>
 
-      <UsageOverTime period={period} scope="system" title="System usage over time" />
+      <UsageTimeChart period={period} scope="system" />
+
+      {stats ? <UsageBreakdownGrid stats={stats} /> : null}
 
       <Card padding="none" className="min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">

@@ -1,6 +1,14 @@
 # Unreleased (Router2k)
 
 ## Features
+- **Activity**: the admin Activity page is now the single system-inspection
+  surface — the System tab carries the hourly usage time chart (metric +
+  by-model toggle) and model/account/endpoint allocation, while Providers and
+  Requests keep topology, health, outcomes, latency, and logs. The separate
+  `/admin/usage` page is retired (redirects to `/admin/activity`).
+- **Usage**: `/dashboard/usage` has a rebuilt hourly time chart (Tokens / Cost /
+  Requests, optional by-model breakdown); the dashboard home drops the duplicate
+  chart and links to analytics, so overview and usage no longer overlap.
 - **Providers**: turning a provider off from the provider table also switches off
   that provider's models in every router. Turning it back on restores only those
   models. A provider that still has another live connection (for example OAuth
