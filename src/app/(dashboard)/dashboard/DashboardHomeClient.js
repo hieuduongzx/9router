@@ -2,16 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Area,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { ArrowRight, RefreshCw } from "lucide-react";
 
 import { EmptyState, MiniRing, MiniSparkline, StatTile } from "@/shared/components";
@@ -31,11 +21,7 @@ import { cn } from "@/shared/utils/cn";
 import { normalizeUsageChartPoints } from "@/shared/utils/usageChart";
 import {
   CHART_COLORS,
-  CHART_GRID,
   CHART_RAMP,
-  CHART_TICK,
-  CHART_TOOLTIP_LABEL,
-  CHART_TOOLTIP_STYLE,
 } from "@/shared/utils/chartTheme";
 import QuickStartPanel from "./components/QuickStartPanel";
 
@@ -108,19 +94,6 @@ function DashboardSkeleton() {
       <div className="h-32 animate-pulse rounded-xl border bg-muted/40" />
       <div className="h-[320px] animate-pulse rounded-xl border bg-muted/40" />
     </div>
-  );
-}
-
-function LegendChip({ color, label, line = false }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span
-        aria-hidden
-        className={cn("shrink-0", line ? "h-0.5 w-3.5 rounded-sm" : "size-2 rounded-sm")}
-        style={{ backgroundColor: color }}
-      />
-      {label}
-    </span>
   );
 }
 
@@ -267,8 +240,7 @@ export default function DashboardHomeClient() {
     return rows.slice(0, 8);
   }, [stats]);
 
-  // Tokens & spend chart
-  const chartHasData = periodData.some((point) => Number(point.tokens) > 0);
+  // Primary API key for the quick-start panel
   const primaryKey = keys.find((key) => key.isActive)?.key || keys[0]?.key || "";
   const periodLabel = USAGE_PERIODS.find((item) => item.value === period)?.label || period;
 
@@ -404,6 +376,12 @@ export default function DashboardHomeClient() {
             All usage metrics reflect {periodLabel.toLowerCase()}; account balance is current.
           </p>
           <div className="flex shrink-0 items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/dashboard/usage">
+                Usage analytics
+                <ArrowRight />
+              </Link>
+            </Button>
             <PeriodDropdown value={period} onChange={setPeriod} disabled={refreshing} />
             <Button
               variant="outline"
@@ -418,107 +396,6 @@ export default function DashboardHomeClient() {
           </div>
         </div>
       </section>
-
-      <Card padding="none" className="min-w-0 overflow-hidden">
-        <CardSectionTitle
-          title="Tokens & spend"
-          action={
-            <>
-              <div className="hidden items-center gap-3 sm:flex">
-                <LegendChip color={COLOR_INPUT} label="Input" />
-                <LegendChip color={COLOR_OUTPUT} label="Output" />
-                <LegendChip color={COLOR_COST} label="Cost" line />
-              </div>
-              <Button asChild variant="ghost" size="sm" className="gap-1.5">
-                <Link href="/dashboard/usage">
-                  Full usage
-                  <ArrowRight />
-                </Link>
-              </Button>
-            </>
-          }
-        />
-        <div
-          className="h-[300px] min-w-0 px-2 pb-3 pt-5 sm:px-4"
-          role="img"
-          aria-label="Input and output tokens with estimated cost over the selected period"
-        >
-          {chartHasData ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={periodData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
-                <CartesianGrid vertical={false} {...CHART_GRID} />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={CHART_TICK}
-                  tickMargin={10}
-                  minTickGap={16}
-                />
-                <YAxis
-                  yAxisId="tokens"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={CHART_TICK}
-                  tickFormatter={formatNumber}
-                  width={54}
-                />
-                <YAxis yAxisId="cost" orientation="right" hide />
-                <Tooltip
-                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  labelStyle={CHART_TOOLTIP_LABEL}
-                  formatter={(value, name) => [
-                    name === "Cost" ? formatCurrency(value) : formatNumber(value),
-                    name,
-                  ]}
-                />
-                <Area
-                  yAxisId="tokens"
-                  type="monotone"
-                  dataKey="promptTokens"
-                  name="Input"
-                  stackId="tokens"
-                  stroke={COLOR_INPUT}
-                  fill={COLOR_INPUT}
-                  fillOpacity={0.28}
-                  strokeWidth={1.5}
-                  isAnimationActive={false}
-                />
-                <Area
-                  yAxisId="tokens"
-                  type="monotone"
-                  dataKey="completionTokens"
-                  name="Output"
-                  stackId="tokens"
-                  stroke={COLOR_OUTPUT}
-                  fill={COLOR_OUTPUT}
-                  fillOpacity={0.28}
-                  strokeWidth={1.5}
-                  isAnimationActive={false}
-                />
-                <Line
-                  yAxisId="cost"
-                  type="monotone"
-                  dataKey="cost"
-                  name="Cost"
-                  stroke={COLOR_COST}
-                  strokeWidth={1.75}
-                  dot={false}
-                  activeDot={{ r: 3 }}
-                  isAnimationActive={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState
-              className="h-full"
-              title="No traffic in this period"
-              description="Requests appear here as they pass through the gateway."
-            />
-          )}
-        </div>
-      </Card>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
         <Card padding="none" className="min-w-0 overflow-hidden">

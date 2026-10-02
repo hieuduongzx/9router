@@ -19,7 +19,7 @@ import UsageTable, { fmt, fmtTime } from "@/app/(dashboard)/dashboard/usage/comp
 import dynamic from "next/dynamic";
 // Lazy-load: keeps @xyflow/react and recharts out of the initial bundle
 const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false });
-const UsageChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/UsageChart"), { ssr: false });
+const UsageTimeChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/UsageTimeChart"), { ssr: false });
 const ProviderBarChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderBarChart"), { ssr: false });
 const TopModelsChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/TopModelsChart"), { ssr: false });
 
@@ -500,8 +500,8 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         </div>
       ))}
 
-      {/* Token / Cost chart - sync period */}
-      {loading ? spinner : <UsageChart period={period} scope={isAdmin ? "system" : undefined} />}
+      {/* Token / Cost / Requests chart - hourly buckets, sync period */}
+      {loading ? spinner : <UsageTimeChart period={period} scope={isAdmin ? "system" : undefined} />}
 
       {/* Provider and model breakdown charts */}
       {!loading && (stats.byProvider || stats.byModel) && (
