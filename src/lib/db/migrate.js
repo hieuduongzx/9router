@@ -258,10 +258,18 @@ export async function runMigrationOnce(adapter) {
     }
   }
 
-  // 1. Always run versioned migrations chain (skip-version safe)
+  // 1. Additive sync BEFORE the versioned chain. A DB written by an older
+  //    schema may be stamped at a version whose migrations read a table it does
+  //    not have (e.g. #5 reads `settings`, but a DB that only ever saw the
+  //    initial tables has none). Creating every TABLES-declared table first is
+  //    idempotent and keeps the migrations from tripping on a missing table.
+  syncSchemaFromTables(adapter);
+
+  // 2. Versioned migrations chain (skip-version safe)
   const migInfo = runVersionedMigrations(adapter);
 
-  // 2. Additive sync (auto add missing columns/indexes declared in TABLES)
+  // 3. Additive sync again, reconciling anything the migrations left behind
+  //    (auto add missing columns/indexes declared in TABLES).
   syncSchemaFromTables(adapter);
 
   // Stamp the schema version we just reached so future boots skip re-backup.

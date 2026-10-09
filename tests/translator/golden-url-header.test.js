@@ -21,6 +21,10 @@ const SPECIALIZED = new Set([
   "codex", "cursor", "vertex", "vertex-partner", "opencode",
   "opencode-go", "grok-web", "perplexity-web", "ollama-local", "commandcode",
   "xiaomi-tokenplan", "mimo-free",
+  // MiniMax Code has its own executor and injects a per-request
+  // X-Mavis-Session-Id (randomUUID) + a machine-dependent timezone header, so
+  // its headers cannot be locked by a deterministic snapshot.
+  "minimax-code", "minimax-code-global",
 ]);
 
 // Sanitize header: khử token + field thời gian động (kimi X-Msh-Device-Id) để snapshot ổn định.

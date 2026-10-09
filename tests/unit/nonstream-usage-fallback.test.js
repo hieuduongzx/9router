@@ -26,9 +26,16 @@ describe("extractUsageFromResponse — non-standard usage blocks", () => {
     expect(usage).toMatchObject({ prompt_tokens: 0, completion_tokens: 42 });
   });
 
-  it("reads Ollama-style top-level counters", () => {
-    const usage = extractUsageFromResponse({ prompt_eval_count: 12, eval_count: 5 });
+  it("reads Ollama-style top-level counters on the final chunk", () => {
+    // Ollama reports prompt_eval_count/eval_count only on the terminal chunk
+    // (done:true); intermediate chunks carry no counters, so reading them
+    // without the guard would record usage for every streaming chunk.
+    const usage = extractUsageFromResponse({ prompt_eval_count: 12, eval_count: 5, done: true });
     expect(usage).toMatchObject({ prompt_tokens: 12, completion_tokens: 5 });
+  });
+
+  it("ignores Ollama counters on a non-final chunk", () => {
+    expect(extractUsageFromResponse({ prompt_eval_count: 12, eval_count: 5, done: false })).toBeNull();
   });
 
   it("still returns null when there is nothing to read", () => {

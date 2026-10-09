@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { Card, Button, Input, Modal, CardSkeleton, ConfirmModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Icon } from "@/shared/components/ui/icon";
+import KeyAccessControls from "../endpoint/components/KeyAccessControls";
 
 function maskKey(fullKey) {
   if (!fullKey || fullKey.length <= 10) return fullKey || "";
@@ -99,6 +100,24 @@ export default function ApiKeysPageClient() {
     }
   };
 
+  const handleUpdateKeyAccess = async (id, access) => {
+    try {
+      const res = await fetch(`/api/keys/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.key) {
+        setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, access: data.key.access } : k)));
+      } else {
+        console.log("Error updating key access:", data.error || res.status);
+      }
+    } catch (error) {
+      console.log("Error updating key access:", error);
+    }
+  };
+
   const toggleKeyVisibility = (keyId) => {
     setVisibleKeys((prev) => {
       const next = new Set(prev);
@@ -174,8 +193,8 @@ export default function ApiKeysPageClient() {
                   const isActive = key.isActive !== false;
                   const isVisible = visibleKeys.has(key.id);
                   return (
+                    <Fragment key={key.id}>
                     <tr
-                      key={key.id}
                       className={isActive ? "" : "bg-bg-alt/40"}
                     >
                       <td className="px-4 py-3 sm:px-5">
@@ -255,6 +274,23 @@ export default function ApiKeysPageClient() {
                         </div>
                       </td>
                     </tr>
+                    <tr className={isActive ? "" : "bg-bg-alt/40"}>
+                      <td colSpan={5} className="px-4 pb-3 pt-0 sm:px-5">
+                        <KeyAccessControls
+                          apiKey={key}
+                          onChange={(access) => handleUpdateKeyAccess(key.id, access)}
+                          onRequestRestrict={() => setConfirmState({
+                            title: "Restrict API Key",
+                            message: `Restrict API key "${key.name}"?\n\nIt will only be able to call the combos and models you add. Until you add one, it can call nothing.`,
+                            onConfirm: async () => {
+                              setConfirmState(null);
+                              handleUpdateKeyAccess(key.id, { restricted: true, allow: key.access?.allow || [] });
+                            },
+                          })}
+                        />
+                      </td>
+                    </tr>
+                    </Fragment>
                   );
                 })}
               </tbody>

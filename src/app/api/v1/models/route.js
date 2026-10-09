@@ -8,6 +8,7 @@ import {
 } from "@/shared/constants/providers";
 import { getProviderConnections, getCombos, getCustomModels, getModelAliases, getPublishedModels } from "@/lib/localDb";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
+import { getKeyAccessContext, filterModelsListForKey } from "@/sse/services/keyAccess.js";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 import { comboRoutedModels } from "open-sse/services/comboMembers.js";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
@@ -652,11 +653,15 @@ export async function buildDashboardModelsList() {
     getCombos(),
     getPublishedModels(),
   ]);
+  // `comboId` marks each entry as a published route so the per-key access filter
+  // (filterModelsListForKey) can match it by combo name. It is stripped from the
+  // public response by the GET handler below.
   return buildPublishedModelsCatalog(combos, publishedModels).map((model) => ({
     id: model.id,
     object: model.object,
     owned_by: model.owned_by,
     capabilities: model.capabilities,
+    comboId: model.comboId,
   }));
 }
 
@@ -666,7 +671,14 @@ export async function buildDashboardModelsList() {
  */
 export async function GET(request) {
   try {
-    const data = await buildDashboardModelsList();
+    // Router2k publishes only Model Routes (combos) here, then narrows to what
+    // the presented key may call. comboId is internal and stripped before return.
+    const data = (
+      await filterModelsListForKey(
+        await getKeyAccessContext(request),
+        await buildDashboardModelsList()
+      )
+    ).map(({ comboId, ...model }) => model);
     return Response.json({ object: "list", data }, {
       headers: { "Access-Control-Allow-Origin": "*" },
     });

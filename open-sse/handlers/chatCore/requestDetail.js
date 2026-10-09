@@ -64,14 +64,6 @@ export function extractUsageFromResponse(responseBody) {
     }
   }
 
-  // Ollama-style counters sit at the top level rather than under `usage`.
-  if (responseBody.prompt_eval_count !== undefined || responseBody.eval_count !== undefined) {
-    return {
-      prompt_tokens: responseBody.prompt_eval_count || 0,
-      completion_tokens: responseBody.eval_count || 0
-    };
-  }
-
   // Gemini format. Antigravity / gemini-cli wrap the payload in { response: {...} }.
   const usageMetadata = responseBody.usageMetadata || responseBody.response?.usageMetadata;
   if (usageMetadata) {
@@ -80,6 +72,21 @@ export function extractUsageFromResponse(responseBody) {
       completion_tokens: usageMetadata.candidatesTokenCount || 0,
       cached_tokens: usageMetadata.cachedContentTokenCount || 0,
       reasoning_tokens: usageMetadata.thoughtsTokenCount || 0
+    };
+  }
+
+  // Ollama format: prompt_eval_count/eval_count at top level (not nested under usage).
+  // prompt_eval_cached_count is a cache-read subset of prompt_eval_count (cache-INCLUSIVE).
+  if (responseBody.done === true &&
+      (responseBody.prompt_eval_count !== undefined || responseBody.eval_count !== undefined)) {
+    const prompt = responseBody.prompt_eval_count || 0;
+    const completion = responseBody.eval_count || 0;
+    const cached = responseBody.prompt_eval_cached_count || 0;
+    return {
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: prompt + completion,
+      cached_tokens: cached
     };
   }
 
