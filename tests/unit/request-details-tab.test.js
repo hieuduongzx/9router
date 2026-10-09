@@ -50,6 +50,37 @@ afterAll(() => {
 });
 
 describe("request details — tab crash-risk cases", () => {
+  it("preserves request and upstream effort when a large provider payload is truncated", async () => {
+    const { extractRequestConfig } = await import("../../open-sse/handlers/chatCore/requestDetail.js");
+    await saveDetail({
+      id: "thinking-truncated", provider: "openai", model: "effort-model", cost: 0,
+      request: extractRequestConfig({ reasoning_effort: "max", messages: [{ role: "user", content: "secret".repeat(2000) }] }, true),
+      providerRequest: { reasoning: { effort: "high" }, input: [{ content: "secret".repeat(2000) }] },
+      tokens: { prompt_tokens: 10, completion_tokens: 5, reasoning_tokens: 3 },
+    });
+    const detail = await db.getRequestDetailById("thinking-truncated");
+    expect(detail.reasoning).toEqual({ request: { mode: "level", level: "max" }, upstream: { mode: "level", level: "high" } });
+    expect(detail.request.reasoning_effort).toBe("max");
+    expect(detail.providerRequest._truncated).toBe(true);
+    expect(detail.tokens.reasoning_tokens).toBe(3);
+  });
+
+  it("recovers thinking metadata from old payloads without inventing an effort", async () => {
+    for (const [id, request, providerRequest, expected] of [
+      ["thinking-old", {}, { thinking: { type: "adaptive" }, output_config: { effort: "high" } }, { request: null, upstream: { mode: "level", level: "high" } }],
+      ["thinking-budget", { thinking: { type: "enabled", budget_tokens: 8192 } }, { generationConfig: { thinkingConfig: { thinkingBudget: 8192 } } }, { request: { mode: "budget", budget: 8192 }, upstream: { mode: "budget", budget: 8192 } }],
+      ["thinking-on", { thinking: { type: "enabled" } }, { thinking: { type: "adaptive" } }, { request: { mode: "enabled" }, upstream: { mode: "adaptive" } }],
+      ["thinking-none", { reasoning_effort: "none" }, { params: { reasoning_effort: "none" } }, { request: { mode: "none" }, upstream: { mode: "none" } }],
+      ["thinking-missing", {}, {}, { request: null, upstream: null }],
+    ]) {
+      adapter.run(
+        "INSERT INTO requestDetails(id, timestamp, provider, model, status, data) VALUES(?, ?, ?, ?, ?, ?)",
+        [id, new Date().toISOString(), "openai", "effort-model", "ok", JSON.stringify({ id, provider: "openai", model: "effort-model", tokens: {}, request, providerRequest })],
+      );
+      expect((await db.getRequestDetailById(id)).reasoning).toEqual(expected);
+    }
+  });
+
   it("corrupt data column → safe priced fallback, no throw", async () => {
     // Inject a row with invalid JSON directly, bypassing save path
     adapter.run(
@@ -500,7 +531,8 @@ describe("API route contract — validation boundary", () => {
     const adminKey = await db.createApiKey("Admin usage", "machine-admin-usage", adminOwner.id);
     await saveDetail({
       id: "admin-own-detail", apiKey: adminKey.key, provider: "openai", model: "admin-model",
-      status: "ok", tokens: {}, request: { stream: false }, response: {},
+      status: "ok", tokens: {}, request: { stream: false, reasoning_effort: "high", messages: [{ content: "private-thinking-prompt" }] },
+      providerRequest: { reasoning: { effort: "medium" }, input: [{ content: "private-thinking-prompt" }] }, response: {},
     });
     await saveDetail({
       id: "admin-foreign-detail", apiKey: "sk-admin-foreign", provider: "openai", model: "foreign-model",
@@ -517,6 +549,8 @@ describe("API route contract — validation boundary", () => {
     const owned = body.details.find((detail) => detail.id === "admin-own-detail");
     expect(owned).toMatchObject({ apiKeyName: "Admin usage", apiKeyId: adminKey.id });
     expect(owned.request).toEqual({ redacted: true, stream: false });
+    expect(owned.reasoning).toEqual({ request: { mode: "level", level: "high" }, upstream: { mode: "level", level: "medium" } });
+    expect(JSON.stringify(owned)).not.toContain("private-thinking-prompt");
   });
 
   it("account route returns only details for API keys owned by the signed-in user", async () => {

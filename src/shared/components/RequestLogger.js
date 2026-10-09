@@ -7,6 +7,7 @@ import CursorPagination from "./CursorPagination";
 import RequestDetailDrawer, { useRequestDetailDrawer } from "./RequestDetailDrawer";
 import RequestTableColumnSettings, { useRequestTableColumns } from "./RequestTableColumnSettings";
 import StatusPill from "./StatusPill";
+import { Icon } from "./ui/icon";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -78,7 +79,7 @@ function activityCellTitle(id, log) {
   return undefined;
 }
 
-export default function RequestLogger({ period = "all" }) {
+export default function RequestLogger({ period = "all", expanded = false, onToggleExpanded }) {
   const { columns, visibility } = useRequestTableColumns("activity");
   const visibleColumns = columns.filter((column) => visibility[column.id] !== false);
   const [logs, setLogs] = useState([]);
@@ -126,7 +127,7 @@ export default function RequestLogger({ period = "all" }) {
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [page, pageSize, period]);
+  }, [page, pageSize, period, setPage]);
 
   useEffect(() => {
     const id = setTimeout(fetchLogs, 0);
@@ -148,6 +149,17 @@ export default function RequestLogger({ period = "all" }) {
           <p className="mt-0.5 text-xs text-muted-foreground">Account ownership is resolved from the API key used for each request.</p>
         </div>
         <div className="flex items-center gap-3 self-start sm:self-auto">
+          {onToggleExpanded && (
+            <button
+              type="button"
+              onClick={onToggleExpanded}
+              aria-pressed={expanded}
+              className="inline-flex min-h-9 items-center gap-2 rounded-sm border border-border px-3 text-xs font-medium text-foreground hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <Icon name={expanded ? "expand_less" : "expand_more"} className="size-4" aria-hidden="true" />
+              {expanded ? "Show overview" : "Expand requests"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setAutoRefresh((value) => !value)}
@@ -174,7 +186,7 @@ export default function RequestLogger({ period = "all" }) {
       )}
 
       <Card padding="none" className="overflow-hidden">
-        <div className="max-h-[600px] overflow-auto">
+        <div className={expanded ? "overflow-x-auto" : "max-h-[600px] overflow-auto"}>
           {loading && logs.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Loading logs...</div>
           ) : logs.length === 0 ? (
@@ -241,4 +253,6 @@ export default function RequestLogger({ period = "all" }) {
 
 RequestLogger.propTypes = {
   period: PropTypes.string,
+  expanded: PropTypes.bool,
+  onToggleExpanded: PropTypes.func,
 };

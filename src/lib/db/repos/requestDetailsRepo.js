@@ -2,6 +2,7 @@ import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { calculateRequestCost, calculateRequestCostBreakdown } from "./usageRepo.js";
 import { providerLabel } from "../../../shared/utils/providerLabel.js";
+import { extractThinking } from "open-sse/translator/concerns/thinkingUnified.js";
 
 const DEFAULT_MAX_RECORDS = 200;
 const DEFAULT_BATCH_SIZE = 20;
@@ -107,6 +108,24 @@ function truncateRequestConfig(request, maxSize) {
   };
 }
 
+function requestThinking(body) {
+  const payload = body?.body || body;
+  const intent = extractThinking(payload) || extractThinking(payload?.params);
+  if (intent?.mode === "auto" && !payload?.reasoning_effort && !payload?.reasoning?.effort) {
+    if (payload?.thinking?.type === "enabled") return { mode: "enabled" };
+    if (payload?.thinking?.type === "adaptive") return { mode: "adaptive" };
+    if (payload?.enable_thinking === true) return { mode: "enabled" };
+  }
+  return intent;
+}
+
+function getReasoningMetadata(detail) {
+  return detail.reasoning || {
+    request: requestThinking(detail.request),
+    upstream: requestThinking(detail.providerRequest),
+  };
+}
+
 async function flushToDatabase() {
   if (isFlushing) return;
   if (writeBuffer.length === 0) return;
@@ -135,6 +154,9 @@ async function flushToDatabase() {
             status: item.status || null,
             latency: item.latency || {},
             tokens: item.tokens || {},
+            // Preserve small thinking metadata even when payloads are truncated
+            // or redacted by the account history endpoint.
+            reasoning: getReasoningMetadata(item),
             cost: Number.isFinite(item.cost) ? item.cost : 0,
             request: truncateRequestConfig(item.request, config.maxJsonSize),
             providerRequest: truncateField(item.providerRequest, config.maxJsonSize),
@@ -251,6 +273,7 @@ async function withRequestCost(detail) {
 
   return {
     ...detail,
+    reasoning: getReasoningMetadata(detail),
     cost: hasCost ? detail.cost : (breakdown ? breakdown.total : await calculateRequestCost(detail.provider, detail.model, detail.tokens, detail.publicModel)),
     costInput: breakdown?.input ?? null,
     costOutput: breakdown?.output ?? null,

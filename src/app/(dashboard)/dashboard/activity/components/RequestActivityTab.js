@@ -35,6 +35,7 @@ export default function RequestActivityTab({ period }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,20 +73,15 @@ export default function RequestActivityTab({ period }) {
   ].filter((item) => Number.isFinite(Number(item.value)));
 
 
-  if (loading && !stats) {
-    return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading request activity">
-        {[0, 1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse bg-surface-2" />)}
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>;
-  }
-
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {!expanded && (loading && !stats ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading request activity">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse bg-surface-2" />)}
+        </div>
+      ) : error ? (
+        <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
+      ) : <>
       <div className="tile-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile chip="requests" label="Total requests" value={formatNumber(totalRequests)} sub="Matches the System total for this period" />
         <StatTile chip="success" label="Successful" value={formatNumber(success)} sub={`${rate(success, totalRequests)} of all requests`} />
@@ -135,7 +131,8 @@ export default function RequestActivityTab({ period }) {
           </div>
         </Card>
       </div>
-      <RequestLogger key={period} period={period} />
+      </>)}
+      <RequestLogger key={period} period={period} expanded={expanded} onToggleExpanded={() => setExpanded((value) => !value)} />
     </div>
   );
 }

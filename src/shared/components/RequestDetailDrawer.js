@@ -7,6 +7,7 @@ import { cn } from "@/shared/utils/cn";
 import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { Icon } from "@/shared/components/ui/icon";
+import { formatRequestReasoning } from "@/shared/utils/requestReasoning";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -60,6 +61,7 @@ export function buildDetailReport(detail, providerName) {
         : ""
     }`,
     `model        : ${detail.model || "—"}`,
+    `thinking     : request ${formatRequestReasoning(detail.reasoning?.request)} / upstream ${formatRequestReasoning(detail.reasoning?.upstream)}`,
     `mode         : ${request.stream === true ? "stream" : request.stream === false ? "sync" : "—"}`,
     `status       : ${detail.status || "—"}`,
     `latency      : ttft ${formatTiming(detail.latency?.ttft)} / total ${formatTiming(detail.latency?.total)}`,
@@ -83,6 +85,10 @@ export function buildDetailReport(detail, providerName) {
     tool_choice: request.tool_choice,
     response_format: request.response_format,
     thinking: request.thinking ?? request.reasoning ?? request.enable_thinking,
+    reasoning_effort: request.reasoning_effort,
+    thinking_budget: request.thinking_budget,
+    output_config: request.output_config,
+    thinkingConfig: request.thinkingConfig ?? request.generationConfig?.thinkingConfig,
     temperature: request.temperature,
     top_p: request.top_p,
   };
@@ -294,6 +300,9 @@ export default function RequestDetailDrawer({
             <SummaryRow label="Mode" value={detail.request?.stream === true ? "stream" : detail.request?.stream === false ? "sync" : "—"} />
             {showProviderDetails && <SummaryRow label="Provider" value={resolvedProviderName} mono={false} />}
             <SummaryRow label="Model" value={detail.model || "—"} />
+            <SummaryRow label="Request thinking / effort" value={formatRequestReasoning(detail.reasoning?.request)} />
+            <SummaryRow label="Upstream thinking / effort" value={formatRequestReasoning(detail.reasoning?.upstream)} />
+            <p className="px-3 pb-2.5 text-xs text-muted-foreground">Upstream is the setting sent to the provider. — means no setting was recorded.</p>
             {(detail.account?.apiKeyName || detail.apiKeyName) && (
               <SummaryRow label="API key" value={detail.account?.apiKeyName || detail.apiKeyName} />
             )}
@@ -303,6 +312,7 @@ export default function RequestDetailDrawer({
           <SummarySection icon="tag" title="Tokens">
             <SummaryRow label="Input" value={NUMBER_FORMAT.format(inputTokens)} />
             <SummaryRow label="Output" value={NUMBER_FORMAT.format(outputTokens)} />
+            <SummaryRow label="Reasoning" value={Number.isFinite(detail.tokens?.reasoning_tokens) ? NUMBER_FORMAT.format(detail.tokens.reasoning_tokens) : "—"} />
             <SummaryRow
               label="Total"
               strong
