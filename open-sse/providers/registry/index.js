@@ -137,6 +137,7 @@ import p134 from "./minimax-code.js";
 import p135 from "./minimax-code-global.js";
 import p136 from "./bedrock.js";
 import p137 from "./bedrock-xai.js";
+import p138 from "./nous.js";
 
 const registry = [
   p0,
@@ -275,6 +276,7 @@ const registry = [
   p135,
   p136,
   p137,
+  p138,
 ];
 
 export default registry;

@@ -118,7 +118,7 @@ export default function CombosPage() {
         setCanEditPricing(combosData.canEditPricing === true);
       }
       if (providersRes.ok) {
-        setActiveProviders(providersData.connections || []);
+        setActiveProviders((providersData.connections || []).filter((c) => c.isActive !== false));
       }
       if (modelProvidersRes.ok) setModelProviders(modelProvidersData.providers || []);
       setComboStrategies(settingsData.comboStrategies || {});
