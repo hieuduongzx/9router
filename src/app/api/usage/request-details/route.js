@@ -40,6 +40,14 @@ export async function GET(request) {
         { status: 400 }
       );
     }
+
+    // An unparseable date used to reach `new Date(x).toISOString()` in the repo
+    // and surface as a 500; reject it as the client error it is.
+    for (const value of [startDate, endDate]) {
+      if (value && Number.isNaN(new Date(value).getTime())) {
+        return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+      }
+    }
     
     const filter = {
       page,

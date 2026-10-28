@@ -547,7 +547,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
         </Card>
       </div>
 
-      <RequestDetailsTab period={period} userId={user.id} />
+      <RequestDetailsTab period={period} userId={user.id} showPeriodFilter={false} />
       </div>
       )}
 

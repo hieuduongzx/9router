@@ -2,7 +2,7 @@
 export {
   statsEmitter, trackPendingRequest, getActiveRequests,
   saveRequestUsage, saveRequestFailure, getUsageHistory, getUsageStats, getSystemUsageOverview, getChartData,
-  getUsageByOwner,
+  getUsageByOwner, getUsageFacets, USAGE_STATUS_BUCKETS,
   appendRequestLog, getRecentLogs, getRequestLogsPage,
   saveRequestDetail, getRequestDetails, getRequestDetailById,
 } from "@/lib/db/index.js";

@@ -495,11 +495,13 @@ describe("API route contract — validation boundary", () => {
     expect(body.pagination.pageSize).toBe(20);
   });
 
-  it("invalid startDate → route catches, returns 500 (not thrown)", async () => {
+  it("invalid startDate → route rejects it as a 400 before querying", async () => {
+    // A bad date is the caller's error; it used to reach the repo, throw a
+    // RangeError and surface as a misleading 500.
     const res = await GET(makeReq("startDate=not-a-date"));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBeDefined();
+    expect(body.error).toBe("Invalid date");
   });
 
   it("valid request → 200 with details + pagination shape", async () => {

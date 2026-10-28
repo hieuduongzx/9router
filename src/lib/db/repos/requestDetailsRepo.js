@@ -2,6 +2,7 @@ import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { calculateRequestCost, calculateRequestCostBreakdown } from "./usageRepo.js";
 import { providerLabel } from "../../../shared/utils/providerLabel.js";
+import { statusBucketClause } from "../helpers/statusBuckets.js";
 import { extractThinking } from "open-sse/translator/concerns/thinkingUnified.js";
 
 const DEFAULT_MAX_RECORDS = 200;
@@ -288,7 +289,13 @@ export async function getRequestDetails(filter = {}) {
   if (filter.provider) { conds.push("rd.provider = ?"); params.push(filter.provider); }
   if (filter.model) { conds.push("rd.model = ?"); params.push(filter.model); }
   if (filter.connectionId) { conds.push("rd.connectionId = ?"); params.push(filter.connectionId); }
-  if (filter.status) { conds.push("rd.status = ?"); params.push(filter.status); }
+  if (filter.status) {
+    // An outcome bucket ("error") matches every stored variant ("error_502");
+    // anything else is still an exact match on the stored value.
+    const bucket = statusBucketClause("rd.status", filter.status);
+    if (bucket) conds.push(bucket);
+    else { conds.push("rd.status = ?"); params.push(filter.status); }
+  }
   if (filter.startDate) { conds.push("rd.timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
   if (filter.endDate) { conds.push("rd.timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
   addApiKeyFilter(filter, conds, params, "rd.apiKey");

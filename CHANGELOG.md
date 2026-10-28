@@ -1,6 +1,33 @@
 # Unreleased (Router2k)
 
 ## Features
+- **Filters**: one shared filter bar for usage tables — time range with a
+  custom date range, model, provider, outcome (succeeded / failed / rate
+  limited) and, for admins, account. Active filters show as removable chips.
+  Options come from the new `GET /api/usage/facets` (models and providers that
+  actually occur in the caller's scope, busiest first)
+- **Activity**: Request Logs can be filtered by account (including keyless
+  local traffic and unassigned keys), model, provider and outcome; filters live
+  in the URL so a filtered view can be linked. `GET /api/usage/request-logs`
+  accepts `userId`, `apiKeyId`, `model`, `provider`, `status`, `startDate`,
+  `endDate`
+- **Activity**: the outcome donut is replaced by a 100% bar with exact counts
+  (failures stay visible at a 98% success rate), and the avg/p50/p95 bars by a
+  per-model p50→p95 latency range chart (`stats.latency.byModel`)
+- **Accounts**: usage columns can be scoped to a model, a provider and a custom
+  date range ("who used gemini-4-argon last week"); new filters for activity
+  and low / no credit; sort by spend, tokens or lowest credit; a spend bar and
+  top-model column per account; bulk suspend / reactivate; CSV export; "View
+  requests" opens Activity filtered to that account
+- **Usage**: request history has model / provider / outcome filters, its own
+  time range with custom dates, and CSV export of the loaded page; the same
+  filters appear on an account's Requests tab
+- **Usage**: allocation cards drop the five-slice donut for a ranked share list
+  that follows the token/cost toggle and folds the tail into "Other"
+- **Dashboard**: the admin System Usage chart shows a cost axis instead of
+  plotting cost against a hidden scale
+- **Requests**: status pills distinguish "Rate limited" from failures and show
+  the HTTP code of a failure (`Failed · 502`)
 - **Activity**: the admin Activity page is now the single system-inspection
   surface — the System tab carries the hourly usage time chart (metric +
   by-model toggle) and model/account/endpoint allocation, while Providers and
@@ -47,6 +74,19 @@
   the other way — out of the header and into the foot of the rail
 
 ## Fixes
+- **Gemini API**: native `/v1beta/models/*:generateContent` calls authenticated
+  with `x-goog-api-key` or `?key=` (how Google SDKs send the key) were rejected
+  as "Missing API key"; the route now hands the client key to the chat handler
+- **Usage**: the request history tab had no time filter at all and always
+  listed all-time requests; tab links left the `/admin` shell; a hidden "logs"
+  tab called an admin-only API for normal users
+- **Activity**: a failed request-log fetch rendered as "No request details
+  recorded yet" instead of an error
+- **API**: an unparseable `startDate` / `endDate` on request-details now returns
+  400 instead of a 500
+- **Tests**: Gemini native endpoint and per-key access suites mocked the
+  upstream auth and model catalog; fixtures now model the fork's billing gate
+  and published-routes catalog
 - **Usage**: `/dashboard/usage` Model request history is scoped to the signed-in
   account even for administrators — system-wide history stays on Activity / a
   specific Users page (`?userId=`)

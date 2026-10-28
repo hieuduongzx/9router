@@ -4,6 +4,9 @@ import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
 import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "../../../shared/utils/requestTokens.js";
 import { providerLabel } from "../../../shared/utils/providerLabel.js";
+import { normalizeUsageStatus, statusBucketClause, toIsoOrNull } from "../helpers/statusBuckets.js";
+
+export { USAGE_STATUS_BUCKETS } from "../helpers/statusBuckets.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -670,14 +673,6 @@ function buildApiKeyClause(apiKeyFilter, { leadingAnd = true, column = "apiKey" 
   return { clause: `${prefix}${column} = ?`, params: [apiKeyFilter] };
 }
 
-function normalizeUsageStatus(status) {
-  const raw = String(status || "ok").trim().toLowerCase();
-  if (!raw || raw === "ok" || raw === "success") return "success";
-  if (raw.includes("429") || raw.includes("rate")) return "rate_limited";
-  if (raw.includes("fail") || raw.includes("error") || raw === "error") return "error";
-  return "other";
-}
-
 function percentileSorted(sorted, p) {
   if (!sorted.length) return null;
   if (sorted.length === 1) return sorted[0];
@@ -781,6 +776,7 @@ function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = 
   const latencyRows = db.all(
     `SELECT
         rd.status AS status,
+        rd.model AS model,
         CASE
           WHEN json_valid(rd.data)
           THEN CAST(json_extract(rd.data, '$.latency.total') AS REAL)
@@ -794,13 +790,20 @@ function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = 
   const allLat = [];
   const okLat = [];
   const errLat = [];
+  const okLatByModel = new Map();
   for (const row of latencyRows) {
     const bucket = normalizeUsageStatus(row.status);
     const ms = Number(row.totalMs);
     if (!Number.isFinite(ms) || ms < 0) continue;
     allLat.push(ms);
-    if (bucket === "success") okLat.push(ms);
-    else if (bucket === "error" || bucket === "rate_limited") errLat.push(ms);
+    if (bucket === "success") {
+      okLat.push(ms);
+      // Per-model spread uses successful calls only: a fast-failing 429 would
+      // otherwise drag a slow model's p50 down and hide the real wait.
+      const model = row.model || "unknown";
+      if (!okLatByModel.has(model)) okLatByModel.set(model, []);
+      okLatByModel.get(model).push(ms);
+    } else if (bucket === "error" || bucket === "rate_limited") errLat.push(ms);
   }
   allLat.sort((a, b) => a - b);
   okLat.sort((a, b) => a - b);
@@ -816,6 +819,11 @@ function attachQualityAndUserStats(stats, db, period, apiKeyFilter, apiKeyMap = 
     all: mkLat(allLat),
     success: mkLat(okLat),
     error: mkLat(errLat),
+    // Busiest models first; a chart has room for a handful, not every model.
+    byModel: [...okLatByModel.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 8)
+      .map(([model, samples]) => ({ model, ...mkLat(samples.sort((a, b) => a - b)) })),
   };
 }
 
@@ -1407,29 +1415,69 @@ export async function getModelRanking(period = "7d", options = {}) {
  * last request timestamp. Cheap enough for the admin Accounts list, which needs
  * per-user activity without running the full `getUsageStats` pipeline per user.
  * @param {string} [period="30d"] window used for the `*InPeriod` fields
+ * @param {object} [filters]
+ * @param {string} [filters.model] count only requests to this model (lifetime and window)
+ * @param {string} [filters.provider] count only requests to this provider
+ * @param {string} [filters.startDate] window start; overrides `period`
+ * @param {string} [filters.endDate] window end (inclusive)
  * @returns {Promise<Record<string, object>>} keyed by userId
  */
-export async function getUsageByOwner(period = "30d") {
+export async function getUsageByOwner(period = "30d", filters = {}) {
   const db = await getAdapter();
-  const cutoff = getPeriodCutoffIso(period) || "";
+  const startIso = toIsoOrNull(filters.startDate) || getPeriodCutoffIso(period) || "";
+  const endIso = toIsoOrNull(filters.endDate);
+
+  // The window predicate appears in several aggregates, each needing its own params.
+  const inWindow = endIso ? "uh.timestamp >= ? AND uh.timestamp <= ?" : "uh.timestamp >= ?";
+  const windowParams = endIso ? [startIso, endIso] : [startIso];
+
+  const scopeConds = ["ak.ownerUserId IS NOT NULL"];
+  const scopeParams = [];
+  if (filters.model) { scopeConds.push("uh.model = ?"); scopeParams.push(filters.model); }
+  if (filters.provider) { scopeConds.push("uh.provider = ?"); scopeParams.push(filters.provider); }
+  const scopeWhere = scopeConds.join(" AND ");
+
   const rows = db.all(
     `SELECT ak.ownerUserId AS userId,
             COUNT(*) AS requests,
             COALESCE(SUM(uh.promptTokens), 0) AS promptTokens,
             COALESCE(SUM(uh.completionTokens), 0) AS completionTokens,
             COALESCE(SUM(uh.cost), 0) AS cost,
-            COALESCE(SUM(CASE WHEN uh.timestamp >= ? THEN 1 ELSE 0 END), 0) AS requestsInPeriod,
-            COALESCE(SUM(CASE WHEN uh.timestamp >= ? THEN uh.cost ELSE 0 END), 0) AS costInPeriod,
+            COALESCE(SUM(CASE WHEN ${inWindow} THEN 1 ELSE 0 END), 0) AS requestsInPeriod,
+            COALESCE(SUM(CASE WHEN ${inWindow} THEN uh.cost ELSE 0 END), 0) AS costInPeriod,
+            COALESCE(SUM(CASE WHEN ${inWindow} THEN COALESCE(uh.promptTokens, 0) + COALESCE(uh.completionTokens, 0) ELSE 0 END), 0) AS tokensInPeriod,
             MAX(uh.timestamp) AS lastUsed
        FROM usageHistory uh
        JOIN apiKeys ak ON ak.key = uh.apiKey
-      WHERE ak.ownerUserId IS NOT NULL
+      WHERE ${scopeWhere}
       GROUP BY ak.ownerUserId`,
-    [cutoff, cutoff],
+    [...windowParams, ...windowParams, ...windowParams, ...scopeParams],
   );
+
+  // Per-account model mix inside the window: drives the "top model" column and
+  // the distinct-model count without a second pass over every row in JS.
+  const modelRows = db.all(
+    `SELECT ak.ownerUserId AS userId, uh.model AS model, COUNT(*) AS requests
+       FROM usageHistory uh
+       JOIN apiKeys ak ON ak.key = uh.apiKey
+      WHERE ${scopeWhere} AND ${inWindow}
+      GROUP BY ak.ownerUserId, uh.model`,
+    [...scopeParams, ...windowParams],
+  );
+  const modelMix = {};
+  for (const row of modelRows) {
+    const mix = modelMix[row.userId] || (modelMix[row.userId] = { topModel: null, topRequests: 0, modelCount: 0 });
+    const requests = Number(row.requests) || 0;
+    mix.modelCount += 1;
+    if (requests > mix.topRequests) {
+      mix.topModel = row.model || "unknown";
+      mix.topRequests = requests;
+    }
+  }
 
   const byOwner = {};
   for (const row of rows) {
+    const mix = modelMix[row.userId];
     byOwner[row.userId] = {
       userId: row.userId,
       requests: Number(row.requests) || 0,
@@ -1438,10 +1486,67 @@ export async function getUsageByOwner(period = "30d") {
       cost: Number(row.cost) || 0,
       requestsInPeriod: Number(row.requestsInPeriod) || 0,
       costInPeriod: Number(row.costInPeriod) || 0,
+      tokensInPeriod: Number(row.tokensInPeriod) || 0,
+      topModel: mix?.topModel || null,
+      topModelRequests: mix?.topRequests || 0,
+      modelCount: mix?.modelCount || 0,
       lastUsed: row.lastUsed || null,
     };
   }
   return byOwner;
+}
+
+/**
+ * Values a usage filter can offer: models and providers that actually appear in
+ * the account scope, busiest first. Read from `usageHistory` (one narrow row per
+ * request) rather than `requestDetails`, whose JSON blobs are far heavier.
+ * @param {object} [options]
+ * @param {null|string|string[]} [options.apiKeyFilter] same contract as `buildApiKeyClause`
+ */
+export async function getUsageFacets(options = {}) {
+  const db = await getAdapter();
+  const ak = buildApiKeyClause(options.apiKeyFilter ?? null, { leadingAnd: false, column: "uh.apiKey" });
+  const scope = ak.clause ? `${ak.clause} AND ` : "";
+
+  const models = db.all(
+    `SELECT uh.model AS value, COUNT(*) AS count
+       FROM usageHistory uh
+      WHERE ${scope}uh.model IS NOT NULL AND uh.model <> ''
+      GROUP BY uh.model
+      ORDER BY count DESC
+      LIMIT 300`,
+    ak.params,
+  );
+  const providers = db.all(
+    `SELECT uh.provider AS value, COUNT(*) AS count
+       FROM usageHistory uh
+      WHERE ${scope}uh.provider IS NOT NULL AND uh.provider <> ''
+      GROUP BY uh.provider
+      ORDER BY count DESC`,
+    ak.params,
+  );
+
+  const nodeNames = {};
+  try {
+    const { getProviderNodes } = await import("./nodesRepo.js");
+    for (const node of await getProviderNodes()) {
+      if (node?.id && node?.name) nodeNames[node.id] = node.name;
+    }
+  } catch {}
+
+  return {
+    models: models.map((row) => ({ value: row.value, label: row.value, count: Number(row.count) || 0 })),
+    providers: providers.map((row) => ({
+      value: row.value,
+      label: providerLabel(row.value, nodeNames),
+      count: Number(row.count) || 0,
+    })),
+    statuses: [
+      { value: "success", label: "Succeeded" },
+      { value: "error", label: "Failed" },
+      { value: "rate_limited", label: "Rate limited" },
+    ],
+  };
 }
 
 export async function getSystemUsageOverview(period = "today") {
@@ -1674,15 +1779,47 @@ function formatLogDate(date = new Date()) {
 // No-op: request log is now derived from usageHistory table on read.
 export async function appendRequestLog() {}
 
-export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 30 } = {}) {
+/**
+ * One page of the admin request log, newest first.
+ * @param {object} [filters]
+ * @param {string} [filters.userId] owning account (via the API key); "__unassigned__" / "__local__" for keyless rows
+ * @param {string} [filters.apiKeyId]
+ * @param {string} [filters.model]
+ * @param {string} [filters.provider]
+ * @param {string} [filters.status] one of USAGE_STATUS_BUCKETS
+ * @param {string} [filters.startDate] overrides `period` when set
+ * @param {string} [filters.endDate]
+ */
+export async function getRequestLogsPage({ period = "all", page = 1, pageSize = 30, filters = {} } = {}) {
   const db = await getAdapter();
-  const cutoff = getPeriodCutoffIso(period);
-  const where = cutoff ? "WHERE rd.timestamp >= ?" : "";
-  const params = cutoff ? [cutoff] : [];
+  const conds = [];
+  const params = [];
+  const startIso = toIsoOrNull(filters.startDate) || getPeriodCutoffIso(period);
+  const endIso = toIsoOrNull(filters.endDate);
+  if (startIso) { conds.push("rd.timestamp >= ?"); params.push(startIso); }
+  if (endIso) { conds.push("rd.timestamp <= ?"); params.push(endIso); }
+  if (filters.model) { conds.push("rd.model = ?"); params.push(filters.model); }
+  if (filters.provider) { conds.push("rd.provider = ?"); params.push(filters.provider); }
+  const statusClause = filters.status ? statusBucketClause("rd.status", filters.status) : null;
+  if (statusClause) conds.push(statusClause);
+  if (filters.apiKeyId) { conds.push("ak.id = ?"); params.push(filters.apiKeyId); }
+  if (filters.userId === "__local__") {
+    conds.push("(rd.apiKey IS NULL OR rd.apiKey = '')");
+  } else if (filters.userId === "__unassigned__") {
+    conds.push("rd.apiKey IS NOT NULL AND rd.apiKey <> '' AND ak.ownerUserId IS NULL");
+  } else if (filters.userId) {
+    conds.push("ak.ownerUserId = ?");
+    params.push(filters.userId);
+  }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  // The count only needs the key join when a filter reads from it; skipping it
+  // keeps the unfiltered count a plain index scan on large tables.
+  const needsKeyJoin = Boolean(filters.apiKeyId || filters.userId);
+  const countJoin = needsKeyJoin ? "LEFT JOIN apiKeys ak ON ak.key = rd.apiKey" : "";
   const normalizedPageSize = Math.max(1, Math.min(100, Number(pageSize) || 30));
   const requestedPage = Math.max(1, Number(page) || 1);
   const countRow = db.get(
-    `SELECT COUNT(*) AS totalItems FROM requestDetails rd ${where}`,
+    `SELECT COUNT(*) AS totalItems FROM requestDetails rd ${countJoin} ${where}`,
     params,
   );
   const totalItems = countRow?.totalItems || 0;

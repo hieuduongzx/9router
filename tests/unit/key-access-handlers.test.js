@@ -5,8 +5,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const fx = vi.hoisted(() => ({
   combos: [
-    { id: "c1", name: "Main", models: ["openai/model-a", "openai/model-b"] },
+    { id: "c1", name: "Main", modelProvider: "openai", models: ["openai/model-a", "openai/model-b"] },
+    { id: "c2", name: "Second", modelProvider: "openai", models: ["openai/model-b"] },
   ],
+  // Router2k's public /v1/models lists only published Model Routes.
+  published: [{ comboId: "c1" }, { comboId: "c2" }],
   keys: {},
 }));
 const mocks = vi.hoisted(() => ({
@@ -15,7 +18,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/localDb", () => ({
-  getSettings: async () => ({ requireApiKey: false, comboStrategy: "fallback" }),
+  // restrictToPublishedModels off: this suite targets the per-key gate, and raw
+  // provider/model ids are never "published" in Router2k, so the publish gate
+  // would 404 them before the key gate is reached.
+  getSettings: async () => ({ requireApiKey: false, comboStrategy: "fallback", restrictToPublishedModels: false }),
+  getPublishedModels: async () => fx.published,
   getModelAliases: async () => ({}),
   getComboByName: async (name) => fx.combos.find((c) => c.name === name) || null,
   getProviderNodes: async () => [],
@@ -215,11 +222,10 @@ describe("/v1/models routes filter by key", () => {
 
   it("unrestricted sees the full catalog; restricted keys see only their entries", async () => {
     const all = await list("sk-open");
-    expect(all).toContain("Main");
-    const someModel = all.find((id) => id.startsWith("openai/"));
-    expect(someModel).toBeTruthy();
-    fx.keys["sk-mix"] = { id: "x", name: "mix", isActive: true, access: { restricted: true, allow: ["Main", someModel.toUpperCase()] } };
-    expect(await list("sk-mix")).toEqual(["Main", someModel]);
+    expect(all).toEqual(["Main", "Second"]);
+    // Allow-list entries match case-insensitively and return the catalog's spelling.
+    fx.keys["sk-mix"] = { id: "x", name: "mix", isActive: true, access: { restricted: true, allow: ["Main", "SECOND"] } };
+    expect(await list("sk-mix")).toEqual(["Main", "Second"]);
     expect(await list("sk-combo")).toEqual(["Main"]);
     expect(await list("sk-empty")).toEqual([]);
     expect(await list(null)).toEqual(all); // no key: unchanged (middleware governs remote access)
@@ -229,7 +235,9 @@ describe("/v1/models routes filter by key", () => {
     const emb = await (await kind("sk-open", ["embedding"])).json();
     expect(emb.data.length).toBeGreaterThan(0);
     expect((await (await kind("sk-empty", ["embedding"])).json()).data).toEqual([]);
-    const all = (await (await modelsRoute.GET(new Request("http://localhost/v1/models"))).json()).data;
+    // Single-model lookup resolves against the full LLM catalog (provider models
+    // included), not the published-routes list GET /v1/models returns.
+    const all = await modelsRoute.buildModelsList(["llm"]);
     const one = all.find((m) => m.owned_by !== "combo").id;
     expect((await kind("sk-open", one.split("/"))).status).toBe(200);
     expect((await kind("sk-empty", one.split("/"))).status).toBe(404);

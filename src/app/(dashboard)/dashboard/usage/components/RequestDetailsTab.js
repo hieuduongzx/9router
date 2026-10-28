@@ -10,6 +10,11 @@ import {
   StatusPill,
   EmptyState,
   Spinner,
+  Button,
+  UsageFilterBar,
+  useUsageFacets,
+  usageFiltersToParams,
+  countActiveUsageFilters,
 } from "@/shared/components";
 import {
   Card,
@@ -17,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { getUsagePeriodStartIso } from "@/shared/constants/usagePeriods";
 import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -88,13 +92,56 @@ function historyCell(id, detail) {
   }
 }
 
-function getEmptyMessage(period) {
-  return period === "all"
+function getEmptyMessage(filters) {
+  if (countActiveUsageFilters(filters) > 0) return "No model requests match these filters.";
+  return filters.period === "all"
     ? "No model requests have been recorded yet."
     : "No model requests were recorded in this period.";
 }
 
-export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "" }) {
+/** One CSV cell: quoted, with embedded quotes doubled. */
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(details) {
+  const header = ["time", "model", "provider", "api_key", "status", "input_tokens", "cached_tokens", "output_tokens", "latency_ms", "cost_usd", "request_id"];
+  const rows = details.map((detail) => [
+    new Date(detail.timestamp).toISOString(),
+    detail.model || "",
+    detail.providerName || detail.provider || "",
+    detail.apiKeyName || "",
+    detail.status || "",
+    getInputTokens(detail.tokens),
+    getCachedTokens(detail.tokens),
+    detail.tokens?.completion_tokens || 0,
+    Number.isFinite(Number(detail.latency?.total)) ? Math.round(detail.latency.total) : "",
+    Number.isFinite(detail.cost) ? detail.cost : "",
+    detail.id || "",
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `requests-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * @param {object} props
+ * @param {string} [props.period] initial (or, with showPeriodFilter=false, fixed) time range
+ * @param {boolean} [props.showPeriodFilter] let the tab own its time range, including custom dates
+ */
+export default function RequestDetailsTab({ period = "all", apiKeyId = "all", userId = "", showPeriodFilter = true }) {
+  const facets = useUsageFacets({ userId });
+  const [filters, setFilters] = useState({ period, startDate: "", endDate: "", model: "", provider: "", status: "" });
+  // The parent's period wins whenever it changes (the account page drives it).
+  const [lastPeriodProp, setLastPeriodProp] = useState(period);
+  if (period !== lastPeriodProp) {
+    setLastPeriodProp(period);
+    setFilters((previous) => ({ ...previous, period, startDate: "", endDate: "" }));
+  }
   const { columns, visibility } = useRequestTableColumns("history");
   const visibleColumns = columns.filter((column) => visibility[column.id] !== false);
   const colSpan = Math.max(visibleColumns.length, 1);
@@ -110,7 +157,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const filterKey = `${period}|${apiKeyId}|${userId}`;
+  const filterKey = [filters.period, filters.startDate, filters.endDate, filters.model, filters.provider, filters.status, apiKeyId, userId].join("|");
   const [lastFilterKey, setLastFilterKey] = useState(filterKey);
   if (filterKey !== lastFilterKey) {
     setLastFilterKey(filterKey);
@@ -124,8 +171,10 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
         page: pagination.page.toString(),
         pageSize: pagination.pageSize.toString(),
       });
-      const periodStart = getUsagePeriodStartIso(period);
-      if (periodStart) params.append("startDate", periodStart);
+      // Converted here, not at render: a rolling window's start is "now minus N",
+      // so a render-time string would change every render and refetch forever.
+      const filterParams = usageFiltersToParams(filters, { periodParam: false });
+      Object.keys(filterParams).forEach((key) => params.append(key, filterParams[key]));
       if (userId) params.append("userId", userId);
       if (apiKeyId && apiKeyId !== "all") params.append("apiKeyId", apiKeyId);
 
@@ -141,7 +190,7 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, period, userId, apiKeyId]);
+  }, [pagination.page, pagination.pageSize, filters, userId, apiKeyId, setPagination]);
 
   useEffect(() => {
     const id = setTimeout(fetchDetails, 0);
@@ -175,11 +224,29 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
-              {pagination.totalItems || 0} requests
+              {(pagination.totalItems || 0).toLocaleString()} requests
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="download"
+              disabled={details.length === 0}
+              onClick={() => downloadCsv(details)}
+              title="Download the rows on this page as CSV"
+            >
+              CSV
+            </Button>
             <RequestTableColumnSettings table="history" />
           </div>
         </CardHeader>
+        <div className="border-b border-border px-4 py-3">
+          <UsageFilterBar
+            value={filters}
+            onChange={setFilters}
+            facets={facets}
+            fields={showPeriodFilter ? ["period", "model", "provider", "status"] : ["model", "provider", "status"]}
+          />
+        </div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-max text-left text-xs">
@@ -225,8 +292,8 @@ export default function RequestDetailsTab({ period = "all", apiKeyId = "all", us
                       <EmptyState
                         compact
                         icon="history"
-                        title={getEmptyMessage(period)}
-                        description="Try a wider period or another API key."
+                        title={getEmptyMessage(filters)}
+                        description={countActiveUsageFilters(filters) > 0 ? "Remove a filter or widen the time range." : "Try a wider period or another API key."}
                       />
                     </td>
                   </tr>
@@ -320,4 +387,5 @@ RequestDetailsTab.propTypes = {
   period: PropTypes.string,
   apiKeyId: PropTypes.string,
   userId: PropTypes.string,
+  showPeriodFilter: PropTypes.bool,
 };

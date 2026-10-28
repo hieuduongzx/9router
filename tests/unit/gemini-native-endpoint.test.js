@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   handleChat: vi.fn(),
   isValidApiKey: vi.fn(),
+  authorizeBillableApiKey: vi.fn(),
   getProviderCredentials: vi.fn(),
   markAccountUnavailable: vi.fn(),
   clearAccountError: vi.fn(),
@@ -15,6 +16,9 @@ vi.mock("@/sse/handlers/chat.js", () => ({
 vi.mock("@/sse/services/auth.js", () => ({
   getProviderCredentials: mocks.getProviderCredentials,
   isValidApiKey: mocks.isValidApiKey,
+  // Router2k gates every client key through the account/billing check instead
+  // of the bare validity check upstream uses.
+  authorizeBillableApiKey: mocks.authorizeBillableApiKey,
   markAccountUnavailable: mocks.markAccountUnavailable,
   clearAccountError: mocks.clearAccountError,
 }));
@@ -56,6 +60,7 @@ describe("Gemini native v1beta endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isValidApiKey.mockResolvedValue(true);
+    mocks.authorizeBillableApiKey.mockResolvedValue({ ok: true });
     mocks.getProviderCredentials.mockResolvedValue({
       apiKey: "real-gemini-key",
       connectionId: "gemini-conn",
@@ -117,7 +122,7 @@ describe("Gemini native v1beta endpoint", () => {
       params: Promise.resolve({ path: ["gemini-2.5-flash-preview-tts:generateContent"] }),
     });
 
-    expect(mocks.isValidApiKey).toHaveBeenCalledWith("client-router-key");
+    expect(mocks.authorizeBillableApiKey).toHaveBeenCalledWith("client-router-key");
     expect(global.fetch.mock.calls[0][1].headers["x-goog-api-key"]).toBe("real-gemini-key");
     expect(global.fetch.mock.calls[0][1].headers["x-goog-api-key"]).not.toBe("client-router-key");
   });

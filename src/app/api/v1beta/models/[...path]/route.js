@@ -96,10 +96,22 @@ export async function POST(request, { params }) {
     // Convert Gemini request format to OpenAI/internal format
     const convertedBody = convertGeminiToInternal(body, model, stream);
 
+    // Google SDKs send the client key as `x-goog-api-key` or `?key=`, but the chat
+    // handler (billing gate, per-key access) only reads `Authorization: Bearer`.
+    // Without this the Router2k key went unseen and every native Gemini call was
+    // rejected as "Missing API key". The key is this gateway's own client key; it
+    // is never forwarded to the upstream provider.
+    const headers = new Headers(request.headers);
+    const clientKey = extractGeminiClientApiKey(request);
+    if (clientKey && !headers.get("Authorization")?.startsWith("Bearer ")) {
+      headers.set("Authorization", `Bearer ${clientKey}`);
+    }
+    headers.delete("x-goog-api-key");
+
     // Create new request with converted body
     const newRequest = new Request(request.url, {
       method: "POST",
-      headers: request.headers,
+      headers,
       body: JSON.stringify(convertedBody),
     });
 

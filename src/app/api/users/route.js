@@ -16,15 +16,29 @@ export async function GET(request) {
     return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
   }
 
-  const requestedPeriod = new URL(request.url).searchParams.get("period") || "30d";
+  const searchParams = new URL(request.url).searchParams;
+  const requestedPeriod = searchParams.get("period") || "30d";
   const period = VALID_PERIODS.has(requestedPeriod) ? requestedPeriod : "30d";
+  // Optional usage filters: restrict the per-account activity columns to one
+  // model/provider and/or an explicit date range (which overrides `period`).
+  const usageFilters = {
+    model: (searchParams.get("model") || "").trim().slice(0, 200),
+    provider: (searchParams.get("provider") || "").trim().slice(0, 200),
+    startDate: searchParams.get("startDate") || "",
+    endDate: searchParams.get("endDate") || "",
+  };
+  for (const value of [usageFilters.startDate, usageFilters.endDate]) {
+    if (value && Number.isNaN(new Date(value).getTime())) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+  }
 
   const users = await listUsers();
   // Key counts and activity are read once and joined in memory — the accounts list
   // needs them per row and both sources are single queries.
   const [apiKeys, usageByOwner] = await Promise.all([
     getApiKeys().catch(() => []),
-    getUsageByOwner(period).catch(() => ({})),
+    getUsageByOwner(period, usageFilters).catch(() => ({})),
   ]);
 
   const keyStats = {};
@@ -48,6 +62,10 @@ export async function GET(request) {
         activeApiKeyCount: keys.active,
         requestsInPeriod: usage?.requestsInPeriod || 0,
         costInPeriod: usage?.costInPeriod || 0,
+        tokensInPeriod: usage?.tokensInPeriod || 0,
+        topModel: usage?.topModel || null,
+        topModelRequests: usage?.topModelRequests || 0,
+        modelCount: usage?.modelCount || 0,
         totalRequests: usage?.requests || 0,
         lastUsedAt: usage?.lastUsed || null,
       };

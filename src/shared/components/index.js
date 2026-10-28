@@ -76,6 +76,7 @@ export { default as StatusPill } from "./StatusPill";
 export { default as MiniSparkline } from "./MiniSparkline";
 export { default as MiniRing } from "./MiniRing";
 export { default as PeriodDropdown } from "./PeriodDropdown";
+export { default as UsageFilterBar, useUsageFacets, usageFiltersToParams, countActiveUsageFilters, describeUsageWindow, CUSTOM_PERIOD, EMPTY_USAGE_FILTERS } from "./UsageFilterBar";
 export { default as CursorPagination } from "./CursorPagination";
 export {
   default as RequestTableColumnSettings,

@@ -478,7 +478,16 @@ export default function AdminDashboardClient() {
                   tickFormatter={formatNumber}
                   width={54}
                 />
-                <YAxis yAxisId="cost" orientation="right" hide />
+                {/* Cost gets its own visible scale: on a hidden axis the line's height meant nothing. */}
+                <YAxis
+                  yAxisId="cost"
+                  orientation="right"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
+                  tickFormatter={formatCurrency}
+                  width={60}
+                />
                 <Tooltip
                   cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
                   contentStyle={CHART_TOOLTIP_STYLE}

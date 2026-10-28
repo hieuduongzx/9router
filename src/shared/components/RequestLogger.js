@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Card from "./Card";
 import CursorPagination from "./CursorPagination";
 import RequestDetailDrawer, { useRequestDetailDrawer } from "./RequestDetailDrawer";
 import RequestTableColumnSettings, { useRequestTableColumns } from "./RequestTableColumnSettings";
 import StatusPill from "./StatusPill";
+import UsageFilterBar, { countActiveUsageFilters, useUsageFacets } from "./UsageFilterBar";
 import { Icon } from "./ui/icon";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
@@ -79,10 +81,51 @@ function activityCellTitle(id, log) {
   return undefined;
 }
 
+/** Filters the log keeps in the URL, so a filtered view can be linked and reloaded. */
+const URL_FILTER_KEYS = ["userId", "model", "provider", "status"];
+
+/** Keyless rows have no owner; these sentinels let the account filter reach them. */
+const SYSTEM_ACCOUNT_OPTIONS = [
+  { value: "__local__", label: "Local / system (no key)" },
+  { value: "__unassigned__", label: "Unassigned keys" },
+];
+
+function useAccountOptions() {
+  const [options, setOptions] = useState(SYSTEM_ACCOUNT_OPTIONS);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/users?period=24h", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!data?.users) return;
+        const accounts = data.users
+          .map((user) => ({ value: user.id, label: user.username || user.email || user.id }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setOptions([...accounts, ...SYSTEM_ACCOUNT_OPTIONS]);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  return options;
+}
+
 export default function RequestLogger({ period = "all", expanded = false, onToggleExpanded }) {
   const { columns, visibility } = useRequestTableColumns("activity");
   const visibleColumns = columns.filter((column) => visibility[column.id] !== false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const facets = useUsageFacets({ scope: "system" });
+  const accountOptions = useAccountOptions();
+  const filters = useMemo(() => {
+    const next = { period };
+    for (const key of URL_FILTER_KEYS) next[key] = searchParams.get(key) || "";
+    return next;
+  }, [period, searchParams]);
+  const filterKey = URL_FILTER_KEYS.map((key) => filters[key]).join("|");
+  const activeFilterCount = countActiveUsageFilters(filters);
   const [logs, setLogs] = useState([]);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [page, setPage] = useState(1);
@@ -106,6 +149,23 @@ export default function RequestLogger({ period = "all", expanded = false, onTogg
   const hasPrevLog = activeLogIndex > 0;
   const hasNextLog = activeLogIndex >= 0 && activeLogIndex < logs.length - 1;
 
+  // A new filter combination starts from the first page; staying on page 7 of
+  // the old result usually lands past the end of the new one.
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    if (page !== 1) setPage(1);
+  }
+
+  const setFilters = useCallback((next) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of URL_FILTER_KEYS) {
+      if (next[key]) params.set(key, next[key]);
+      else params.delete(key);
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const fetchLogs = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
@@ -114,20 +174,27 @@ export default function RequestLogger({ period = "all", expanded = false, onTogg
         page: String(page),
         pageSize: String(pageSize),
       });
+      for (const key of URL_FILTER_KEYS) {
+        if (filters[key]) params.set(key, filters[key]);
+      }
       const response = await fetch(`/api/usage/request-logs?${params}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Unable to load request logs");
       setLogs(Array.isArray(data.logs) ? data.logs : []);
+      setError("");
       if (data.pagination) {
         setPagination(data.pagination);
         if (data.pagination.page !== page) setPage(data.pagination.page);
       }
-    } catch (error) {
-      console.error("Failed to fetch logs:", error);
+    } catch (fetchError) {
+      // A background refresh keeps the last good page instead of blanking it;
+      // an explicit load must not show stale rows as if they matched.
+      if (showLoading) setLogs([]);
+      setError(fetchError.message || "Unable to load request logs");
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [page, pageSize, period, setPage]);
+  }, [page, pageSize, period, filters, setPage]);
 
   useEffect(() => {
     const id = setTimeout(fetchLogs, 0);
@@ -179,6 +246,25 @@ export default function RequestLogger({ period = "all", expanded = false, onTogg
         </div>
       </div>
 
+      <UsageFilterBar
+        value={filters}
+        onChange={setFilters}
+        facets={facets}
+        users={accountOptions}
+        fields={["user", "model", "provider", "status"]}
+        trailing={
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {(pagination.totalItems || 0).toLocaleString()} {activeFilterCount ? "matching " : ""}requests
+          </span>
+        }
+      />
+
+      {error && !loading && logs.length > 0 && (
+        <div className="rounded-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground" role="status">
+          Refresh failed ({error}). Showing the last loaded page.
+        </div>
+      )}
+
       {detailError && (
         <div className="rounded-sm border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
           {detailError}
@@ -189,8 +275,17 @@ export default function RequestLogger({ period = "all", expanded = false, onTogg
         <div className={expanded ? "overflow-x-auto" : "max-h-[600px] overflow-auto"}>
           {loading && logs.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Loading logs...</div>
+          ) : error && logs.length === 0 ? (
+            <div className="p-8 text-center text-sm text-danger" role="alert">Request logs could not be loaded: {error}</div>
           ) : logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No request details recorded yet.</div>
+            <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
+              {activeFilterCount ? "No requests match these filters in this period." : "No request details recorded yet."}
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={() => setFilters({})} className="text-xs font-medium text-primary hover:underline">
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
             <table className="w-full min-w-max border-collapse text-left text-xs">
               <thead className="thead-data">
