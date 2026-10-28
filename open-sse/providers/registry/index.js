@@ -146,6 +146,7 @@ import p146 from "./chatgpt-web.js";
 import p147 from "./veoaifree-web.js";
 import p151 from "./uc-web.js";
 import p152 from "./runcrate.js";
+import p153 from "./nace.js";
 
 const registry = [
   p0,
@@ -293,6 +294,7 @@ const registry = [
   p147,
   p151,
   p152,
+  p153,
 ];
 
 export default registry;
