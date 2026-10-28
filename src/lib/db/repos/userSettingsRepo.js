@@ -15,6 +15,8 @@ export const DEFAULT_USER_TOKEN_SAVER_SETTINGS = {
   cavemanLevel: "full",
   ponytailEnabled: false,
   ponytailLevel: "full",
+  customPromptEnabled: false,
+  customPrompt: "",
   pxpipeEnabled: false,
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,

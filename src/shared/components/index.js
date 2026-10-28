@@ -82,6 +82,7 @@ export {
   default as RequestTableColumnSettings,
   useRequestTableColumns,
 } from "./RequestTableColumnSettings";
+export { default as SmartPolicyModal } from "./SmartPolicyModal";
 
 // Layouts
 export * from "./layouts";

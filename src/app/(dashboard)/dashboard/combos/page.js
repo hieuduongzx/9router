@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
-import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, Select, SegmentedControl, Toggle, CapacityBadges } from "@/shared/components";
+import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, Select, SegmentedControl, Toggle, CapacityBadges, SmartPolicyModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
-import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
+import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, resolveProviderId, AI_PROVIDERS } from "@/shared/constants/providers";
 import LobeProviderIcon from "@/shared/components/LobeProviderIcon";
 import { normalizeLobeIconKey } from "@/shared/utils/lobeIcons";
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/shared/utils/comboModelConfig";
 import { comboRoutedModels, normalizeDisabledMembers } from "open-sse/services/comboMembers.js";
 import { comboPricingTarget } from "@/lib/publishedModelsCatalog";
+import { DEFAULT_SYSTEMONE_ROUTER_MODEL } from "open-sse/services/systemoneRouter.js";
 import { Icon } from "@/shared/components/ui/icon";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
@@ -74,6 +76,8 @@ export default function CombosPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCombo, setEditingCombo] = useState(null);
   const [judgeCombo, setJudgeCombo] = useState(null);
+  const [routerCombo, setRouterCombo] = useState(null);
+  const [policyCombo, setPolicyCombo] = useState(null);
   const [activeProviders, setActiveProviders] = useState([]);
   const [modelProviders, setModelProviders] = useState([]);
   const [comboStrategies, setComboStrategies] = useState({});
@@ -619,6 +623,9 @@ export default function CombosPage() {
                         strategy={comboStrategies[combo.name] || {}}
                         onSetStrategy={(patch) => handleSetComboStrategy(combo.name, patch)}
                         onSelectJudge={() => setJudgeCombo(combo)}
+                        onSelectRouter={() => setRouterCombo(combo)}
+                        onEditPolicy={() => setPolicyCombo(combo)}
+                        activeProviders={activeProviders}
                         testState={comboTests[combo.id]}
                         onTest={(overrides) => handleTestCombo(combo, overrides)}
                         selected={selectedIds.includes(combo.id)}
@@ -701,6 +708,37 @@ export default function CombosPage() {
             />
           )}
 
+          {routerCombo && (
+            <ModelSelectModal
+              isOpen={true}
+              onClose={() => setRouterCombo(null)}
+              onSelect={(model) => {
+                handleSetComboStrategy(routerCombo.name, { routerModel: model?.value || "" });
+                setRouterCombo(null);
+              }}
+              activeProviders={activeProviders}
+              title={`Select System One Router for ${routerCombo.name}`}
+              kindFilter="systemone"
+              addedModelValues={
+                comboStrategies[routerCombo.name]?.routerModel
+                  ? [comboStrategies[routerCombo.name].routerModel]
+                  : []
+              }
+              closeOnSelect={true}
+            />
+          )}
+
+          {policyCombo && (
+            <SmartPolicyModal
+              isOpen={true}
+              onClose={() => setPolicyCombo(null)}
+              comboName={policyCombo.name}
+              currentPolicy={getSmartPolicy(comboStrategies[policyCombo.name])}
+              currentThreshold={comboStrategies[policyCombo.name]?.confidenceThreshold ?? 80}
+              onSave={(patch) => handleSetComboStrategy(policyCombo.name, patch)}
+            />
+          )}
+
       {/* Confirm Delete Modal */}
       <ConfirmModal
         isOpen={!!confirmState}
@@ -731,8 +769,38 @@ const SORT_OPTIONS = [
 const STRATEGY_OPTIONS = [
   { value: "fallback", label: "Fallback" },
   { value: "round-robin", label: "Round Robin" },
+  { value: "smart", label: "Smart Router" },
   { value: "fusion", label: "Fusion" },
 ];
+
+function getSmartPolicy(strategy = {}) {
+  return strategy.smartPolicy || (strategy.sessionSticky === false ? "per-turn" : "smart");
+}
+
+function getPolicyBadgeLabel(strategy = {}) {
+  const policy = getSmartPolicy(strategy);
+  if (policy === "strict") return "Strict Lock";
+  if (policy === "per-turn") return "Per-Turn";
+  if (policy === "custom") {
+    const raw = strategy.confidenceThreshold;
+    const pct = Math.round((raw || 0.8) * (raw && raw <= 1 ? 100 : 1));
+    return `Custom (≥${pct || 80}%)`;
+  }
+  return "Smart (≥80%)";
+}
+
+// A keyless (noAuth) router provider works out of the box; anything else needs an active connection.
+function getRouterModelStatus(routerModel, activeProviders) {
+  const effectiveModel = routerModel?.trim() || DEFAULT_SYSTEMONE_ROUTER_MODEL;
+  const slashIdx = effectiveModel.indexOf("/");
+  const providerId = resolveProviderId(slashIdx !== -1 ? effectiveModel.slice(0, slashIdx) : effectiveModel);
+  if (AI_PROVIDERS[providerId]?.noAuth) return { ready: true, label: "Ready (Free)", providerId };
+  const connected = (activeProviders || []).some((c) => c.provider === providerId && c.isActive !== false);
+  return connected
+    ? { ready: true, label: "Connected", providerId }
+    : { ready: false, label: "Not configured", providerId };
+}
+
 function ModelProvidersPanel({ providers, combos, onChanged }) {
   const [formState, setFormState] = useState(null);
   const [deletingProvider, setDeletingProvider] = useState(null);
@@ -1313,6 +1381,9 @@ function ComboTableRow({
   strategy = {},
   onSetStrategy,
   onSelectJudge,
+  onSelectRouter,
+  onEditPolicy,
+  activeProviders = [],
   canEditPricing = false,
   onEditPricing,
   testState,
@@ -1322,7 +1393,9 @@ function ComboTableRow({
 }) {
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
+  const routerModel = strategy.routerModel || "";
   const isFusion = current === "fusion";
+  const isSmart = current === "smart";
   // The row summarizes what the route actually serves, so switched-off members
   // are neither shown first nor counted.
   const routedModels = comboRoutedModels(combo);
@@ -1455,6 +1528,53 @@ function ComboTableRow({
                 )}
               </>
             )}
+            {isSmart && (() => {
+              const routerStatus = getRouterModelStatus(routerModel, activeProviders);
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={onSelectRouter}
+                    className={`inline-flex h-8 min-w-0 max-w-36 items-center gap-1 rounded-sm border border-dashed px-2 font-mono text-[11px] transition-colors ${routerStatus.ready ? "border-primary/40 text-primary hover:border-primary hover:bg-primary/5" : "border-danger/50 text-danger hover:bg-danger/5"}`}
+                    title={`System One router: ${routerModel || `Auto — ${DEFAULT_SYSTEMONE_ROUTER_MODEL}`} (${routerStatus.label})`}
+                    aria-label={`Select System One router for ${combo.name}`}
+                  >
+                    <Icon name="psychology" className="shrink-0 size-3.5" />
+                    <span className="truncate">{routerModel || "Auto"}</span>
+                  </button>
+                  {!routerStatus.ready && (
+                    <Link
+                      href={`/dashboard/media-providers/systemone/${routerStatus.providerId}`}
+                      className="shrink-0 text-[11px] font-medium text-primary hover:underline"
+                      title="Connect the router provider in Media Providers"
+                    >
+                      Configure
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onEditPolicy}
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-sm border border-border px-2 text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+                    title="Routing policy and session stickiness"
+                    aria-label={`Smart routing policy for ${combo.name}`}
+                  >
+                    <Icon name="tune" className="shrink-0 size-3.5 text-muted-foreground" />
+                    <span>{getPolicyBadgeLabel(strategy)}</span>
+                  </button>
+                  {routerModel && (
+                    <button
+                      type="button"
+                      onClick={() => onSetStrategy({ routerModel: "" })}
+                      className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+                      title="Reset router to Auto"
+                      aria-label={`Reset router for ${combo.name}`}
+                    >
+                      <Icon name="close" className="size-3.5" />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </td>
         <td className="px-2 py-2 text-right align-middle">

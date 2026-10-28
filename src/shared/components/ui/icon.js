@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Briefcase,
   AlertTriangle,
   ArrowDown,
   ArrowDownUp,
@@ -203,6 +204,7 @@ const ICON_MAP = {
   api: Cable,
   apps: LayoutGrid,
   arrow_back: ArrowLeft,
+  auto_mode: Sparkles,
   arrow_downward: ArrowDown,
   arrow_forward: ArrowRight,
   arrow_outward: ArrowUpRight,
@@ -255,6 +257,7 @@ const ICON_MAP = {
   filter_alt: Funnel,
   filter_alt_off: FilterX,
   folder_open: FolderOpen,
+  folder_shared: FolderOpen,
   gavel: Gavel,
   graphic_eq: AudioLines,
   group_off: UsersRound,
@@ -360,6 +363,7 @@ const ICON_MAP = {
   visibility_off: EyeOff,
   volume_up: Volume2,
   vpn_key: KeyRound,
+  work: Briefcase,
   warning: TriangleAlert,
   wifi: Wifi,
 

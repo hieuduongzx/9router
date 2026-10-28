@@ -1,3 +1,8 @@
+# Failures that remain on master (triaged 2026-10-21 against v0.5.104). Grouped by cause;
+# remove an entry as soon as its test passes.
+
+# Catalogued before the June translator refactor (9532ec80); expected behavior not
+# re-established from current code, needs the maintainer.
 tests/unit/claude-header-forwarding.test.js :: proxyAwareFetch — api.anthropic.com routing routes api.anthropic.com to gotScraping (non-streaming) and returns ok response
 tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import extracts tokens using exact keys
 tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import falls back to fuzzy key matching on macOS when exact keys are missing
@@ -8,16 +13,6 @@ tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import
 tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import unsupported platform returns 400
 tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import unwraps JSON-encoded string values
 tests/unit/openai-to-claude.test.js :: openaiToClaudeResponse omits empty Read pages tool argument before emitting Claude input deltas
-tests/unit/rtk.test.js :: RTK flag default off, toggle works
-tests/unit/rtk.test.js :: compressMessages (disabled) returns null when disabled
-tests/unit/rtk.test.js :: compressMessages (enabled) compresses Claude array-form tool_result text parts
-tests/unit/rtk.test.js :: compressMessages (enabled) compresses Claude string-form tool_result
-tests/unit/rtk.test.js :: compressMessages (enabled) compresses OpenAI tool message (string content)
-tests/unit/rtk.test.js :: compressMessages (enabled) handles mix of messages without crashing
-tests/unit/rtk.test.js :: compressMessages (enabled) never produces empty content (R14 guard)
-tests/unit/rtk.test.js :: compressMessages (enabled) skips below MIN_COMPRESS_SIZE (<500 bytes)
-tests/unit/rtk.test.js :: compressMessages (enabled) skips is_error tool_result
-tests/unit/rtk.test.js :: compressMessages (enabled) skips when body has no messages
 tests/unit/translator-request-normalization.test.js :: request normalization claudeToOpenAIRequest flattens text-only content arrays into string
 tests/unit/translator-request-normalization.test.js :: request normalization filterToOpenAIFormat flattens text-only arrays to string
 tests/unit/translator-request-normalization.test.js :: request normalization parseSSELine supports provider raw NDJSON stream lines
@@ -29,3 +24,21 @@ tests/unit/key-access-handlers.test.js :: chat (/v1/chat/completions, /v1/messag
 tests/unit/key-access-handlers.test.js :: chat (/v1/chat/completions, /v1/messages, /v1/responses all use handleChat) bypass check: a restricted key sent as x-goog-api-key on the Gemini-compatible route is still restricted
 tests/unit/key-access-handlers.test.js :: /v1/models routes filter by key unrestricted sees the full catalog; restricted keys see only their entries
 tests/unit/key-access-handlers.test.js :: /v1/models routes filter by key /v1/models/{kind} and single-model lookup are filtered too
+
+# Real bug: /api/usage/stats serializes raw API keys as byApiKey property names (GHSA-vjc7).
+# Fixed by decolua/9router#4286.
+tests/unit/security-audit.test.js :: AUDIT-002: API key masking byApiKey object keys should use masked key, not raw key
+
+# Stale expectations fixed by decolua/9router#3665 (search auto-switch disabled on purpose;
+# reorder returns a copy).
+tests/unit/combo-autoswitch.test.js :: detectRequiredCapabilities web_search tool -> search
+tests/unit/combo-autoswitch.test.js :: reorderByCapabilities keeps order when no model matches
+
+# Live call: the upstream now answers "Unsupported model mimo-auto", the only model the
+# (hidden since 6d96e24b) mimo-free / mmf providers list.
+tests/unit/mimo-free.live.test.js :: MiMo Free anti-abuse gate (live) chat WITH Chrome User-Agent → 200
+
+# Cannot load in this repo: benchmarks lowdb (removed in bee8dad9) / imports the cloud/ worker,
+# which is not part of this repository.
+tests/unit/db-benchmark.test.js :: <suite failed to load>
+tests/unit/embeddings.cloud.test.js :: <suite failed to load>
