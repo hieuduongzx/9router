@@ -49,6 +49,7 @@ export default function TokenSaverClient() {
   const [ponytailLevel, setPonytailLevel] = useState("full");
   const [customPromptEnabled, setCustomPromptEnabled] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [reaAllowEnabled, setReaAllowEnabled] = useState(false);
   const [pxpipeEnabled, setPxpipeEnabled] = useState(false);
   const [pxpipeMinChars, setPxpipeMinChars] = useState(25000);
   const [pxpipeStatus, setPxpipeStatus] = useState({
@@ -65,8 +66,9 @@ export default function TokenSaverClient() {
   const [locale, setLocale] = useState("en");
 
   useEffect(() => {
-    setLocale(getCurrentLocale());
-    return onLocaleChange(() => setLocale(getCurrentLocale()));
+    const syncLocale = () => setLocale(getCurrentLocale());
+    queueMicrotask(syncLocale);
+    return onLocaleChange(syncLocale);
   }, []);
 
   const isWenyanLocale = WENYAN_LOCALES.includes(locale);
@@ -77,8 +79,10 @@ export default function TokenSaverClient() {
   useEffect(() => {
     const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
     if (current?.wenyan && !isWenyanLocale) {
-      setCavemanLevel("ultra");
-      patchTokenSaver({ cavemanLevel: "ultra" });
+      queueMicrotask(() => {
+        setCavemanLevel("ultra");
+        patchTokenSaver({ cavemanLevel: "ultra" });
+      });
     }
   }, [isWenyanLocale, cavemanLevel]);
 
@@ -378,6 +382,11 @@ export default function TokenSaverClient() {
     patchTokenSaver({ customPrompt });
   };
 
+  const handleReaAllowEnabled = (value) => {
+    setReaAllowEnabled(value);
+    patchTokenSaver({ reaAllowEnabled: value });
+  };
+
   const refreshPxpipeStatus = useCallback(async () => {
     setPxpipeStatus((s) => ({ ...s, loading: true }));
     try {
@@ -456,6 +465,7 @@ export default function TokenSaverClient() {
           setPonytailLevel(data.ponytailLevel || "full");
           setCustomPromptEnabled(!!data.customPromptEnabled);
           setCustomPrompt(data.customPrompt || "");
+          setReaAllowEnabled(!!data.reaAllowEnabled);
           setPxpipeEnabled(!!data.pxpipeEnabled);
           if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
         }
@@ -473,9 +483,9 @@ export default function TokenSaverClient() {
     };
     loadTokenSaver();
     loadMachineExtras();
-    refreshHeadroomStatus();
+    void Promise.resolve().then(refreshHeadroomStatus);
     // PRD: run the PXPIPE health check automatically when the page opens
-    refreshPxpipeStatus().then(runPxpipeHealth);
+    void Promise.resolve().then(refreshPxpipeStatus).then(runPxpipeHealth);
   }, [refreshHeadroomStatus, refreshPxpipeStatus, runPxpipeHealth]);
 
   const headroomRunning = !!headroomStatus.running;
@@ -802,6 +812,30 @@ export default function TokenSaverClient() {
             </p>
           </div>
         )}
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">
+              REA allow{" "}
+              <a
+                href="https://github.com/morluto/rea"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-normal text-primary underline hover:opacity-80"
+              >
+                morluto/rea
+              </a>
+            </p>
+            <p className="text-sm text-text-muted">
+              Replaces the built-in security-policy paragraphs with REA
+              reverse-engineering guidance and injects it into requests that
+              carry none
+            </p>
+          </div>
+          <Toggle
+            checked={reaAllowEnabled}
+            onChange={() => handleReaAllowEnabled(!reaAllowEnabled)}
+          />
+        </div>
         {/* PXPIPE hidden from UI — experimental, not exposed to users yet */}
         {false && (
         <div className="flex items-center justify-between pt-4 mt-4 border-t border-border gap-4 flex-wrap">

@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { getCachedTokens, getCacheCreationTokens, getInputTokens } from "@/shared/utils/requestTokens";
+import { getCachedTokens, getCacheCreationTokens, getInputTokens, getOutputTokens } from "@/shared/utils/requestTokens";
 import { Icon } from "@/shared/components/ui/icon";
 
 const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -70,7 +70,7 @@ function historyCell(id, detail) {
     case "cacheWrite":
       return getCacheCreationTokens(detail.tokens).toLocaleString();
     case "output":
-      return (detail.tokens?.completion_tokens || 0).toLocaleString();
+      return getOutputTokens(detail.tokens).toLocaleString();
     case "timing":
       return formatTiming(detail.latency?.total);
     case "model":
@@ -114,7 +114,7 @@ function downloadCsv(details) {
     detail.status || "",
     getInputTokens(detail.tokens),
     getCachedTokens(detail.tokens),
-    detail.tokens?.completion_tokens || 0,
+    getOutputTokens(detail.tokens),
     Number.isFinite(Number(detail.latency?.total)) ? Math.round(detail.latency.total) : "",
     Number.isFinite(detail.cost) ? detail.cost : "",
     detail.id || "",

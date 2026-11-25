@@ -21,12 +21,7 @@ import {
   CHART_TOOLTIP_LABEL,
   CHART_TOOLTIP_STYLE,
 } from "@/shared/utils/chartTheme";
-
-const fmtTokens = (n) => {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n || 0);
-};
+import { fmtCompactTokens } from "./tokenDisplay";
 
 export default function ProviderBarChart({ byProvider }) {
   const [viewMode, setViewMode] = useState("tokens");
@@ -43,7 +38,7 @@ export default function ProviderBarChart({ byProvider }) {
       .sort((a, b) => b[viewMode] - a[viewMode]);
   }, [byProvider, viewMode]);
 
-  const fmt = viewMode === "tokens" ? fmtTokens : String;
+  const fmt = viewMode === "tokens" ? fmtCompactTokens : String;
   const label = viewMode === "tokens" ? "Tokens" : "Requests";
 
   return (
@@ -84,7 +79,7 @@ export default function ProviderBarChart({ byProvider }) {
               tickLine={false}
               axisLine={false}
               tickFormatter={fmt}
-              width={44}
+              width={50}
             />
             <Tooltip
               cursor={CHART_GRID}

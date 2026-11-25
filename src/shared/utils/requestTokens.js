@@ -4,6 +4,7 @@
  *   prompt_tokens               = total input INCLUDING cache read + cache creation
  *   cached_tokens               = cache-read portion (subset of prompt_tokens)
  *   cache_creation_input_tokens = cache-write portion (subset of prompt_tokens)
+ *   completion_tokens           = output tokens (legacy Claude rows may store output_tokens)
  * Legacy Claude rows may still carry cache_read_input_tokens with a prompt that
  * excludes cache — getInputTokens folds that up so the table never under-counts.
  */
@@ -28,4 +29,8 @@ export function getInputTokens(tokens) {
   const prompt = num(tokens?.prompt_tokens || tokens?.input_tokens);
   const cache = getCachedTokens(tokens);
   return prompt < cache ? cache : prompt;
+}
+
+export function getOutputTokens(tokens) {
+  return num(tokens?.completion_tokens || tokens?.output_tokens);
 }

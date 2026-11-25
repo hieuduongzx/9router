@@ -368,6 +368,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       ponytailLevel: ts.ponytailLevel || "full",
       customPromptEnabled: !!ts.customPromptEnabled,
       customPrompt: ts.customPrompt || "",
+      reaAllowEnabled: !!ts.reaAllowEnabled,
       pxpipeEnabled: !!ts.pxpipeEnabled,
       pxpipeMinChars: ts.pxpipeMinChars,
       pxpipeTimeoutMs: ts.pxpipeTimeoutMs,

@@ -63,6 +63,16 @@ function createSpinner(text) {
 }
 
 const pkg = require("./package.json");
+const {
+  getPidFilePath,
+  writePidRecord,
+  readPidRecord,
+  removePidRecordIfOwner,
+  stopRecordedInstance,
+  isPortInUse,
+  waitForPortFree,
+  waitForPidsExit,
+} = require("./src/cli/utils/launcherProcess");
 const { ensureSqliteRuntime, buildEnvWithRuntime } = require("./hooks/sqliteRuntime");
 const { ensureTrayRuntime } = require("./hooks/trayRuntime");
 const args = process.argv.slice(2);
@@ -124,6 +134,10 @@ function getDisplayHost() {
   return host === DEFAULT_HOST ? "localhost" : host;
 }
 const MAX_PORT_ATTEMPTS = 10;
+// Upper bounds for waiting on killed processes / a released port. Both waits
+// return as soon as the condition holds, so the common case costs nothing.
+const PROCESS_EXIT_WAIT_MS = 1000;
+const PORT_RELEASE_WAIT_MS = 3000;
 // Identifiers for killAllAppProcesses - only kill 9router specifically
 const PROCESS_IDENTIFIERS = [
   '9router'  // Only package name - avoid killing other apps
@@ -228,16 +242,11 @@ function killByPidFile(pidFile) {
 }
 
 
-// Kill all 9router processes
-function killAllAppProcesses(appPort) {
+// Kill all 9router processes (full machine-wide scan — slow on Windows, so the
+// launcher only uses it as a fallback; see stopPreviousInstance).
+function killAllAppProcesses() {
   return new Promise((resolve) => {
     try {
-      // MITM runs separately and does not free the app port, so clean it up
-      // without blocking the critical shutdown path.
-      setImmediate(() => {
-        try { killProxyByPidFile(); } catch {}
-      });
-
       const platform = process.platform;
       let pids = [];
 
@@ -311,8 +320,8 @@ function killAllAppProcesses(appPort) {
           }
         });
 
-        // Wait for processes to fully terminate
-        setTimeout(() => resolve(), 1000);
+        // Wait for processes to terminate — returns as soon as they are gone.
+        waitForPidsExit(pids.map(Number), { timeoutMs: PROCESS_EXIT_WAIT_MS }).then(() => resolve());
       } else {
         resolve();
       }
@@ -409,8 +418,9 @@ function killProcessOnPort(port) {
         }
       }
 
-      // Wait for port to be released
-      setTimeout(() => resolve(), 500);
+      // Wait for the port only when something was killed; return once it is free.
+      if (pid) waitForPortFree(port, { timeoutMs: PORT_RELEASE_WAIT_MS }).then(() => resolve());
+      else resolve();
     } catch (err) {
       // Silent fail - continue anyway
       resolve();
@@ -442,13 +452,12 @@ function checkForUpdate() {
       return;
     }
 
-    const spinner = createSpinner("Checking for updates...").start();
+    // Silent: runs in parallel with server startup, whose spinner owns the line.
     let resolved = false;
 
     const safetyTimeout = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        spinner.stop();
         resolve(null);
       }
     }, 8000);
@@ -457,7 +466,6 @@ function checkForUpdate() {
       if (resolved) return;
       resolved = true;
       clearTimeout(safetyTimeout);
-      spinner.stop();
       resolve(version);
     };
 
@@ -517,11 +525,35 @@ if (!fs.existsSync(serverPath)) {
   process.exit(1);
 }
 
-// Start server immediately; run update check in parallel (not on the critical path).
+const launcherPidFile = getPidFilePath(getAppDataDir());
+
+// Stop the previous launcher by its PID record (fast path). The machine-wide
+// process scan (~0.5s per PowerShell call on Windows) runs only when the port is
+// still occupied afterwards, e.g. by a launcher from a version without a record.
+async function stopPreviousInstance(appPort) {
+  // MITM runs on a separate port/process — killing it doesn't free the
+  // app port, so keep it off the critical path.
+  // Server-side MITM manager has stale-lock recovery and starts deferred (~3s).
+  setImmediate(() => {
+    try { killProxyByPidFile(); } catch {}
+  });
+
+  const killed = stopRecordedInstance(readPidRecord(launcherPidFile));
+  try { fs.unlinkSync(launcherPidFile); } catch { }
+  if (killed.length > 0) await waitForPidsExit(killed, { timeoutMs: PROCESS_EXIT_WAIT_MS });
+
+  if (!(await isPortInUse(appPort))) return;
+  await killAllAppProcesses();
+  await killProcessOnPort(appPort);
+}
+
+// Show progress immediately; run update check in parallel (not on the critical path).
+const startupSpinner = createSpinner(`Starting ${APP_NAME} v${pkg.version}...`).start();
 const updatePromise = checkForUpdate();
-killAllAppProcesses(port)
-  .then(() => killProcessOnPort(port))
-  .then(() => startServer(updatePromise));
+stopPreviousInstance(port).then(() => {
+  startupSpinner.stop();
+  startServer(updatePromise);
+});
 
 // Show interface selection menu
 async function showInterfaceMenu(latestVersion) {
@@ -583,7 +615,7 @@ function startServer(updatePromise) {
   function spawnServer() {
     serverStartTime = Date.now();
     crashLog = [];
-    const child = spawn(RUNTIME, ["--dns-result-order=ipv4first", "--max-old-space-size=6144", serverPath], {
+    const child = spawn(RUNTIME, ["--max-old-space-size=6144", serverPath], {
       cwd: standaloneDir,
       stdio: showLog ? "inherit" : ["ignore", "ignore", "pipe"],
       detached: true,
@@ -601,16 +633,23 @@ function startServer(updatePromise) {
         if (crashLog.length > CRASH_LOG_LINES) crashLog = crashLog.slice(-CRASH_LOG_LINES);
       });
     }
+    // Lets the next launch stop exactly this instance without a process scan.
+    try {
+      writePidRecord(launcherPidFile, { cliPid: process.pid, serverPid: child.pid || null, port, exe: path.basename(RUNTIME) });
+    } catch { /* non-fatal: next launch falls back to the port check */ }
     return child;
   }
 
   let server = spawnServer();
+  const bootSpinner = createSpinner("Starting server...");
 
   // Cleanup function - force kill server process
   let isCleaningUp = false;
   function cleanup() {
     if (isCleaningUp) return;
     isCleaningUp = true;
+    bootSpinner.stop();
+    removePidRecordIfOwner(launcherPidFile, process.pid);
     try {
       // Kill tray if running
       try {
@@ -657,7 +696,7 @@ function startServer(updatePromise) {
   });
 
   // Initialize tray icon (runs alongside TUI)
-  const initTrayIcon = () => {
+  const initTrayIcon = (callbacks = {}) => {
     try {
       const { initTray } = require("./src/cli/tray/tray");
       initTray({
@@ -668,10 +707,12 @@ function startServer(updatePromise) {
           cleanup();
           setTimeout(() => process.exit(0), 100);
         },
-        onOpenDashboard: () => openBrowser(url)
+        onOpenDashboard: () => openBrowser(url),
+        ...callbacks
       });
     } catch (err) {
       // Tray not available - continue without it
+      if (typeof callbacks.onError === "function") callbacks.onError(err);
     }
   };
 
@@ -684,17 +725,32 @@ function startServer(updatePromise) {
     console.log(`\n🚀 ${pkg.name} v${pkg.version}`);
     console.log(`Server: http://${displayHost}:${port}`);
 
+    bootSpinner.start();
     waitServerReady(port).then(() => {
-      initTrayIcon();
-      console.log("\n💡 Router is now running in system tray. Close this terminal if you want.");
-      console.log("   Right-click tray icon to open dashboard or quit.\n");
+      bootSpinner.stop();
+      // Only claim the tray is running once the tray process actually became
+      // ready. Reporting it up front hid every failure (missing
+      // libappindicator, EACCES, wrong architecture) behind a success message.
+      initTrayIcon({
+        onReady: () => {
+          console.log("\n💡 Router is now running in system tray. Close this terminal if you want.");
+          console.log("   Right-click tray icon to open dashboard or quit.\n");
+        },
+        onError: (err) => {
+          console.log("\n⚠️  No tray icon — the server keeps running.");
+          if (err?.message) console.log(`   ${err.message.split("\n").join("\n   ")}`);
+          console.log(`   Dashboard: http://${displayHost}:${port}\n`);
+        }
+      });
     });
 
     return;
   }
 
   // Wait for server to be ready, then show interface menu loop + tray
+  bootSpinner.start();
   waitServerReady(port).then(async () => {
+    bootSpinner.stop();
     // Resolve parallel update check (already running); don't block server start on it.
     const latestVersion = await latestVersionPromise;
     // Start tray icon alongside TUI
@@ -754,7 +810,7 @@ function startServer(updatePromise) {
           // Windows/Linux: spawn detached bgProcess (systray works fine in child)
           console.log(`\n⏳ Starting background process... (tray icon will appear in ~3s)`);
 
-          const bgProcess = spawn(process.execPath, ["--dns-result-order=ipv4first", __filename, "--tray", "--skip-update", "-p", port.toString()], {
+          const bgProcess = spawn(process.execPath, [__filename, "--tray", "--skip-update", "-p", port.toString()], {
             detached: true,
             stdio: "ignore",
             windowsHide: true,

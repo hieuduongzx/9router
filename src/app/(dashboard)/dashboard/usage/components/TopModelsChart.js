@@ -21,12 +21,7 @@ import {
   CHART_TOOLTIP_LABEL,
   CHART_TOOLTIP_STYLE,
 } from "@/shared/utils/chartTheme";
-
-const fmtTokens = (n) => {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n || 0);
-};
+import { fmtCompactTokens } from "./tokenDisplay";
 
 const truncate = (s, max = 22) => (s && s.length > max ? s.slice(0, max) + "…" : s || "");
 
@@ -46,7 +41,7 @@ export default function TopModelsChart({ byModel }) {
       .slice(0, 5);
   }, [byModel, viewMode]);
 
-  const fmt = viewMode === "tokens" ? fmtTokens : String;
+  const fmt = viewMode === "tokens" ? fmtCompactTokens : String;
   const label = viewMode === "tokens" ? "Tokens" : "Requests";
 
   return (
