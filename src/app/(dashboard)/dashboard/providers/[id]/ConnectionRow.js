@@ -161,7 +161,7 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
 
   // Determine effective status (override unavailable if cooldown expired)
   const effectiveStatus = (connection.testStatus === "unavailable" && !isCooldown)
-    ? "active"  // Cooldown expired u2192 treat as active
+    ? "active"  // Cooldown expired -> treat as active
     : connection.testStatus;
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
@@ -184,21 +184,27 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
   };
 
   return (
-    <div className={`group flex min-w-0 flex-col gap-3 p-2 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between ${connection.isActive === false ? "opacity-60" : ""}`}>
+    <div className={`group flex min-w-0 flex-col gap-3 rounded-lg p-2.5 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between ${connection.isActive === false ? "opacity-60" : ""}`}>
       <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-3">
         {/* Priority arrows */}
         <div className="flex shrink-0 flex-col">
           <button
+            type="button"
             onClick={onMoveUp}
             disabled={isFirst}
-            className={`p-0.5 rounded-sm ${isFirst ? "text-muted-foreground/30 cursor-not-allowed" : "hover:bg-sidebar text-muted-foreground hover:text-primary"}`}
+            aria-label="Move connection up"
+            title="Move up"
+            className={`p-0.5 rounded-sm ${isFirst ? "text-muted-foreground/30 cursor-not-allowed" : "cursor-pointer hover:bg-sidebar text-muted-foreground hover:text-primary"}`}
           >
             <Icon name="keyboard_arrow_up" className="size-3.5" />
           </button>
           <button
+            type="button"
             onClick={onMoveDown}
             disabled={isLast}
-            className={`p-0.5 rounded-sm ${isLast ? "text-muted-foreground/30 cursor-not-allowed" : "hover:bg-sidebar text-muted-foreground hover:text-primary"}`}
+            aria-label="Move connection down"
+            title="Move down"
+            className={`p-0.5 rounded-sm ${isLast ? "text-muted-foreground/30 cursor-not-allowed" : "cursor-pointer hover:bg-sidebar text-muted-foreground hover:text-primary"}`}
           >
             <Icon name="keyboard_arrow_down" className="size-3.5" />
           </button>
@@ -257,15 +263,17 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
         </div>
       </div>
       <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-        <div className="grid flex-1 grid-cols-3 gap-1 sm:flex sm:flex-none">
+        <div className="flex flex-wrap items-center gap-1 sm:flex-none">
           {/* Proxy button with inline dropdown */}
           {(proxyPools || []).length > 0 && (
             <div>
               <button
+                type="button"
                 ref={proxyBtnRef}
                 onClick={toggleProxyDropdown}
-                className={`flex w-full flex-col items-center rounded-sm px-2 py-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${hasAnyProxy ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                className={`flex cursor-pointer flex-col items-center rounded-md px-2 py-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${hasAnyProxy ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
                 disabled={updatingProxy}
+                aria-label="Assign proxy pool"
               >
                 <Icon name={updatingProxy ? "progress_activity" : "lan"} className="size-[18px]" />
                 <span className="text-[10px] leading-tight">Proxy</span>
@@ -274,19 +282,21 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
                 <div
                   ref={proxyDropdownRef}
                   style={proxyDropdownStyle}
-                  className="z-50 max-w-[78vw] min-w-[160px] overflow-y-auto rounded-sm border border-border bg-bg py-1 shadow-lg"
+                  className="z-50 max-w-[78vw] min-w-[160px] overflow-y-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg"
                 >
                   <button
+                    type="button"
                     onClick={() => handleSelectProxy("__none__")}
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${!boundProxyPoolId ? "text-primary font-medium" : "text-foreground"}`}
+                    className={`w-full cursor-pointer text-left px-3 py-1.5 text-sm hover:bg-muted ${!boundProxyPoolId ? "text-primary font-medium" : "text-foreground"}`}
                   >
                     None
                   </button>
                   {(proxyPools || []).map((pool) => (
                     <button
+                      type="button"
                       key={pool.id}
                       onClick={() => handleSelectProxy(pool.id)}
-                      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${boundProxyPoolId === pool.id ? "text-primary font-medium" : "text-foreground"}`}
+                      className={`w-full cursor-pointer text-left px-3 py-1.5 text-sm hover:bg-muted ${boundProxyPoolId === pool.id ? "text-primary font-medium" : "text-foreground"}`}
                     >
                       {pool.name}
                     </button>
@@ -299,19 +309,31 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
           {autoPing && (
             <Tooltip text={autoPingTooltip}>
               <button
+                type="button"
                 onClick={autoPing.onConfigure}
-                className={`flex w-full flex-col items-center rounded-sm px-2 py-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${autoPing.isActive ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                className={`flex cursor-pointer flex-col items-center rounded-md px-2 py-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${autoPing.isActive ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                aria-label="Configure auto-ping"
               >
                 <Icon name="bolt" className="size-[18px]" />
                 <span className="text-[10px] leading-tight">Auto-ping</span>
               </button>
             </Tooltip>
           )}
-          <button onClick={onEdit} className="flex flex-col items-center rounded-sm px-2 py-1 text-muted-foreground hover:bg-black/5 hover:text-primary dark:hover:bg-white/5">
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit connection"
+            className="flex cursor-pointer flex-col items-center rounded-md px-2 py-1 text-muted-foreground hover:bg-black/5 hover:text-primary dark:hover:bg-white/5"
+          >
             <Icon name="edit" className="size-[18px]" />
             <span className="text-[10px] leading-tight">Edit</span>
           </button>
-          <button onClick={onDelete} className="flex flex-col items-center rounded-sm px-2 py-1 text-destructive hover:bg-destructive/10">
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete connection"
+            className="flex cursor-pointer flex-col items-center rounded-md px-2 py-1 text-destructive hover:bg-destructive/10"
+          >
             <Icon name="delete" className="size-[18px]" />
             <span className="text-[10px] leading-tight">Delete</span>
           </button>

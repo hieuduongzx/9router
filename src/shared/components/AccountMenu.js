@@ -21,19 +21,6 @@ const CREDIT_FORMAT = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
 });
 
-/**
- * Identity control at the right end of the page header.
- *
- * Radix owns the menu: outside-click, Escape, roving focus and return-focus were
- * all hand-wired before, and the roving focus in particular was missing.
- * Below `sm` the name and role collapse away and only the avatar remains, so the
- * header keeps room for page context.
- *
- * This menu is also the *only* place an administrator changes shell. `variant`
- * says which shell is currently mounted, so the menu offers the one move that
- * isn't a no-op: Admin panel from the user shell, My dashboard from the admin
- * shell. It is a plain link — there is no separate "mode" to keep in sync.
- */
 export default function AccountMenu({ displayName, role, creditCents, variant = "user", onLogout, onNavigate }) {
   if (!displayName) return null;
 
@@ -82,33 +69,21 @@ export default function AccountMenu({ displayName, role, creditCents, variant = 
               <DropdownMenuSeparator />
               <div className="flex items-center justify-between gap-2 px-2 py-1.5">
                 <span className="text-xs text-muted-foreground">Balance</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm font-medium tabular-nums">
-                    {formattedCredit}
-                  </span>
-                  {/* Below `sm` the corner top-up is hidden (the trigger is the
-                      avatar alone), so this row carries the link there. */}
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="icon-xs"
-                    className="sm:hidden"
-                    onClick={() => onNavigate?.()}
-                  >
-                    <Link href={walletHref} aria-label="Add credit">
-                      <Plus />
-                    </Link>
-                  </Button>
+                <span className="font-mono text-sm font-medium tabular-nums">
+                  {formattedCredit}
                 </span>
               </div>
+              <DropdownMenuItem asChild className="sm:hidden" onSelect={() => onNavigate?.()}>
+                <Link href={walletHref}>
+                  <Plus />
+                  Add credit
+                </Link>
+              </DropdownMenuItem>
             </>
           ) : null}
 
           <DropdownMenuSeparator />
 
-          {/* Full navigation, not a soft push: the two shells are separate route
-              groups with their own layout, so a client-side transition would keep
-              the previous rail mounted for a frame. */}
           {isAdmin ? (
             <DropdownMenuItem asChild onSelect={() => onNavigate?.()}>
               <a href={inAdminShell ? "/dashboard" : "/admin"}>

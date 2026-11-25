@@ -18,7 +18,10 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
     closeButtonRef.current?.focus();
 
     const handleEscape = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Do not close the lightbox if a nested Radix modal is currently open
+      if (document.querySelector('[data-slot="dialog-content"]')) return;
+      onClose();
     };
     document.addEventListener("keydown", handleEscape);
     return () => {
@@ -31,18 +34,30 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
   if (!providerId) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-center sm:p-4 lg:p-8" role="dialog" aria-modal="true" aria-labelledby="provider-settings-title">
-      <button type="button" className="absolute inset-0 bg-black/55" onClick={onClose} aria-label="Close provider settings" />
-      <section className="relative flex min-h-0 w-full flex-col border-border bg-bg sm:max-w-7xl sm:border">
+    <div
+      className="fixed inset-0 z-40 flex items-stretch justify-center sm:p-4 lg:p-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="provider-settings-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-label="Close provider settings"
+      />
+      <section className="relative flex min-h-0 w-full flex-col overflow-hidden border-border bg-bg shadow-2xl sm:max-w-7xl sm:rounded-xl sm:border">
         <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 sm:px-5">
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground">Provider settings</p>
-            <h2 id="provider-settings-title" className="truncate font-mono text-sm font-semibold text-foreground">{providerName || providerId}</h2>
+            <h2 id="provider-settings-title" className="truncate font-mono text-sm font-semibold text-foreground">
+              {providerName || providerId}
+            </h2>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
               href={`${shellPath("/dashboard/providers")}/${providerId}`}
-              className="inline-flex min-h-11 items-center gap-2 rounded-sm px-3 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="inline-flex min-h-9 items-center gap-2 rounded-md px-3 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="open_in_new" className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">Open full page</span>
@@ -51,7 +66,7 @@ export default function ProviderSettingsLightbox({ providerId, providerName, onC
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="inline-flex size-11 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Close provider settings"
             >
               <Icon name="close" className="size-5" aria-hidden="true" />

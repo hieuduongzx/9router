@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { Card, Button, Input, Modal, CardSkeleton, ConfirmModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useNotificationStore } from "@/store/notificationStore";
 import { Icon } from "@/shared/components/ui/icon";
 import KeyAccessControls from "../endpoint/components/KeyAccessControls";
 
@@ -16,10 +17,12 @@ export default function ApiKeysPageClient() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
   const [visibleKeys, setVisibleKeys] = useState(new Set());
   const { copied, copy } = useCopyToClipboard();
+  const notify = useNotificationStore();
 
   useEffect(() => {
     (async () => {
@@ -37,16 +40,17 @@ export default function ApiKeysPageClient() {
     })();
   }, []);
 
-
-  const handleCreateKey = async () => {
-    if (!newKeyName.trim()) return;
+  const handleCreateKey = async (event) => {
+    event?.preventDefault?.();
+    if (!newKeyName.trim() || creatingKey) return;
+    setCreatingKey(true);
     try {
       const res = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName }),
+        body: JSON.stringify({ name: newKeyName.trim() }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setCreatedKey(data.key);
         const keysRes = await fetch("/api/keys");
@@ -56,9 +60,15 @@ export default function ApiKeysPageClient() {
         }
         setNewKeyName("");
         setShowAddModal(false);
+        notify.success("API key created");
+      } else {
+        notify.error(data.error || "Failed to create API key");
       }
     } catch (error) {
       console.log("Error creating key:", error);
+      notify.error("Failed to create API key");
+    } finally {
+      setCreatingKey(false);
     }
   };
 
@@ -77,9 +87,14 @@ export default function ApiKeysPageClient() {
               next.delete(id);
               return next;
             });
+            notify.success("API key deleted");
+          } else {
+            const data = await res.json().catch(() => ({}));
+            notify.error(data.error || "Failed to delete API key");
           }
         } catch (error) {
           console.log("Error deleting key:", error);
+          notify.error("Failed to delete API key");
         }
       },
     });
@@ -94,9 +109,14 @@ export default function ApiKeysPageClient() {
       });
       if (res.ok) {
         setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, isActive } : k)));
+        notify.success(isActive ? "API key resumed" : "API key paused");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        notify.error(data.error || "Failed to update API key");
       }
     } catch (error) {
       console.log("Error toggling key:", error);
+      notify.error("Failed to update API key");
     }
   };
 
@@ -111,10 +131,11 @@ export default function ApiKeysPageClient() {
       if (res.ok && data.key) {
         setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, access: data.key.access } : k)));
       } else {
-        console.log("Error updating key access:", data.error || res.status);
+        notify.error(data.error || "Failed to update key access");
       }
     } catch (error) {
       console.log("Error updating key access:", error);
+      notify.error("Failed to update key access");
     }
   };
 
@@ -165,7 +186,7 @@ export default function ApiKeysPageClient() {
 
         {keys.length === 0 ? (
           <div className="px-4 py-12 text-center">
-            <div className="mb-4 inline-flex size-12 items-center justify-center border border-border bg-surface-2 text-foreground">
+            <div className="mb-4 inline-flex size-12 items-center justify-center rounded-lg border border-border bg-surface-2 text-foreground">
               <Icon name="vpn_key" className="size-[26px]" />
             </div>
             <p className="mb-1 font-medium text-foreground">No API keys yet</p>
@@ -194,102 +215,100 @@ export default function ApiKeysPageClient() {
                   const isVisible = visibleKeys.has(key.id);
                   return (
                     <Fragment key={key.id}>
-                    <tr
-                      className={isActive ? "" : "bg-bg-alt/40"}
-                    >
-                      <td className="px-4 py-3 sm:px-5">
-                        <span className={`block truncate font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`} title={key.name}>
-                          {key.name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-0 items-center gap-1">
-                          <code className="block min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={isVisible ? key.key : undefined}>
-                            {isVisible ? key.key : maskKey(key.key)}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => toggleKeyVisibility(key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                            title={isVisible ? "Hide key" : "Show key"}
-                            aria-label={isVisible ? `Hide ${key.name}` : `Show ${key.name}`}
-                          >
-                            <Icon name={isVisible ? "visibility_off" : "visibility"} className="size-[16px]" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => copy(key.key, key.id)}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                            title="Copy key"
-                            aria-label={`Copy ${key.name}`}
-                          >
-                            <Icon name={copied === key.id ? "check" : "content_copy"} className="size-[16px]" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {new Date(key.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 font-mono text-xs font-medium uppercase tracking-wide ${
-                          isActive ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                        }`}>
-                          <span className={`size-1.5 ${isActive ? "bg-success" : "bg-warning"}`} />
-                          {isActive ? "Active" : "Paused"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 sm:px-5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isActive) {
-                                setConfirmState({
-                                  title: "Pause API Key",
-                                  message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                                  onConfirm: async () => {
-                                    setConfirmState(null);
-                                    handleToggleKey(key.id, false);
-                                  },
-                                });
-                              } else {
-                                handleToggleKey(key.id, true);
-                              }
-                            }}
-                            className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                            title={isActive ? "Pause key" : "Resume key"}
-                            aria-label={isActive ? `Pause ${key.name}` : `Resume ${key.name}`}
-                          >
-                            <Icon name={isActive ? "pause_circle" : "play_circle"} className="size-[18px]" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteKey(key.id)}
-                            className="inline-flex size-8 items-center justify-center rounded-sm text-error transition-colors hover:bg-error/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30"
-                            title="Delete key"
-                            aria-label={`Delete ${key.name}`}
-                          >
-                            <Icon name="delete" className="size-[18px]" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr className={isActive ? "" : "bg-bg-alt/40"}>
-                      <td colSpan={5} className="px-4 pb-3 pt-0 sm:px-5">
-                        <KeyAccessControls
-                          apiKey={key}
-                          onChange={(access) => handleUpdateKeyAccess(key.id, access)}
-                          onRequestRestrict={() => setConfirmState({
-                            title: "Restrict API Key",
-                            message: `Restrict API key "${key.name}"?\n\nIt will only be able to call the combos and models you add. Until you add one, it can call nothing.`,
-                            onConfirm: async () => {
-                              setConfirmState(null);
-                              handleUpdateKeyAccess(key.id, { restricted: true, allow: key.access?.allow || [] });
-                            },
-                          })}
-                        />
-                      </td>
-                    </tr>
+                      <tr className={isActive ? "" : "bg-bg-alt/40"}>
+                        <td className="px-4 py-3 sm:px-5">
+                          <span className={`block truncate font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`} title={key.name}>
+                            {key.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex min-w-0 items-center gap-1">
+                            <code className="block min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={isVisible ? key.key : undefined}>
+                              {isVisible ? key.key : maskKey(key.key)}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => toggleKeyVisibility(key.id)}
+                              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                              title={isVisible ? "Hide key" : "Show key"}
+                              aria-label={isVisible ? `Hide ${key.name}` : `Show ${key.name}`}
+                            >
+                              <Icon name={isVisible ? "visibility_off" : "visibility"} className="size-[16px]" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copy(key.key, key.id)}
+                              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                              title="Copy key"
+                              aria-label={`Copy ${key.name}`}
+                            >
+                              <Icon name={copied === key.id ? "check" : "content_copy"} className="size-[16px]" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {new Date(key.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-xs font-medium uppercase tracking-wide ${
+                            isActive ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                          }`}>
+                            <span className={`size-1.5 rounded-full ${isActive ? "bg-success" : "bg-warning"}`} />
+                            {isActive ? "Active" : "Paused"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 sm:px-5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isActive) {
+                                  setConfirmState({
+                                    title: "Pause API Key",
+                                    message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                                    onConfirm: async () => {
+                                      setConfirmState(null);
+                                      handleToggleKey(key.id, false);
+                                    },
+                                  });
+                                } else {
+                                  handleToggleKey(key.id, true);
+                                }
+                              }}
+                              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                              title={isActive ? "Pause key" : "Resume key"}
+                              aria-label={isActive ? `Pause ${key.name}` : `Resume ${key.name}`}
+                            >
+                              <Icon name={isActive ? "pause_circle" : "play_circle"} className="size-[18px]" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteKey(key.id)}
+                              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                              title="Delete key"
+                              aria-label={`Delete ${key.name}`}
+                            >
+                              <Icon name="delete" className="size-[18px]" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr className={isActive ? "" : "bg-bg-alt/40"}>
+                        <td colSpan={5} className="px-4 pb-3 pt-0 sm:px-5">
+                          <KeyAccessControls
+                            apiKey={key}
+                            onChange={(access) => handleUpdateKeyAccess(key.id, access)}
+                            onRequestRestrict={() => setConfirmState({
+                              title: "Restrict API Key",
+                              message: `Restrict API key "${key.name}"?\n\nIt will only be able to call the combos and models you add. Until you add one, it can call nothing.`,
+                              onConfirm: async () => {
+                                setConfirmState(null);
+                                handleUpdateKeyAccess(key.id, { restricted: true, allow: key.access?.allow || [] });
+                              },
+                            })}
+                          />
+                        </td>
+                      </tr>
                     </Fragment>
                   );
                 })}
@@ -302,57 +321,76 @@ export default function ApiKeysPageClient() {
       <Modal
         isOpen={showAddModal}
         title="Create API Key"
+        size="sm"
         onClose={() => {
           setShowAddModal(false);
           setNewKeyName("");
         }}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowAddModal(false);
+                setNewKeyName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateKey}
+              loading={creatingKey}
+              disabled={!newKeyName.trim() || creatingKey}
+            >
+              Create
+            </Button>
+          </div>
+        }
       >
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleCreateKey} className="flex flex-col gap-4">
           <Input
             label="Key Name"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             placeholder="Production Key"
+            autoFocus
           />
-          <div className="flex gap-2">
-            <Button onClick={handleCreateKey} fullWidth disabled={!newKeyName.trim()}>
-              Create
-            </Button>
-            <Button
-              onClick={() => {
-                setShowAddModal(false);
-                setNewKeyName("");
-              }}
-              variant="ghost"
-              fullWidth
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+        </form>
       </Modal>
 
       <Modal
         isOpen={!!createdKey}
         title="API Key Created"
+        size="md"
         onClose={() => setCreatedKey(null)}
+        footer={
+          <div className="flex w-full justify-end">
+            <Button type="button" onClick={() => setCreatedKey(null)}>
+              Done
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2 font-medium">
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-4">
+            <p className="text-sm text-amber-800 dark:text-amber-200 mb-1 font-medium">
               Save this key now!
             </p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+            <p className="text-xs text-amber-700 dark:text-amber-300">
               Store this key securely. You can view or copy it later from the API Keys list.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Input
               value={createdKey || ""}
               readOnly
-              className="flex-1 font-mono text-sm"
+              className="flex-1 min-w-0"
+              inputClassName="font-mono text-sm"
             />
             <Button
+              type="button"
               variant="secondary"
               icon={copied === "created_key" ? "check" : "content_copy"}
               onClick={() => copy(createdKey, "created_key")}
@@ -360,9 +398,6 @@ export default function ApiKeysPageClient() {
               {copied === "created_key" ? "Copied!" : "Copy"}
             </Button>
           </div>
-          <Button onClick={() => setCreatedKey(null)} fullWidth>
-            Done
-          </Button>
         </div>
       </Modal>
 

@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Progress } from "@/shared/components/ui/progress";
 import { PeriodDropdown } from "@/shared/components";
 import { Icon } from "@/shared/components/ui/icon";
 
@@ -99,8 +98,8 @@ function DashboardSkeleton() {
 
 function CardSectionTitle({ title, action }) {
   return (
-    <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-      <CardTitle className="text-base">{title}</CardTitle>
+    <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border px-5 py-3.5">
+      <CardTitle className="text-sm font-mono font-semibold">{title}</CardTitle>
       {action ? <div className="flex shrink-0 items-center gap-3">{action}</div> : null}
     </CardHeader>
   );
@@ -375,7 +374,7 @@ export default function DashboardHomeClient() {
           <p className="text-xs text-muted-foreground">
             All usage metrics reflect {periodLabel.toLowerCase()}; account balance is current.
           </p>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link href="/dashboard/usage">
                 Usage analytics
@@ -398,7 +397,7 @@ export default function DashboardHomeClient() {
       </section>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
-        <Card padding="none" className="min-w-0 overflow-hidden">
+        <Card className="min-w-0 gap-0 overflow-hidden py-0">
           <CardSectionTitle
             title="Live requests"
             action={
@@ -473,7 +472,7 @@ export default function DashboardHomeClient() {
         </Card>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <Card padding="none" className="min-w-0 overflow-hidden">
+          <Card className="min-w-0 gap-0 overflow-hidden py-0">
             <CardSectionTitle title="Top models" />
             {modelData.length ? (
               <div className="flex flex-col gap-3.5 px-5 py-4">
@@ -518,7 +517,7 @@ export default function DashboardHomeClient() {
             )}
           </Card>
 
-          <Card padding="none" className="min-w-0 overflow-hidden">
+          <Card className="min-w-0 gap-0 overflow-hidden py-0">
             <CardSectionTitle title="Outcomes" />
             {outcomeTotal ? (
               <div className="px-5 py-4">
@@ -559,11 +558,7 @@ export default function DashboardHomeClient() {
                     </div>
                   ))}
                 </div>
-                <Progress
-                  className="mt-3 h-1"
-                  value={successRate * 100}
-                  indicatorClassName="bg-success"
-                />
+
               </div>
             ) : (
               <EmptyState

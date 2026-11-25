@@ -33,6 +33,7 @@ export default function Select({
   const generatedId = useId();
   const selectId = id || generatedId;
   const describedBy = error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined;
+  const hasEmptyOption = options.some((option) => option.value === "");
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -52,7 +53,7 @@ export default function Select({
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            "flex h-9 w-full appearance-none rounded-md border border-input bg-transparent px-3 py-1 pr-9 text-base shadow-xs outline-none transition-[color,box-shadow] md:text-sm",
+            "flex h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-9 text-base shadow-xs outline-none transition-[color,box-shadow] md:text-sm",
             "dark:bg-input/30",
             "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
             "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
@@ -63,9 +64,11 @@ export default function Select({
         >
           {children ?? (
             <>
-              <option value="" disabled>
-                {placeholder}
-              </option>
+              {!hasEmptyOption && placeholder ? (
+                <option value="" disabled>
+                  {placeholder}
+                </option>
+              ) : null}
               {options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}

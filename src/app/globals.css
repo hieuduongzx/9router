@@ -201,6 +201,7 @@
   --color-text-subtle: var(--muted-foreground);
   --color-border-subtle: var(--border);
   --color-danger: var(--destructive);
+  --color-error: var(--destructive);
   --color-primary-hover: var(--primary);
 
   /* Neutral ramp (was blue) — only for the few places that need a fixed step. */

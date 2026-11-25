@@ -79,7 +79,7 @@ function StatusMessage({ status }) {
       className={`flex items-start gap-2 border px-3 py-2.5 text-sm ${
         status.type === "success"
           ? "border-success/25 bg-success/10 text-success"
-          : "border-danger/25 bg-danger/10 text-danger"
+          : "border-destructive/25 bg-destructive/10 text-destructive"
       }`}
     >
       <Icon name={status.type === "success" ? "check_circle" : "error"} className="mt-px size-[17px]" />
@@ -370,7 +370,7 @@ function AccountPage() {
   if (loadError || !account) {
     return (
       <div className="mx-auto flex min-h-72 w-full max-w-xl flex-col items-center justify-center border border-border bg-surface px-6 text-center">
-        <Icon name="account_circle_off" className="size-7 text-danger" />
+        <Icon name="account_circle_off" className="size-7 text-destructive" />
         <h2 className="mt-3 font-mono text-sm font-semibold text-foreground">Account unavailable</h2>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">{loadError || "Your account could not be loaded."}</p>
         <Button className="mt-5" variant="outline" onClick={() => loadProfile()}>Try again</Button>
@@ -389,7 +389,7 @@ function AccountPage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate font-mono text-xl font-semibold tracking-[-0.03em] text-foreground">{displayName}</h1>
-                <Badge variant={identity?.role === "admin" ? "primary" : "neutral"}>
+                <Badge variant={identity?.role === "admin" ? "primary" : "default"}>
                   {identity?.role || account.role || "user"}
                 </Badge>
               </div>
@@ -500,22 +500,24 @@ function AccountPage() {
                 )}
                 {topupStatus && <div className="mt-4"><StatusMessage status={topupStatus} /></div>}
               </div>
-              <form onSubmit={submitTopup} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                <Input
-                  label="Wallet credit (USD)"
-                  type="number"
-                  min="0.01"
-                  max="1000000"
-                  step="0.01"
-                  inputMode="decimal"
-                  icon="attach_money"
-                  value={topupAmount}
-                  onChange={(event) => setTopupAmount(event.target.value)}
-                  hint="The QR amount is calculated on the server."
-                  disabled={!wallet.sepay?.enabled}
-                  required
-                />
-                <Button type="submit" icon="qr_code_2" loading={topupSubmitting} disabled={!topupAmount || !wallet.sepay?.enabled}>Generate QR</Button>
+              <form onSubmit={submitTopup} className="flex flex-col gap-1.5">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <Input
+                    label="Wallet credit (USD)"
+                    type="number"
+                    min="0.01"
+                    max="1000000"
+                    step="0.01"
+                    inputMode="decimal"
+                    icon="attach_money"
+                    value={topupAmount}
+                    onChange={(event) => setTopupAmount(event.target.value)}
+                    disabled={!wallet.sepay?.enabled}
+                    required
+                  />
+                  <Button type="submit" icon="qr_code_2" loading={topupSubmitting} disabled={!topupAmount || !wallet.sepay?.enabled}>Generate QR</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">The QR amount is calculated on the server.</p>
               </form>
             </div>
             {topupPayment && (
@@ -528,7 +530,7 @@ function AccountPage() {
                   <div><dt className="text-xs text-muted-foreground">Account number</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{topupPayment.bankAccount}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">Account name</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{topupPayment.accountName}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">Exact amount</dt><dd className="mt-0.5 font-mono font-semibold text-foreground">{Number(topupPayment.amountVnd).toLocaleString("vi-VN")} VND</dd></div>
-                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Transfer content</dt><dd className="mt-0.5 flex items-center gap-2"><code className="min-w-0 break-all font-mono font-semibold text-primary">{topupPayment.transferContent}</code><button type="button" className="shrink-0 border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => copy(topupPayment.transferContent)} title="Copy transfer content">Copy</button></dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Transfer content</dt><dd className="mt-0.5 flex items-center gap-2"><code className="min-w-0 break-all font-mono font-semibold text-primary">{topupPayment.transferContent}</code><button type="button" className="shrink-0 border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => copy(topupPayment.transferContent, "transfer-content")} title="Copy transfer content">{copied === "transfer-content" ? "Copied" : "Copy"}</button></dd></div>
                 </dl>
               </div>
             )}
@@ -548,7 +550,7 @@ function AccountPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(topup.createdAt)} · {Number(topup.amountVnd || 0).toLocaleString("vi-VN")} VND</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 text-xs font-medium text-muted-foreground ${topup.status === "paid" ? "bg-success/10 text-success" : topup.status === "pending" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}>{topup.status}</span>
+                      <span className={`rounded-sm px-2 py-0.5 text-xs font-medium ${topup.status === "paid" ? "bg-success/10 text-success" : topup.status === "pending" ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive"}`}>{topup.status}</span>
                       <span className="font-mono text-sm font-semibold text-foreground">{CREDIT_FORMAT.format((topup.creditCents || 0) / 100)}</span>
                     </div>
                   </div>
@@ -573,7 +575,7 @@ function AccountPage() {
               <div className="h-48 animate-pulse bg-surface-2" />
             ) : wallet.entries.length === 0 ? (
               <div className="px-4 py-12 text-center">
-                <Icon name="receipt_long" className="size-7 text-muted-foreground" />
+                <Icon name="receipt_long" className="mx-auto size-7 text-muted-foreground" />
                 <p className="mt-2 text-sm font-medium text-foreground">No wallet activity yet</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Admin top-ups, deductions, and signup credits will appear here.
@@ -601,11 +603,11 @@ function AccountPage() {
                             {formatDateTime(entry.createdAt)}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium text-muted-foreground tracking-wide ${
+                            <span className={`inline-flex rounded-sm px-2 py-0.5 text-xs font-medium tracking-wide ${
                               positive
                                 ? "bg-success/10 text-success"
                                 : negative
-                                  ? "bg-danger/10 text-danger"
+                                  ? "bg-destructive/10 text-destructive"
                                   : "bg-surface-2 text-muted-foreground"
                             }`}>
                               {entry.type || "adjustment"}
@@ -618,7 +620,7 @@ function AccountPage() {
                             </p>
                           </td>
                           <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${
-                            positive ? "text-success" : negative ? "text-danger" : "text-foreground"
+                            positive ? "text-success" : negative ? "text-destructive" : "text-foreground"
                           }`}>
                             {formatSignedCents(entry.amountCents)}
                           </td>

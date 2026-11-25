@@ -29,12 +29,6 @@ const DEVELOPER_LINKS = [
   { href: "/ranking", label: "Ranking" },
 ];
 
-const ABOUT_LINKS = [
-  { href: "/landing#story", label: "Story" },
-  { href: "/landing#how-it-works", label: "How it works" },
-  { href: "/landing#contact", label: "Contact" },
-];
-
 const LOCALES = [
   { value: "en", label: "EN" },
   { value: "zh", label: "中" },
@@ -44,7 +38,6 @@ export default function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auth, setAuth] = useState({ loading: true, authenticated: false });
   const [locale, setLocale] = useState("en");
-  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -79,7 +72,7 @@ export default function Navigation() {
         <Link
           href="/"
           aria-label="Router2k home"
-          className="flex items-center gap-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded-md pr-1"
+          className="flex items-center gap-2 rounded-md pr-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Icon name="route" className="size-4" />
@@ -97,13 +90,11 @@ export default function Navigation() {
           <NavLink href="/#models" label="Models" />
           <NavLink href="/#endpoint" label="Endpoint" />
           <NavLink href="/ranking" label="Ranking" />
-          <NavMenu label="About" items={ABOUT_LINKS} />
         </nav>
 
         {/* Right actions */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <ThemeToggle />
-          <AnnouncementsButton open={announcementsOpen} onOpenChange={setAnnouncementsOpen} />
 
           <div
             role="group"
@@ -117,7 +108,7 @@ export default function Navigation() {
                 aria-pressed={locale === entry.value}
                 onClick={() => setLocaleCookie(entry.value)}
                 className={cn(
-                  "flex h-full min-w-9 items-center justify-center rounded-sm px-2 text-sm font-medium transition-colors",
+                  "flex h-full min-w-9 cursor-pointer items-center justify-center rounded-sm px-2 text-sm font-medium transition-colors",
                   locale === entry.value
                     ? "bg-foreground/90 text-background"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -217,7 +208,7 @@ function NavMenu({ label, items }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           {label}
           <ChevronDown className="size-3.5" />
@@ -231,22 +222,5 @@ function NavMenu({ label, items }) {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function AnnouncementsButton({ open, onOpenChange }) {
-  // Placeholder: opens a popover of recent product notes. Currently a no-op
-  // until the announcements API is wired in.
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label="Announcements"
-      title="Announcements"
-      aria-expanded={open}
-      onClick={() => onOpenChange(!open)}
-    >
-      <Icon name="campaign" />
-    </Button>
   );
 }

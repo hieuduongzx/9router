@@ -25,16 +25,6 @@ import { translate } from "@/i18n/runtime";
 
 /**
  * The header no longer carries a shell switch.
- *
- * There used to be a quick admin/user toggle here that wrote a
- * `dashboard_view_mode` cookie, while the avatar menu and the admin rail
- * switched shells by plain navigation without touching it. Three switches, one
- * of which persisted state, meant the URL you were on and the mode the server
- * believed you were in drifted apart constantly — an admin standing in /admin
- * could be refused Activity, lose pricing controls and have nav rows vanish.
- *
- * Which shell you are in is now simply which route group you are in, and the
- * only way to change it is `AccountMenu`.
  */
 export default function Header({ onMenuClick, showMenuButton = true, variant = "user" }) {
   const pathname = usePathname();
@@ -101,7 +91,7 @@ export default function Header({ onMenuClick, showMenuButton = true, variant = "
                 const last = index === breadcrumbs.length - 1;
                 return (
                   <BreadcrumbItem key={`${crumb.label}-${crumb.href || "current"}`}>
-                    {index > 0 ? <BreadcrumbSeparator className="mr-1.5" /> : null}
+                    {index > 0 ? <BreadcrumbSeparator className="mr-1.5 hidden sm:inline-flex" /> : null}
                     {crumb.href && !last ? (
                       <BreadcrumbLink href={crumb.href} className="hidden sm:inline">
                         {translate(crumb.label)}

@@ -16,8 +16,6 @@ export default function SmartPolicyModal({
   currentThreshold = 80,
   onSave,
 }) {
-  // Callers mount the modal only while it is open, so the saved policy seeds
-  // the draft once per opening.
   const [selectedPolicy, setSelectedPolicy] = useState(() => {
     const initialPolicy = currentPolicy || "smart";
     return initialPolicy.startsWith("smart-switch") ? "smart" : initialPolicy;
@@ -82,45 +80,61 @@ export default function SmartPolicyModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`Router Policy — ${comboName || "Combo"}`}
+      description="Choose how the System One router manages model selection across conversation turns."
       size="lg"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave}>
+            Save Policy
+          </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-xs text-text-muted">
-          Choose how the System One router manages model selection across conversation turns:
-        </p>
-
-        <div className="flex flex-col gap-2.5">
+        <div role="radiogroup" aria-label="Routing policy" className="flex flex-col gap-2.5">
           {policies.map((p) => {
             const isSelected = selectedPolicy === p.id;
             return (
               <div
                 key={p.id}
+                role="radio"
+                tabIndex={0}
+                aria-checked={isSelected}
                 onClick={() => setSelectedPolicy(p.id)}
-                className={`relative flex flex-col rounded-xl border p-3 cursor-pointer transition-all ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedPolicy(p.id);
+                  }
+                }}
+                className={`relative flex cursor-pointer flex-col rounded-xl border p-3.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring ${
                   isSelected
-                    ? "border-primary bg-primary/[0.04] shadow-sm"
-                    : "border-border/60 hover:border-border hover:bg-black/[0.01] dark:hover:bg-white/[0.01]"
+                    ? "border-primary bg-primary/[0.04] shadow-xs"
+                    : "border-border hover:border-foreground/25 hover:bg-muted/30"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`size-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                      className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-all ${
                         isSelected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border-subtle bg-surface"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background"
                       }`}
                     >
-                      {isSelected && <span className="size-1.5 rounded-full bg-white" />}
+                      {isSelected && <span className="size-1.5 rounded-full bg-primary-foreground" />}
                     </span>
-                    <span className="size-5 rounded flex items-center justify-center shrink-0 text-text-muted">
-                      <Icon name={p.icon} className="size-[15px]" />
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground">
+                      <Icon name={p.icon} className="size-4" />
                     </span>
-                    <span className="text-sm font-medium text-text-main">
+                    <span className="text-sm font-medium text-foreground">
                       {p.title}
                     </span>
                     {p.recommended && (
-                      <span className="text-[10px] uppercase tracking-wide font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                         Recommended
                       </span>
                     )}
@@ -130,19 +144,18 @@ export default function SmartPolicyModal({
                   </Badge>
                 </div>
 
-                <p className="text-xs text-text-muted mt-1.5 pl-6 leading-relaxed">
+                <p className="mt-1.5 pl-6 text-xs leading-relaxed text-muted-foreground">
                   {p.desc}
                 </p>
 
-                {/* Custom Threshold Slider & Chips */}
                 {p.id === "custom" && isSelected && (
                   <div
-                    className="mt-3 pl-6 pt-3 border-t border-border/40 flex flex-col gap-2.5"
+                    className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pl-6 pt-3"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-text-muted">Switch Confidence Threshold:</span>
-                      <span className="font-mono font-semibold text-primary text-sm">{threshold}%</span>
+                      <span className="font-medium text-muted-foreground">Switch Confidence Threshold:</span>
+                      <span className="font-mono text-sm font-semibold text-primary">{threshold}%</span>
                     </div>
 
                     <input
@@ -152,20 +165,20 @@ export default function SmartPolicyModal({
                       step="1"
                       value={threshold}
                       onChange={(e) => setThreshold(Number(e.target.value))}
-                      className="w-full accent-primary cursor-pointer h-1.5 bg-black/10 dark:bg-white/10 rounded-lg appearance-none"
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-muted accent-primary"
                     />
 
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <span className="text-[10px] text-text-muted mr-1">Presets:</span>
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="mr-1 text-[10px] text-muted-foreground">Presets:</span>
                       {QUICK_THRESHOLDS.map((pct) => (
                         <button
                           key={pct}
                           type="button"
                           onClick={() => setThreshold(pct)}
-                          className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                          className={`cursor-pointer rounded px-2 py-0.5 font-mono text-[11px] transition-colors ${
                             threshold === pct
-                              ? "bg-primary text-white font-semibold"
-                              : "bg-black/5 dark:bg-white/5 text-text-muted hover:text-text-main"
+                              ? "bg-primary font-semibold text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           {pct}%
@@ -179,24 +192,14 @@ export default function SmartPolicyModal({
           })}
         </div>
 
-        {/* Prompt Cache Benefit Callout */}
-        <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-3 text-xs flex items-start gap-2.5">
-          <Icon name="bolt" className="size-[18px] text-primary mt-0.5" />
-          <div className="text-text-muted leading-relaxed">
-            <span className="font-medium text-text-main">Prompt Cache Benefits: </span>
+        <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.03] p-3 text-xs">
+          <Icon name="bolt" className="mt-0.5 size-4 shrink-0 text-primary" />
+          <div className="leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground">Prompt Cache Benefits: </span>
             Retaining the same model across session turns keeps upstream prompt caches warm,
-            reducing input token costs by up to <strong className="text-text-main">90%</strong> and
+            reducing input token costs by up to <strong className="text-foreground">90%</strong> and
             cutting latency in half (Claude Prompt Cache, DeepSeek KV-cache, Gemini Implicit Cache).
           </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleSave}>
-            Save Policy
-          </Button>
         </div>
       </div>
     </Modal>

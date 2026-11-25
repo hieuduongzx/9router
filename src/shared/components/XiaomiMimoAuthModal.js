@@ -1,7 +1,6 @@
 "use client";
 import { Icon } from "@/shared/components/ui/icon";
 
-
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button } from "@/shared/components";
@@ -192,14 +191,14 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
 
   // The server-login card, shown in both the found and not-found states
   const renderServerLogin = () => (
-    <div className="bg-card p-3 rounded-lg border border-border flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <Icon name="login" className="inline-block h-[1em] w-[1em] align-middle text-primary text-base" />
-          <span className="text-xs sm:text-sm font-semibold">Browser Login</span>
-          <span className="text-[11px] text-text-muted">No Desktop required</span>
+          <Icon name="login" className="inline-block h-[1em] w-[1em] align-middle text-base text-primary" />
+          <span className="text-xs font-semibold sm:text-sm">Browser Login</span>
+          <span className="text-[11px] text-muted-foreground">No Desktop required</span>
         </div>
-        <span className="text-[11px] text-text-muted">Weekly quota</span>
+        <span className="text-[11px] text-muted-foreground">Weekly quota</span>
       </div>
       {sessPolling ? (
         <div className="flex flex-col gap-1.5">
@@ -222,167 +221,164 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
           {sessBusy ? "Starting..." : "Choose cluster & sign in"}
         </Button>
       )}
-      {sessError && <p className="text-[11px] text-red-500">{translate(sessError)}</p>}
+      {sessError && <p className="text-[11px] text-destructive">{translate(sessError)}</p>}
     </div>
   );
 
   return (
-    <Modal isOpen={isOpen} title={translate("Connect Xiaomi MiMo")} onClose={onClose} size="lg">
-      <div className="flex flex-col gap-3.5">
-        {/* Detecting */}
-        {phase === "detecting" && (
-          <div className="text-center py-6">
-            <div className="size-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
-              <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle text-2xl text-primary animate-spin" />
-            </div>
-            <p className="text-sm text-text-muted">Reading local MiMo Desktop credentials...</p>
-          </div>
-        )}
-
-        {/* Importing */}
-        {phase === "importing" && (
-          <div className="text-center py-6">
-            <div className="size-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
-              <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle text-2xl text-primary animate-spin" />
-            </div>
-            <p className="text-sm font-medium">Connecting...</p>
-          </div>
-        )}
-
-        {/* Found local desktop credentials */}
-        {phase === "found" && detectResult && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted px-0.5">
-              <Icon name="desktop_windows" className="inline-block h-[1em] w-[1em] align-middle text-primary text-sm" />
-              <span>Desktop Plan · Local credentials</span>
-            </div>
-
-            {existingConnection ? (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex gap-2.5 items-start">
-                  <Icon name="check_circle" className="inline-block h-[1em] w-[1em] align-middle text-blue-600 dark:text-blue-400 text-lg mt-0.5" />
-                  <div className="text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-medium">This account is already connected (no need to import again)</p>
-                    <p className="text-xs mt-0.5 opacity-80">
-                      UID: {detectResult.uid || "—"} · Status: {existingConnection.testStatus === "active" ? "Active" : "Untested"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="flex gap-2.5 items-start">
-                  <Icon name="check_circle" className="inline-block h-[1em] w-[1em] align-middle text-green-600 dark:text-green-400 text-lg mt-0.5" />
-                  <div className="text-sm text-green-800 dark:text-green-200">
-                    <p className="font-medium">Xiaomi MiMo Desktop credentials found!</p>
-                    <p className="text-xs mt-0.5 opacity-80">
-                      UID: {detectResult.uid || "—"} · Source: {detectResult.source?.split(/[\\/]/).pop()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 p-2.5 rounded-lg border border-red-200 dark:border-red-800">
-                <p className="text-xs text-red-600 dark:text-red-400">{translate(error)}</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button onClick={handleImportLocal} variant={existingConnection ? "outline" : "default"} fullWidth>
-                {existingConnection ? "Re-sync local credentials" : "Connect with local credentials"}
+    <>
+      <Modal
+        isOpen={isOpen}
+        title={translate("Connect Xiaomi MiMo")}
+        onClose={onClose}
+        size="lg"
+        footer={
+          phase === "found" || phase === "not-found" ? (
+            <div className="flex w-full items-center justify-end gap-2">
+              <Button onClick={onClose} variant="outline">
+                {phase === "found" && existingConnection ? "Close" : "Cancel"}
               </Button>
-              <Button onClick={onClose} variant="ghost" fullWidth>
-                {existingConnection ? "Close" : "Cancel"}
-              </Button>
+              {phase === "found" && detectResult && (
+                <Button onClick={handleImportLocal} variant={existingConnection ? "secondary" : "primary"}>
+                  {existingConnection ? "Re-sync local credentials" : "Connect with local credentials"}
+                </Button>
+              )}
             </div>
-
-            <div className="relative my-1">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
+          ) : null
+        }
+      >
+        <div className="flex flex-col gap-3.5">
+          {/* Detecting */}
+          {phase === "detecting" && (
+            <div className="py-6 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10">
+                <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] animate-spin align-middle text-2xl text-primary" />
               </div>
-              <div className="relative flex justify-center text-xs text-text-muted">
-                <span className="bg-card px-2">or</span>
+              <p className="text-sm text-muted-foreground">Reading local MiMo Desktop credentials...</p>
+            </div>
+          )}
+
+          {/* Importing */}
+          {phase === "importing" && (
+            <div className="py-6 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10">
+                <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] animate-spin align-middle text-2xl text-primary" />
               </div>
+              <p className="text-sm font-medium">Connecting...</p>
             </div>
+          )}
 
-            {renderServerLogin()}
-          </div>
-        )}
-
-        {/* No local desktop credentials */}
-        {phase === "not-found" && (
-          <div className="flex flex-col gap-3">
-            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-              <div className="flex gap-2.5 items-start">
-                <Icon name="info" className="inline-block h-[1em] w-[1em] align-middle text-amber-600 dark:text-amber-400 text-lg mt-0.5" />
-                <div className="text-sm text-amber-800 dark:text-amber-200">
-                  <p className="font-medium">No local Desktop credentials found</p>
-                  <p className="text-xs mt-0.5 opacity-80">
-                    You can still sign in via browser — no Desktop client needed.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {renderServerLogin()}
-
-            <div className="mt-1">
-              <Button onClick={onClose} variant="ghost" fullWidth>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Cluster selection sub-modal */}
-        {showClusterModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="relative w-full max-w-sm bg-surface border border-border-subtle rounded-[14px] shadow-2xl p-5 flex flex-col gap-3.5 animate-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Icon name="public" className="inline-block h-[1em] w-[1em] align-middle text-primary text-lg" />
-                  <h3 className="text-sm font-semibold">Select account cluster</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowClusterModal(false)}
-                  className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors cursor-pointer"
-                >
-                  <Icon name="close" className="inline-block h-[1em] w-[1em] align-middle text-lg" />
-                </button>
+          {/* Found local desktop credentials */}
+          {phase === "found" && detectResult && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-1.5 px-0.5 text-xs font-semibold text-muted-foreground">
+                <Icon name="desktop_windows" className="inline-block h-[1em] w-[1em] align-middle text-sm text-primary" />
+                <span>Desktop Plan · Local credentials</span>
               </div>
 
-              <p className="text-xs text-text-muted">Choose the region cluster of your Xiaomi account:</p>
-
-              <div className="flex flex-col gap-2">
-                {CLUSTERS.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => startSessionLogin(c.id)}
-                    className="p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left flex items-start gap-3 group cursor-pointer"
-                  >
-                    <span className="text-2xl mt-0.5">{c.flag}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold group-hover:text-primary transition-colors">
-                        {c.name}
-                      </div>
-                      <div className="text-xs text-text-muted mt-0.5">{c.host}</div>
+              {existingConnection ? (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="check_circle" className="mt-0.5 inline-block h-[1em] w-[1em] align-middle text-lg text-blue-600 dark:text-blue-400" />
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-medium">This account is already connected (no need to import again)</p>
+                      <p className="mt-0.5 text-xs opacity-80">
+                        UID: {detectResult.uid || "—"} · Status: {existingConnection.testStatus === "active" ? "Active" : "Untested"}
+                      </p>
                     </div>
-                  </button>
-                ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20">
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="check_circle" className="mt-0.5 inline-block h-[1em] w-[1em] align-middle text-lg text-green-600 dark:text-green-400" />
+                    <div className="text-sm text-green-800 dark:text-green-200">
+                      <p className="font-medium">Xiaomi MiMo Desktop credentials found!</p>
+                      <p className="mt-0.5 text-xs opacity-80">
+                        UID: {detectResult.uid || "—"} · Source: {detectResult.source?.split(/[\\/]/).pop()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5">
+                  <p className="text-xs text-destructive">{translate(error)}</p>
+                </div>
+              )}
+
+              <div className="relative my-1">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs text-muted-foreground">
+                  <span className="bg-background px-2">or</span>
+                </div>
               </div>
 
-              <Button onClick={() => setShowClusterModal(false)} variant="ghost" size="sm" fullWidth>
-                Cancel
-              </Button>
+              {renderServerLogin()}
             </div>
+          )}
+
+          {/* No local desktop credentials */}
+          {phase === "not-found" && (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="flex items-start gap-2.5">
+                  <Icon name="info" className="mt-0.5 inline-block h-[1em] w-[1em] align-middle text-lg text-amber-600 dark:text-amber-400" />
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
+                    <p className="font-medium">No local Desktop credentials found</p>
+                    <p className="mt-0.5 text-xs opacity-80">
+                      You can still sign in via browser — no Desktop client needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {renderServerLogin()}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Cluster selection modal rendered as a sibling portaled Modal (never nested inside a transformed dialog) */}
+      <Modal
+        isOpen={showClusterModal}
+        onClose={() => setShowClusterModal(false)}
+        title="Select account cluster"
+        size="sm"
+        footer={
+          <div className="flex w-full justify-end">
+            <Button onClick={() => setShowClusterModal(false)} variant="outline" size="sm">
+              Cancel
+            </Button>
           </div>
-        )}
-      </div>
-    </Modal>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">Choose the region cluster of your Xiaomi account:</p>
+          <div className="flex flex-col gap-2">
+            {CLUSTERS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => startSessionLogin(c.id)}
+                className="group flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 text-left transition-all hover:border-primary hover:bg-primary/5"
+              >
+                <span className="mt-0.5 text-2xl">{c.flag}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold transition-colors group-hover:text-primary">
+                    {c.name}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{c.host}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

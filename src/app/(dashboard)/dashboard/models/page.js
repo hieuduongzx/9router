@@ -137,7 +137,8 @@ export default function ModelsPage() {
     const [key, direction] = value.split(":");
     setSort({ key, direction });
   };
-  const filtersActive = Boolean(query.trim()) || capabilityFilter !== "all";
+  const filtersActive =
+    Boolean(query.trim()) || capabilityFilter !== "all" || selectedProvider !== "all";
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-8">
@@ -191,7 +192,7 @@ export default function ModelsPage() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="// search models"
+            placeholder="Search models by ID..."
             aria-label="Search available models"
             inputClassName="font-mono"
           />
@@ -223,8 +224,9 @@ export default function ModelsPage() {
             onClick={() => {
               setQuery("");
               setCapabilityFilter("all");
+              setProviderTab("all");
             }}
-            className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="cursor-pointer font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             Clear filters
           </button>
@@ -232,11 +234,11 @@ export default function ModelsPage() {
       )}
 
       {loading && (
-        <div className="h-72 animate-pulse border border-border bg-surface-2" aria-label="Loading available models" />
+        <div className="h-72 animate-pulse rounded-xl border border-border bg-surface-2" aria-label="Loading available models" />
       )}
 
       {error && (
-        <div role="alert" className="border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div role="alert" className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -246,29 +248,29 @@ export default function ModelsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] table-fixed text-left text-sm">
               <thead className="thead-data">
-                <tr className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-                  <th className="w-[28%] px-3 py-2 font-medium">
-                    <button type="button" onClick={() => toggleSort("id")} className="inline-flex items-center gap-1 hover:text-foreground">
+                <tr className="text-xs font-medium tracking-wide text-muted-foreground">
+                  <th className="w-[26%] px-3 py-2 font-medium">
+                    <button type="button" onClick={() => toggleSort("id")} className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground">
                       Model
                       <Icon name={sort.key === "id" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
-                  <th className="w-[10%] px-2 py-2 font-medium">
-                    <button type="button" onClick={() => toggleSort("context")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  <th className="w-[9%] px-2 py-2 font-medium">
+                    <button type="button" onClick={() => toggleSort("context")} className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground">
                       Context
                       <Icon name={sort.key === "context" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
-                  <th className="w-[13%] px-2 py-2 font-medium" title="USD per one million tokens">
-                    <button type="button" onClick={() => toggleSort("price")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  <th className="w-[12%] px-2 py-2 font-medium" title="USD per one million tokens">
+                    <button type="button" onClick={() => toggleSort("price")} className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground">
                       Input
                       <Icon name={sort.key === "price" ? (sort.direction === "asc" ? "arrow_upward" : "arrow_downward") : "unfold_more"} className="size-[14px]" />
                     </button>
                   </th>
-                  <th className="w-[13%] px-2 py-2 font-medium" title="USD per one million tokens">Output</th>
-                  <th className="w-[12%] px-2 py-2 font-medium" title="USD per one million cached input tokens">Cache read</th>
-                  <th className="w-[12%] px-2 py-2 font-medium" title="USD per one million cache-write tokens">Cache write</th>
-                  <th className="w-[12%] px-2 py-2 font-medium">Caps</th>
+                  <th className="w-[12%] px-2 py-2 font-medium" title="USD per one million tokens">Output</th>
+                  <th className="w-[11%] px-2 py-2 font-medium" title="USD per one million cached input tokens">Cache read</th>
+                  <th className="w-[11%] px-2 py-2 font-medium" title="USD per one million cache-write tokens">Cache write</th>
+                  <th className="w-[13%] px-2 py-2 font-medium">Caps</th>
                   <th className="w-[6%] px-2 py-2 text-right font-medium">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -291,13 +293,13 @@ export default function ModelsPage() {
                           <LobeProviderIcon
                             iconKey={model.providerIcon}
                             name={model.provider}
-                            className="size-7"
+                            className="size-7 shrink-0"
                           />
                           <span className="min-w-0">
                             <code className="block truncate font-mono text-[12px] font-medium text-foreground" title={model.id}>
                               {model.id}
                             </code>
-                            <span className="block truncate text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
+                            <span className="block truncate text-xs font-medium tracking-wide text-muted-foreground">
                               {model.provider}
                             </span>
                           </span>
@@ -331,7 +333,7 @@ export default function ModelsPage() {
                             {visibleCaps.map(([key, label, icon]) => (
                               <Tooltip key={key} text={label} position="top">
                                 <span
-                                  className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 text-foreground"
+                                  className="inline-flex size-6 items-center justify-center rounded-md border border-border bg-surface-2 text-foreground"
                                   aria-label={label}
                                 >
                                   <Icon name={icon} className="size-[14px]" />
@@ -352,7 +354,7 @@ export default function ModelsPage() {
                                   </div>
                                 }
                               >
-                                <span className="inline-flex size-6 items-center justify-center border border-border bg-surface-2 font-mono text-[10px] font-semibold text-muted-foreground">
+                                <span className="inline-flex size-6 items-center justify-center rounded-md border border-border bg-surface-2 font-mono text-[10px] font-semibold text-muted-foreground">
                                   +{overflowCaps}
                                 </span>
                               </Tooltip>
@@ -366,7 +368,7 @@ export default function ModelsPage() {
                         <button
                           type="button"
                           onClick={() => copy(model.id, model.id)}
-                          className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                          className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                           aria-label={`Copy model ID ${model.id}`}
                           title="Copy model ID"
                         >
@@ -384,7 +386,7 @@ export default function ModelsPage() {
 
       {!loading && !error && sortedModels.length === 0 && (
         <Card className="py-12 text-center">
-          <Icon name="deployed_code_off" className="size-9 text-muted-foreground" />
+          <Icon name="deployed_code_off" className="mx-auto size-9 text-muted-foreground" />
           <h2 className="mt-3 font-mono text-sm font-semibold text-foreground">
             {filtersActive ? "No matching models" : "No models published yet"}
           </h2>

@@ -69,7 +69,7 @@ function RecentRequests({ requests = [] }) {
                 return (
                   <tr key={i} className="hover:bg-bg-subtle transition-colors">
                     <td className="py-1.5">
-                      <span className={`block w-1.5 h-1.5 rounded-full ${ok ? "bg-success" : "bg-error"}`} />
+                      <span className={`block w-1.5 h-1.5 rounded-full ${ok ? "bg-success" : "bg-destructive"}`} />
                     </td>
                     <td className="py-1.5 font-mono truncate max-w-[120px]" title={r.model}>{r.model}</td>
                     <td className="py-1.5 text-right whitespace-nowrap">
@@ -472,7 +472,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
                 key={p.value}
                 onClick={() => setPeriod(p.value)}
                 disabled={fetching}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${period === p.value ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
+                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${period === p.value ? "bg-primary text-primary-foreground shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
               >
                 {p.label}
               </button>
@@ -527,13 +527,13 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           <div className="grid grid-cols-2 items-center gap-1 rounded-lg border border-border bg-bg-subtle p-1 sm:flex">
             <button
               onClick={() => setViewMode("costs")}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "costs" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "costs" ? "bg-primary text-primary-foreground shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
             >
               Costs
             </button>
             <button
               onClick={() => setViewMode("tokens")}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-white shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "tokens" ? "bg-primary text-primary-foreground shadow-sm" : "text-text-muted hover:text-text hover:bg-bg-hover"}`}
             >
               Tokens
             </button>

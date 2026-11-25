@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Button, Badge, Input, Modal, Select } from "@/shared/components";
+import { Button, Badge, Icon, Input, Modal, SegmentedControl, Select } from "@/shared/components";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { planBulkAdd } from "@/shared/utils/bulkAdd";
 
@@ -52,11 +52,48 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     sessionToken: "",
   });
   const [region, setRegion] = useState(defaultRegion);
+  const [showSecret, setShowSecret] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [cliDetecting, setCliDetecting] = useState(false);
   const [cliDetectError, setCliDetectError] = useState(null);
+  const [mode, setMode] = useState("single"); // "single" | "bulk"
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResult, setBulkResult] = useState(null); // { success, failed }
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: "",
+        apiKey: "",
+        defaultModel: "",
+        priority: 1,
+        proxyPoolId: NONE_PROXY_POOL_VALUE,
+        ollamaHostUrl: "",
+      });
+      setAzureData({
+        azureEndpoint: "",
+        apiVersion: "2024-10-01-preview",
+        deployment: "",
+        organization: "",
+      });
+      setCloudflareData({ accountId: "" });
+      setBedrockData({
+        profile: "",
+        region: "",
+        accessKeyId: "",
+        sessionToken: "",
+      });
+      setRegion(defaultRegion);
+      setShowSecret(false);
+      setValidationResult(null);
+      setCliDetectError(null);
+      setMode("single");
+      setBulkText("");
+      setBulkResult(null);
+    }
+  }, [isOpen, provider, defaultRegion]);
 
   const handleCommandCodeAutoImport = async () => {
     setCliDetecting(true);
@@ -84,10 +121,6 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     : provider === "qoder" || provider === "qoder-cn"
       ? `name1|pt-xxxxx\nname2|pt-yyyyy\npt-only-auto-named`
       : BULK_PLACEHOLDER;
-
-  const [mode, setMode] = useState("single"); // "single" | "bulk"
-  const [bulkText, setBulkText] = useState("");
-  const [bulkResult, setBulkResult] = useState(null); // { success, failed }
 
   const buildProviderSpecificData = () => {
     if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
@@ -183,7 +216,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
         priority: formData.priority,
         proxyPoolId: formData.proxyPoolId === NONE_PROXY_POOL_VALUE ? null : formData.proxyPoolId,
         testStatus: isValid ? "active" : "unknown",
-        providerSpecificData: buildProviderSpecificData()
+        providerSpecificData: buildProviderSpecificData(),
       });
     } finally {
       setSaving(false);
@@ -244,16 +277,56 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
 
   if (!provider) return null;
 
+  const isSingleSaveDisabled =
+    saving ||
+    (!isOllamaLocal && (!formData.name || !apiKeySatisfied())) ||
+    (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) ||
+    (isCloudflareAi && !cloudflareData.accountId);
+
+  const modalFooter =
+    mode === "bulk" ? (
+      <div className="flex w-full items-center justify-end gap-2">
+        <Button type="button" onClick={onClose} variant="outline">
+          Cancel
+        </Button>
+        <Button type="button" onClick={handleBulkSubmit} disabled={saving || !bulkText.trim()}>
+          {saving ? "Adding..." : "Add All Keys"}
+        </Button>
+      </div>
+    ) : (
+      <div className="flex w-full items-center justify-end gap-2">
+        <Button type="button" onClick={onClose} variant="outline">
+          Cancel
+        </Button>
+        <Button type="button" onClick={handleSubmit} disabled={isSingleSaveDisabled}>
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      </div>
+    );
+
   return (
-    <Modal isOpen={isOpen} title={`Add ${providerName || provider} ${credentialLabel}`} onClose={onClose}>
+    <Modal
+      isOpen={isOpen}
+      title={`Add ${providerName || provider} ${credentialLabel}`}
+      onClose={onClose}
+      footer={modalFooter}
+    >
       <div className="flex flex-col gap-4">
         {/* Mode switcher. Hidden for AWS credentials: bulk lines carry only a key, so a
             Bedrock entry would be saved with no access key id or profile and never work. */}
         {!usesAwsCredentialForm && (
-          <div className="flex gap-2">
-            <Button size="sm" variant={mode === "single" ? "primary" : "ghost"} onClick={() => { setMode("single"); setBulkResult(null); }}>Single</Button>
-            <Button size="sm" variant={mode === "bulk" ? "primary" : "ghost"} onClick={() => { setMode("bulk"); setBulkResult(null); }}>Bulk Add</Button>
-          </div>
+          <SegmentedControl
+            value={mode}
+            onChange={(val) => {
+              setMode(val);
+              setBulkResult(null);
+            }}
+            size="sm"
+            options={[
+              { value: "single", label: "Single" },
+              { value: "bulk", label: "Bulk Add" },
+            ]}
+          />
         )}
 
         {mode === "bulk" && (
@@ -267,260 +340,272 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
               }
             </p>
             <textarea
-              className="w-full rounded-sm border border-accent/30 bg-sidebar p-2 text-sm font-mono resize-y min-h-[140px] focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border border-border bg-background p-2.5 text-sm font-mono resize-y min-h-[150px] focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring"
               placeholder={bulkPlaceholder}
               value={bulkText}
               onChange={(e) => setBulkText(e.target.value)}
             />
             {bulkResult && (
-              <div className={`text-sm font-medium ${bulkResult.failed > 0 ? "text-yellow-400" : "text-success"}`}>
+              <div className={`text-sm font-medium ${bulkResult.failed > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                 ✓ {bulkResult.success} added{bulkResult.failed > 0 ? `, ✗ ${bulkResult.failed} failed` : ""}
               </div>
             )}
-            <div className="flex gap-2">
-              <Button onClick={handleBulkSubmit} fullWidth disabled={saving || !bulkText.trim()}>
-                {saving ? "Adding..." : "Add All Keys"}
-              </Button>
-              <Button onClick={onClose} variant="ghost" fullWidth>Cancel</Button>
-            </div>
           </div>
         )}
 
-        {mode === "single" && (<>
-        <Input
-          label="Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder={isOllamaLocal ? "Ollama Local" : "Production Key"}
-        />
-        {isOllamaLocal && (
-          <div className="flex gap-2">
+        {mode === "single" && (
+          <>
             <Input
-              label="Ollama Host URL"
-              value={formData.ollamaHostUrl}
-              onChange={(e) => setFormData({ ...formData, ollamaHostUrl: e.target.value })}
-              placeholder="http://localhost:11434"
-              className="flex-1"
+              label="Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder={isOllamaLocal ? "Ollama Local" : "Production Key"}
             />
-            <div className="pt-6">
-              <Button onClick={handleValidate} disabled={validating || saving} variant="secondary">
-                {validating ? "Checking..." : "Check"}
-              </Button>
-            </div>
-          </div>
-        )}
-        {provider === "commandcode" && (
-          <div className="flex items-center justify-between p-3 rounded bg-accent/10 border border-accent/20">
-            <div>
-              <div className="text-xs font-medium text-text">Command Code CLI detected?</div>
-              <div className="text-xs text-text-muted">Import API key directly from ~/.commandcode/auth.json</div>
-              {cliDetectError && <div className="text-xs text-red-400 mt-1">{cliDetectError}</div>}
-            </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleCommandCodeAutoImport}
-              disabled={cliDetecting || saving}
-            >
-              {cliDetecting ? "Importing..." : "Import from CLI"}
-            </Button>
-          </div>
-        )}
-        {!isOllamaLocal && (
-          <div className="flex gap-2">
-            <Input
-              label={credentialLabel}
-              type={isCookie ? "text" : "password"}
-              value={formData.apiKey}
-              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-              placeholder={credentialPlaceholder}
-              className="flex-1"
-            />
-            <div className="pt-6">
-              <Button onClick={handleValidate} disabled={!apiKeySatisfied() || validating || saving} variant="secondary">
-                {validating ? "Checking..." : "Check"}
-              </Button>
-            </div>
-          </div>
-        )}
-        {isXaiApiKey && (
-          <p className="text-xs text-muted-foreground">
-            Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.
-          </p>
-        )}
-        {isCookie && authHint && (
-          <p className="text-xs text-muted-foreground">
-            {authHint}
-            {website && (
-              <>
-                {" "}
-                <a href={website} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                  Open {website.replace(/^https?:\/\//, "")}
-                </a>
-              </>
+
+            {isOllamaLocal && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-end gap-2">
+                  <Input
+                    label="Ollama Host URL"
+                    value={formData.ollamaHostUrl}
+                    onChange={(e) => setFormData({ ...formData, ollamaHostUrl: e.target.value })}
+                    placeholder="http://localhost:11434"
+                    className="flex-1 min-w-0"
+                  />
+                  <Button type="button" onClick={handleValidate} disabled={validating || saving} variant="secondary">
+                    {validating ? "Checking..." : "Check"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to use <code>http://localhost:11434</code>. For remote Ollama, enter the full host URL (e.g. <code>http://192.168.1.10:11434</code>).
+                </p>
+              </div>
             )}
-          </p>
-        )}
-        {providerRegions && (
-          <Select
-            label="Region"
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            options={providerRegions.map((r) => ({ value: r.id, label: r.label }))}
-          />
-        )}
-        {isCompatible && (
-          <Input
-            label="Default Model (optional)"
-            value={formData.defaultModel}
-            onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
-            placeholder={isAnthropic ? "claude-3-5-sonnet-latest" : "gpt-4o-mini"}
-          />
-        )}
-        {isOllamaLocal && (
-          <p className="text-xs text-muted-foreground">
-            Leave blank to use <code>http://localhost:11434</code>. For remote Ollama, enter the full host URL (e.g. <code>http://192.168.1.10:11434</code>).
-          </p>
-        )}
-        {validationResult && (
-          <Badge variant={validationResult === "success" ? "success" : "error"}>
-            {validationResult === "success" ? "Valid" : "Invalid"}
-          </Badge>
-        )}
-        {error && (
-          <p className="text-xs text-destructive break-words">{error}</p>
-        )}
-        {isCompatible && (
-          <p className="text-xs text-muted-foreground">
-            Optional. Leave blank if the compatible provider exposes models dynamically.
-          </p>
-        )}
-        {isCloudflareAi && (
-          <div className="bg-sidebar/50 p-4 border border-accent/20">
-            <h3 className="font-mono font-semibold mb-3 text-sm">Cloudflare Workers AI</h3>
-            <Input
-              label="Account ID"
-              value={cloudflareData.accountId}
-              onChange={(e) => setCloudflareData({ ...cloudflareData, accountId: e.target.value })}
-              placeholder="abc123def456..."
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Find your Account ID in the right sidebar of <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">dash.cloudflare.com</a>
-            </p>
-          </div>
-        )}
-        {usesAwsCredentialForm && (
-          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
-            <h3 className="font-semibold mb-3 text-sm">AWS Bedrock Credentials</h3>
-            <div className="flex flex-col gap-3">
-              <Input
-                label="AWS Profile (SSO — recommended)"
-                value={bedrockData.profile}
-                onChange={(e) => setBedrockData({ ...bedrockData, profile: e.target.value })}
-                placeholder="my-sso-profile"
-              />
-              <Input
+
+            {provider === "commandcode" && (
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-foreground">Command Code CLI detected?</div>
+                  <div className="text-xs text-muted-foreground">Import API key directly from ~/.commandcode/auth.json</div>
+                  {cliDetectError && <div className="text-xs text-destructive mt-1">{cliDetectError}</div>}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCommandCodeAutoImport}
+                  disabled={cliDetecting || saving}
+                >
+                  {cliDetecting ? "Importing..." : "Import from CLI"}
+                </Button>
+              </div>
+            )}
+
+            {!isOllamaLocal && (
+              <div className="flex items-end gap-2">
+                <Input
+                  label={credentialLabel}
+                  type={isCookie || showSecret ? "text" : "password"}
+                  value={formData.apiKey}
+                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                  placeholder={credentialPlaceholder}
+                  className="flex-1 min-w-0"
+                />
+                {!isCookie && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowSecret((prev) => !prev)}
+                    aria-label={showSecret ? "Hide credential" : "Show credential"}
+                    title={showSecret ? "Hide" : "Show"}
+                  >
+                    <Icon name={showSecret ? "visibility_off" : "visibility"} size={16} />
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleValidate}
+                  disabled={!apiKeySatisfied() || validating || saving}
+                  variant="secondary"
+                >
+                  {validating ? "Checking..." : "Check"}
+                </Button>
+              </div>
+            )}
+
+            {isXaiApiKey && (
+              <p className="text-xs text-muted-foreground">
+                Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.
+              </p>
+            )}
+
+            {isCookie && authHint && (
+              <p className="text-xs text-muted-foreground">
+                {authHint}
+                {website && (
+                  <>
+                    {" "}
+                    <a href={website} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                      Open {website.replace(/^https?:\/\//, "")}
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
+
+            {providerRegions && (
+              <Select
                 label="Region"
-                value={bedrockData.region}
-                onChange={(e) => setBedrockData({ ...bedrockData, region: e.target.value })}
-                placeholder="us-east-1"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                options={providerRegions.map((r) => ({ value: r.id, label: r.label }))}
+              />
+            )}
+
+            {isCompatible && (
+              <Input
+                label="Default Model (optional)"
+                value={formData.defaultModel}
+                onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
+                placeholder={isAnthropic ? "claude-3-5-sonnet-latest" : "gpt-4o-mini"}
+                hint="Optional. Leave blank if the compatible provider exposes models dynamically."
+              />
+            )}
+
+            {validationResult && (
+              <div>
+                <Badge variant={validationResult === "success" ? "success" : "error"}>
+                  {validationResult === "success" ? "Valid" : "Invalid"}
+                </Badge>
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="text-xs text-destructive break-words">{error}</p>
+            )}
+
+            {isCloudflareAi && (
+              <div className="bg-muted/40 p-4 rounded-lg border border-border">
+                <h3 className="font-mono font-semibold mb-3 text-sm">Cloudflare Workers AI</h3>
+                <Input
+                  label="Account ID"
+                  value={cloudflareData.accountId}
+                  onChange={(e) => setCloudflareData({ ...cloudflareData, accountId: e.target.value })}
+                  placeholder="abc123def456..."
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Find your Account ID in the right sidebar of{" "}
+                  <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    dash.cloudflare.com
+                  </a>
+                </p>
+              </div>
+            )}
+
+            {usesAwsCredentialForm && (
+              <div className="bg-muted/40 p-4 rounded-lg border border-border">
+                <h3 className="font-semibold mb-3 text-sm">AWS Bedrock Credentials</h3>
+                <div className="flex flex-col gap-3">
+                  <Input
+                    label="AWS Profile (SSO — recommended)"
+                    value={bedrockData.profile}
+                    onChange={(e) => setBedrockData({ ...bedrockData, profile: e.target.value })}
+                    placeholder="my-sso-profile"
+                  />
+                  <Input
+                    label="Region"
+                    value={bedrockData.region}
+                    onChange={(e) => setBedrockData({ ...bedrockData, region: e.target.value })}
+                    placeholder="us-east-1"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Set a profile from <code>~/.aws/config</code> and leave the API key empty, then run{" "}
+                  <code>aws sso login --profile {bedrockData.profile || "my-sso-profile"}</code>.
+                  Credentials refresh automatically.
+                </p>
+                <div className="flex flex-col gap-3 mt-4">
+                  <Input
+                    label="Access Key ID (only for static keys)"
+                    value={bedrockData.accessKeyId}
+                    onChange={(e) => setBedrockData({ ...bedrockData, accessKeyId: e.target.value })}
+                    placeholder="AKIA..."
+                  />
+                  <Input
+                    label="Session Token (only for temporary ASIA… keys)"
+                    type="password"
+                    value={bedrockData.sessionToken}
+                    onChange={(e) => setBedrockData({ ...bedrockData, sessionToken: e.target.value })}
+                    placeholder="FwoGZXIvYXdz..."
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  For static keys instead: put the AWS <strong>secret</strong> access key in the API Key
+                  field above and the access key id here. A profile, if set, takes precedence.
+                </p>
+              </div>
+            )}
+
+            {isAzure && (
+              <div className="bg-muted/40 p-4 rounded-lg border border-border">
+                <h3 className="font-mono font-semibold mb-3 text-sm">Azure OpenAI Configuration</h3>
+                <div className="flex flex-col gap-3">
+                  <Input
+                    label="Azure Endpoint"
+                    value={azureData.azureEndpoint}
+                    onChange={(e) => setAzureData({ ...azureData, azureEndpoint: e.target.value })}
+                    placeholder="https://your-resource.openai.azure.com"
+                  />
+                  <Input
+                    label="Deployment Name"
+                    value={azureData.deployment}
+                    onChange={(e) => setAzureData({ ...azureData, deployment: e.target.value })}
+                    placeholder="gpt-4"
+                  />
+                  <Input
+                    label="API Version"
+                    value={azureData.apiVersion}
+                    onChange={(e) => setAzureData({ ...azureData, apiVersion: e.target.value })}
+                    placeholder="2024-10-01-preview"
+                  />
+                  <Input
+                    label="Organization"
+                    value={azureData.organization}
+                    onChange={(e) => setAzureData({ ...azureData, organization: e.target.value })}
+                    placeholder="Organization ID"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Priority"
+                type="number"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })}
+              />
+
+              <Select
+                label="Proxy Pool"
+                value={formData.proxyPoolId}
+                onChange={(e) => setFormData({ ...formData, proxyPoolId: e.target.value })}
+                options={[
+                  { value: NONE_PROXY_POOL_VALUE, label: "None" },
+                  ...(proxyPools || []).map((pool) => ({ value: pool.id, label: pool.name })),
+                ]}
+                placeholder="None"
               />
             </div>
-            <p className="text-xs text-text-muted mt-2">
-              Set a profile from <code>~/.aws/config</code> and leave the API key empty, then run
-              {" "}<code>aws sso login --profile {bedrockData.profile || "my-sso-profile"}</code>.
-              Credentials refresh automatically.
-            </p>
-            <div className="flex flex-col gap-3 mt-4">
-              <Input
-                label="Access Key ID (only for static keys)"
-                value={bedrockData.accessKeyId}
-                onChange={(e) => setBedrockData({ ...bedrockData, accessKeyId: e.target.value })}
-                placeholder="AKIA..."
-              />
-              <Input
-                label="Session Token (only for temporary ASIA… keys)"
-                type="password"
-                value={bedrockData.sessionToken}
-                onChange={(e) => setBedrockData({ ...bedrockData, sessionToken: e.target.value })}
-                placeholder="FwoGZXIvYXdz..."
-              />
-            </div>
-            <p className="text-xs text-text-muted mt-2">
-              For static keys instead: put the AWS <strong>secret</strong> access key in the API Key
-              field above and the access key id here. A profile, if set, takes precedence.
-            </p>
-          </div>
+
+            {(proxyPools || []).length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No active proxy pools available. Create one in Proxy Pools page first.
+              </p>
+            )}
+          </>
         )}
-        {isAzure && (
-          <div className="bg-sidebar/50 p-4 border border-accent/20">
-            <h3 className="font-mono font-semibold mb-3 text-sm">Azure OpenAI Configuration</h3>
-            <div className="flex flex-col gap-3">
-              <Input
-                label="Azure Endpoint"
-                value={azureData.azureEndpoint}
-                onChange={(e) => setAzureData({ ...azureData, azureEndpoint: e.target.value })}
-                placeholder="https://your-resource.openai.azure.com"
-              />
-              <Input
-                label="Deployment Name"
-                value={azureData.deployment}
-                onChange={(e) => setAzureData({ ...azureData, deployment: e.target.value })}
-                placeholder="gpt-4"
-              />
-              <Input
-                label="API Version"
-                value={azureData.apiVersion}
-                onChange={(e) => setAzureData({ ...azureData, apiVersion: e.target.value })}
-                placeholder="2024-10-01-preview"
-              />
-              <Input
-                label="Organization"
-                value={azureData.organization}
-                onChange={(e) => setAzureData({ ...azureData, organization: e.target.value })}
-                placeholder="Organization ID"
-              />
-            </div>
-          </div>
-        )}
-
-        <Input
-          label="Priority"
-          type="number"
-          value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value) || 1 })}
-        />
-
-        <Select
-          label="Proxy Pool"
-          value={formData.proxyPoolId}
-          onChange={(e) => setFormData({ ...formData, proxyPoolId: e.target.value })}
-          options={[
-            { value: NONE_PROXY_POOL_VALUE, label: "None" },
-            ...(proxyPools || []).map((pool) => ({ value: pool.id, label: pool.name })),
-          ]}
-          placeholder="None"
-        />
-
-        {(proxyPools || []).length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No active proxy pools available. Create one in Proxy Pools page first.
-          </p>
-        )}
-
-        <p className="text-xs text-muted-foreground">
-          Legacy manual proxy fields are still accepted by API for backward compatibility.
-        </p>
-
-        <div className="flex gap-2">
-          <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && (!formData.name || !apiKeySatisfied())) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-          <Button onClick={onClose} variant="ghost" fullWidth>
-            Cancel
-          </Button>
-        </div>
-        </>)}
       </div>
     </Modal>
   );

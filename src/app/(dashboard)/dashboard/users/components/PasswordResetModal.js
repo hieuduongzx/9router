@@ -11,6 +11,7 @@ import { Icon } from "@/shared/components/ui/icon";
  */
 export default function PasswordResetModal({ user, onClose, onUpdated }) {
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -51,14 +52,19 @@ export default function PasswordResetModal({ user, onClose, onUpdated }) {
       isOpen
       onClose={() => { if (!saving) onClose(); }}
       title={`Reset password · ${user.username}`}
-      size="sm"
+      size="md"
       footer={temporaryPassword ? (
-        <Button onClick={onClose}>Done</Button>
+        <div className="flex w-full justify-end">
+          <Button type="button" onClick={onClose}>Done</Button>
+        </div>
       ) : (
-        <>
-          <Button variant="outline" disabled={saving} onClick={() => submit(true)}>Generate temporary</Button>
-          <Button disabled={!password || saving} loading={saving} onClick={() => submit(false)}>Set password</Button>
-        </>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <Button type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancel</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" disabled={saving} onClick={() => submit(true)}>Generate temporary</Button>
+            <Button type="button" disabled={!password || saving} loading={saving} onClick={() => submit(false)}>Set password</Button>
+          </div>
+        </div>
       )}
     >
       {temporaryPassword ? (
@@ -66,13 +72,13 @@ export default function PasswordResetModal({ user, onClose, onUpdated }) {
           <p className="text-sm text-muted-foreground">
             Share this one-time password with the account owner. It is shown once and must be changed at their next sign-in.
           </p>
-          <div className="flex items-center gap-2 border border-border bg-surface-2 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
             <code className="min-w-0 flex-1 break-all font-mono text-sm text-foreground">{temporaryPassword}</code>
             <button
               type="button"
               onClick={() => copy(temporaryPassword, "temp")}
               aria-label="Copy temporary password"
-              className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Icon name={copied === "temp" ? "check" : "content_copy"} className="size-4" />
             </button>
@@ -83,15 +89,30 @@ export default function PasswordResetModal({ user, onClose, onUpdated }) {
           <p className="text-sm text-muted-foreground">
             Set a password directly, or generate a temporary one. Either way the account must choose a new password at next sign-in.
           </p>
-          <Input
-            label="New password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            hint="At least 6 characters."
-            autoFocus
-          />
+          <div className="flex items-end gap-2">
+            <Input
+              label="New password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="flex-1 min-w-0"
+              autoFocus
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              <Icon name={showPassword ? "visibility_off" : "visibility"} size={16} />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">At least 6 characters.</p>
           {error && (
-            <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>
+            <div role="alert" className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
           )}
         </div>
       )}

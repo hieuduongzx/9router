@@ -6,6 +6,7 @@ import Modal from "@/shared/components/Modal";
 import Input from "@/shared/components/Input";
 import Button from "@/shared/components/Button";
 import Badge from "@/shared/components/Badge";
+import { Icon } from "@/shared/components/ui/icon";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import Select from "@/shared/components/Select";
 
@@ -25,6 +26,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   const [awsData, setAwsData] = useState({ profile: "", region: "", accessKeyId: "", sessionToken: "" });
   const [clearAwsSessionToken, setClearAwsSessionToken] = useState(false);
   const [region, setRegion] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -47,8 +49,8 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           organization: connection.providerSpecificData.organization || "",
         });
       }
-      if (connection.provider === "cloudflare-ai" && connection.providerSpecificData) {
-        setCloudflareData({ accountId: connection.providerSpecificData.accountId || "" });
+      if (connection.provider === "cloudflare-ai") {
+        setCloudflareData({ accountId: connection.providerSpecificData?.accountId || "" });
       }
       if (AI_PROVIDERS?.[connection.provider]?.credentialForm === "aws") {
         const psd = connection.providerSpecificData || {};
@@ -66,6 +68,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         const savedRegion = connection.providerSpecificData?.region || providerCfg.defaultRegion || providerCfg.regions[0]?.id || "";
         setRegion(savedRegion);
       }
+      setShowApiKey(false);
       setTestResult(null);
       setValidationResult(null);
     }
@@ -178,7 +181,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           updates.lastErrorAt = null;
         }
       }
-      
+
       // Add Azure-specific data if this is an Azure connection
       if (isAzure) {
         updates.providerSpecificData = {
@@ -198,7 +201,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       if (providerRegions && region) {
         updates.providerSpecificData = buildRegionSpecificData();
       }
-      
+
       await onSave(updates);
     } finally {
       setSaving(false);
@@ -208,55 +211,105 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   if (!connection) return null;
 
   return (
-    <Modal isOpen={isOpen} title="Edit Connection" onClose={onClose}>
+    <Modal
+      isOpen={isOpen}
+      title="Edit Connection"
+      onClose={onClose}
+      footer={
+        <div className="flex w-full items-center justify-end gap-2">
+          <Button type="button" onClick={onClose} variant="outline">
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-4">
-        <Input
-          label="Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder={isOAuth ? "Account name" : "Production Key"}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px] gap-3">
+          <Input
+            label="Name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder={isOAuth ? "Account name" : "Production Key"}
+          />
+          <Input
+            label="Priority"
+            type="number"
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })}
+          />
+        </div>
+
         {isOAuth && connection.email && (
-          <div className="bg-sidebar/50 p-3 rounded-sm">
-            <p className="text-sm text-muted-foreground mb-1">Email</p>
-            <p className="font-medium">{connection.email}</p>
+          <div className="bg-muted/40 border border-border p-3 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+            <p className="text-sm font-medium break-all">{connection.email}</p>
           </div>
         )}
-        <Input
-          label="Priority"
-          type="number"
-          value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })}
-        />
 
         {!isOAuth && (
-          <>
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-end gap-2">
               <Input
                 label="API Key"
-                type="password"
+                type={showApiKey ? "text" : "password"}
                 value={formData.apiKey}
                 onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                 placeholder="Enter new API key"
-                hint="Leave blank to keep the current API key."
-                className="flex-1"
+                className="flex-1 min-w-0"
               />
-              <div className="pt-6">
-                <Button onClick={handleValidate} disabled={!formData.apiKey || validating || saving} variant="secondary">
-                  {validating ? "Checking..." : "Check"}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowApiKey((prev) => !prev)}
+                aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                title={showApiKey ? "Hide" : "Show"}
+              >
+                <Icon name={showApiKey ? "visibility_off" : "visibility"} size={16} />
+              </Button>
+              <Button
+                type="button"
+                onClick={handleValidate}
+                disabled={!formData.apiKey || validating || saving}
+                variant="secondary"
+              >
+                {validating ? "Checking..." : "Check"}
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">Leave blank to keep the current API key.</p>
             {validationResult && (
-              <Badge variant={validationResult === "success" ? "success" : "error"}>
-                {validationResult === "success" ? "Valid" : "Invalid"}
-              </Badge>
+              <div>
+                <Badge variant={validationResult === "success" ? "success" : "error"}>
+                  {validationResult === "success" ? "Valid" : "Invalid"}
+                </Badge>
+              </div>
             )}
-          </>
+          </div>
+        )}
+
+        {isCloudflareAi && (
+          <div className="bg-muted/40 p-4 rounded-lg border border-border">
+            <h3 className="font-mono font-semibold mb-3 text-sm">Cloudflare Workers AI</h3>
+            <Input
+              label="Account ID"
+              value={cloudflareData.accountId}
+              onChange={(e) => setCloudflareData({ ...cloudflareData, accountId: e.target.value })}
+              placeholder="abc123def456..."
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Find your Account ID in the right sidebar of{" "}
+              <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                dash.cloudflare.com
+              </a>
+            </p>
+          </div>
         )}
 
         {isAzure && (
-          <div className="bg-sidebar/50 p-4 rounded-sm border border-accent/20">
+          <div className="bg-muted/40 p-4 rounded-lg border border-border">
             <h3 className="font-semibold mb-3 text-sm">Azure OpenAI Configuration</h3>
             <div className="flex flex-col gap-3">
               <Input
@@ -292,7 +345,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         )}
 
         {usesAwsCredentialForm && (
-          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
+          <div className="bg-muted/40 p-4 rounded-lg border border-border">
             <h3 className="font-semibold mb-3 text-sm">AWS Bedrock Credentials</h3>
             <div className="flex flex-col gap-3">
               <Input
@@ -323,7 +376,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
                 hint="Leave blank to keep the saved token. Enter a new token to replace it."
                 disabled={clearAwsSessionToken}
               />
-              <label className="flex items-center gap-2 text-sm text-text-muted">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                 <input
                   type="checkbox"
                   checked={clearAwsSessionToken}
@@ -348,8 +401,8 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         )}
 
         {!isCompatible && !isAzure && !isCloudflareAi && (
-          <div className="flex items-center gap-3">
-            <Button onClick={handleTest} variant="secondary" disabled={testing}>
+          <div className="flex items-center gap-3 pt-1">
+            <Button type="button" onClick={handleTest} variant="secondary" disabled={testing}>
               {testing ? "Testing..." : "Test Connection"}
             </Button>
             {testResult && (
@@ -359,11 +412,6 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
             )}
           </div>
         )}
-
-        <div className="flex gap-2">
-          <Button onClick={handleSubmit} fullWidth disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-          <Button onClick={onClose} variant="ghost" fullWidth>Cancel</Button>
-        </div>
       </div>
     </Modal>
   );

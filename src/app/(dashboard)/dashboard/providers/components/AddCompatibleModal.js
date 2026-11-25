@@ -51,17 +51,16 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
   const [validationResult, setValidationResult] = useState(null);
   const [submitError, setSubmitError] = useState("");
 
-  // openai: reset baseUrl when apiType changes; anthropic: reset checks when opened
   useEffect(() => {
-    if (config.hasApiType) {
-      setFormData((prev) => ({ ...prev, baseUrl: config.defaultBaseUrl }));
-    } else if (isOpen) {
+    if (isOpen) {
+      setFormData(initialFormData());
       setValidationResult(null);
       setCheckKey("");
       setCheckModelId("");
       setSubmitError("");
     }
-  }, [config.hasApiType ? formData.apiType : isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, variant]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim()) return;
@@ -126,39 +125,66 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
     const { valid, error, method } = validationResult;
     if (valid) {
       return (
-        <>
+        <div className="flex items-center gap-2">
           <Badge variant="success">Valid</Badge>
           {method === "chat" && (
-            <span className="text-sm text-muted-foreground">(via inference test)</span>
+            <span className="text-xs text-muted-foreground">(via inference test)</span>
           )}
-        </>
+        </div>
       );
     }
     return (
       <div className="flex flex-col gap-1">
-        <Badge variant="error">Invalid</Badge>
-        {error && <span className="text-sm text-destructive">{error}</span>}
+        <div>
+          <Badge variant="error">Invalid</Badge>
+        </div>
+        {error && <span className="text-xs text-destructive break-words">{error}</span>}
       </div>
     );
   };
 
   return (
-    <Modal isOpen={isOpen} title={config.title} onClose={onClose}>
+    <Modal
+      isOpen={isOpen}
+      title={config.title}
+      onClose={onClose}
+      footer={
+        <div className="flex w-full items-center justify-end gap-2">
+          <Button type="button" onClick={onClose} variant="outline">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={
+              !formData.name.trim() ||
+              !formData.prefix.trim() ||
+              !formData.baseUrl.trim() ||
+              submitting
+            }
+          >
+            {submitting ? "Creating..." : "Create"}
+          </Button>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-4">
-        <Input
-          label="Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder={config.namePlaceholder}
-          hint="Required. A friendly label for this node."
-        />
-        <Input
-          label="Prefix"
-          value={formData.prefix}
-          onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-          placeholder={config.prefixPlaceholder}
-          hint="Required. Used as the provider prefix for model IDs."
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            label="Name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder={config.namePlaceholder}
+            hint="Required. Friendly label."
+          />
+          <Input
+            label="Prefix"
+            value={formData.prefix}
+            onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
+            placeholder={config.prefixPlaceholder}
+            hint="Used as model ID prefix."
+          />
+        </div>
         {config.hasApiType && (
           <Select
             label="API Type"
@@ -188,8 +214,9 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
           placeholder={config.modelIdPlaceholder}
           hint="If provider lacks /models endpoint, enter a model ID to validate via chat/completions instead."
         />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <Button
+            type="button"
             onClick={handleValidate}
             disabled={!checkKey || validating || !formData.baseUrl.trim()}
             variant="secondary"
@@ -198,25 +225,12 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
             {validating ? "Checking..." : "Check"}
           </Button>
           {renderValidationResult()}
-          {submitError && <p role="alert" className="text-sm text-danger">{submitError}</p>}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            onClick={handleSubmit}
-            fullWidth
-            disabled={
-              !formData.name.trim() ||
-              !formData.prefix.trim() ||
-              !formData.baseUrl.trim() ||
-              submitting
-            }
-          >
-            {submitting ? "Creating..." : "Create"}
-          </Button>
-          <Button onClick={onClose} variant="ghost" fullWidth>
-            Cancel
-          </Button>
-        </div>
+        {submitError && (
+          <p role="alert" className="text-sm text-destructive break-words">
+            {submitError}
+          </p>
+        )}
       </div>
     </Modal>
   );

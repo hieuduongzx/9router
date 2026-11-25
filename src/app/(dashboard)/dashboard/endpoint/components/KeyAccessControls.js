@@ -7,6 +7,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Toggle, ModelSelectModal } from "@/shared/components";
+import { Icon } from "@/shared/components/ui/icon";
 
 export default function KeyAccessControls({ apiKey, onChange, onRequestRestrict }) {
   const access = apiKey.access || { restricted: false, allow: [] };
@@ -50,20 +51,22 @@ export default function KeyAccessControls({ apiKey, onChange, onRequestRestrict 
             <span key={entry} className="flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-xs text-text-main">
               {entry}
               <button
+                type="button"
                 onClick={() => remove(entry)}
                 className="rounded text-text-muted hover:text-red-500"
                 title={`Remove ${entry}`}
                 aria-label={`Remove ${entry}`}
               >
-                <span className="material-symbols-outlined leading-none" style={{ fontSize: "12px" }}>close</span>
+                <Icon name="close" className="size-3" />
               </button>
             </span>
           ))}
           <button
+            type="button"
             onClick={openPicker}
-            className="flex items-center gap-0.5 rounded-xl border border-dashed border-black/10 px-2 py-0.5 text-xs font-medium text-primary hover:border-primary/50 dark:border-white/10"
+            className="flex items-center gap-1 rounded-xl border border-dashed border-black/10 px-2 py-0.5 text-xs font-medium text-primary hover:border-primary/50 dark:border-white/10"
           >
-            <span className="material-symbols-outlined leading-none" style={{ fontSize: "14px" }}>add</span>
+            <Icon name="add" className="size-3.5" />
             Add combo or model
           </button>
         </div>

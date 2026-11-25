@@ -100,14 +100,14 @@ export default function ModelCatalogPreview() {
               <button
                 type="button"
                 onClick={() => setActiveProvider("all")}
-                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-sm border px-3 font-mono text-xs font-semibold transition-colors ${
+                className={`inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-sm border px-3 font-mono text-xs font-semibold transition-colors ${
                   activeProvider === "all"
                     ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-card text-muted-foreground hover:border-foreground/10 hover:text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground"
                 }`}
               >
                 All
-                <span className={activeProvider === "all" ? "text-muted-foreground" : "text-muted-foreground"}>{models.length}</span>
+                <span className={activeProvider === "all" ? "text-background/70" : "text-muted-foreground"}>{models.length}</span>
               </button>
               {providers.map((provider) => {
                 const count = models.filter((model) => model.provider === provider.name).length;
@@ -117,15 +117,15 @@ export default function ModelCatalogPreview() {
                     type="button"
                     key={provider.name}
                     onClick={() => setActiveProvider(provider.name)}
-                    className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-xs font-semibold transition-colors ${
+                    className={`inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-sm border px-2.5 font-mono text-xs font-semibold transition-colors ${
                       active
                         ? "border-foreground bg-foreground text-background"
-                        : "border-border bg-card text-muted-foreground hover:border-foreground/10 hover:text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground"
                     }`}
                   >
                     <LobeProviderIcon iconKey={provider.iconKey} name={provider.name} className="size-5 border-0 bg-transparent" />
                     {provider.name}
-                    <span className={active ? "text-muted-foreground" : "text-muted-foreground"}>{count}</span>
+                    <span className={active ? "text-background/70" : "text-muted-foreground"}>{count}</span>
                   </button>
                 );
               })}
@@ -211,7 +211,7 @@ export default function ModelCatalogPreview() {
                     {visibleModels.map((model) => (
                       <tr key={model.id}>
                         <td className="max-w-[320px] px-5 py-4">
-                          <p className="truncate font-mono text-sm font-semibold text-foreground">{model.id}</p>
+                          <p className="truncate font-mono text-sm font-semibold text-foreground" title={model.id}>{model.id}</p>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2.5">

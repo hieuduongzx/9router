@@ -7,6 +7,7 @@ import {
   CardSkeleton,
   Badge,
   Button,
+  Modal,
   Toggle,
 } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
@@ -418,6 +419,7 @@ export default function ProvidersPage() {
         !info.hidden &&
         (info.serviceKinds ?? ["llm"]).includes("llm") &&
         matchSearch(info.name) &&
+        (!activeOnly || isProviderActive(key, "cookie", info)) &&
         matchStatus(getProviderStats(key, "cookie"), info.noAuth),
     )
     .sort(([ka, a], [kb, b]) => {
@@ -449,6 +451,7 @@ export default function ProvidersPage() {
     freeEntries.length +
     freeTierEntries.length +
     apikeyEntries.length +
+    webCookieEntries.length +
     compatibleProviders.length +
     anthropicCompatibleProviders.length;
   const hasSearchQuery = Boolean(searchQuery.trim());
@@ -468,7 +471,7 @@ export default function ProvidersPage() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search providers by name..."
-              className="h-7 w-full appearance-none rounded-sm border border-border bg-background pl-9 pr-9 font-sans text-[13px] font-medium leading-4 text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/70 hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="h-9 w-full appearance-none rounded-md border border-border bg-background pl-9 pr-9 font-sans text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/70 hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
             {searchQuery && (
               <button
@@ -481,7 +484,7 @@ export default function ProvidersPage() {
               </button>
             )}
           </label>
-          <div className="flex h-7 shrink-0 items-center justify-between gap-3 rounded-sm border border-border bg-background px-3 sm:justify-start">
+          <div className="flex h-9 shrink-0 items-center justify-between gap-3 rounded-md border border-border bg-background px-3 sm:justify-start">
             <span className="font-sans text-[13px] font-medium leading-4 text-muted-foreground">
               Active only
             </span>
@@ -493,18 +496,21 @@ export default function ProvidersPage() {
               title={activeOnly ? "Show all providers" : "Show active providers only"}
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-7 shrink-0 appearance-none rounded-sm border border-border bg-background px-2 font-sans text-[13px] font-medium leading-4 text-foreground outline-none transition-[border-color,box-shadow,background-color] hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
-            aria-label="Filter providers by connection status"
-          >
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative shrink-0">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-9 w-full cursor-pointer appearance-none rounded-md border border-border bg-background pl-3 pr-8 font-sans text-[13px] font-medium text-foreground outline-none transition-[border-color,box-shadow,background-color] hover:border-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
+              aria-label="Filter providers by connection status"
+            >
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <Icon name="expand_more" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          </div>
           <div
             className="hidden min-w-24 shrink-0 items-center justify-center border-l border-border px-3 sm:flex"
             aria-live="polite"
@@ -518,7 +524,7 @@ export default function ProvidersPage() {
 
       {!hasAnyResult && (
         <div className="text-center py-8 border border-dashed border-border">
-          <Icon name="search_off" className="size-[32px] text-muted-foreground mb-2" />
+          <Icon name="search_off" className="mx-auto size-[32px] text-muted-foreground mb-2" />
           <p className="text-muted-foreground text-sm">
             {activeOnly || statusFilter !== "all"
               ? "No providers match the current filters"
@@ -544,10 +550,10 @@ export default function ProvidersPage() {
             </Button>
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               icon="add"
               onClick={() => setShowAddCompatibleModal(true)}
-              className="w-full !bg-white !text-black hover:!bg-gray-100 sm:w-auto"
+              className="w-full sm:w-auto"
             >
               Add OpenAI Compatible
             </Button>
@@ -688,7 +694,7 @@ export default function ProvidersPage() {
       )}
 
       {/* API Key Providers — fixed list */}
-      {apikeyEntries.length > 0 && (
+      {(apikeyEntries.length > 0 || webCookieEntries.length > 0) && (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-mono text-sm font-semibold flex items-center gap-2 leading-tight">
@@ -728,6 +734,7 @@ export default function ProvidersPage() {
               provider={info}
               stats={getProviderStats(key, "cookie")}
               authType="cookie"
+              onOpen={() => setSelectedProvider({ id: key, name: info.name })}
               onToggle={(active) => handleToggleProvider(key, "cookie", active)}
             />
           ))}
@@ -773,32 +780,14 @@ export default function ProvidersPage() {
       />
 
       {/* Test Results Modal */}
-      {testResults && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-[6vh] sm:pt-[10vh]"
-          onClick={() => setTestResults(null)}
-        >
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            className="relative bg-surface border border-border w-full max-w-[600px] max-h-[86vh] sm:max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b border-border bg-surface/95">
-              <h3 className="font-mono font-semibold">Test Results</h3>
-              <button
-                onClick={() => setTestResults(null)}
-                className="p-1 rounded-sm hover:bg-bg text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Close test results"
-              >
-                <Icon name="close" className="size-[18px]" />
-              </button>
-            </div>
-            <div className="p-5">
-              <ProviderTestResultsView results={testResults} />
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={!!testResults}
+        onClose={() => setTestResults(null)}
+        title="Test Results"
+        size="lg"
+      >
+        {testResults && <ProviderTestResultsView results={testResults} />}
+      </Modal>
     </div>
   );
 }
@@ -877,17 +866,14 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, onOpen 
           <div className="flex shrink-0 items-center gap-2">
             {stats.total > 0 && (
               <div
-                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onToggle(!allDisabled ? false : true);
-                }}
+                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Toggle
                   size="sm"
                   checked={!allDisabled}
-                  onChange={() => {}}
+                  onChange={(checked) => onToggle(checked)}
+                  ariaLabel={allDisabled ? `Enable ${provider.name}` : `Disable ${provider.name}`}
                   title={allDisabled ? "Enable provider" : "Disable provider"}
                 />
               </div>
@@ -1021,17 +1007,14 @@ function ApiKeyProviderCard({
           <div className="flex shrink-0 items-center gap-2">
             {stats.total > 0 && (
               <div
-                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onToggle(!allDisabled ? false : true);
-                }}
+                className="pointer-events-auto relative z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Toggle
                   size="sm"
                   checked={!allDisabled}
-                  onChange={() => {}}
+                  onChange={(checked) => onToggle(checked)}
+                  ariaLabel={allDisabled ? `Enable ${provider.name}` : `Disable ${provider.name}`}
                   title={allDisabled ? "Enable provider" : "Disable provider"}
                 />
               </div>
@@ -1067,7 +1050,7 @@ function ProviderTestResultsView({ results }) {
   if (results.error && !results.results) {
     return (
       <div className="text-center py-6">
-        <Icon name="error" className="text-destructive size-[32px] mb-2 block" />
+        <Icon name="error" className="mx-auto text-destructive size-[32px] mb-2 block" />
         <p className="text-sm text-destructive">{results.error}</p>
       </div>
     );

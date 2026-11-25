@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Button, Input, Modal } from "@/shared/components";
+import { Icon } from "@/shared/components/ui/icon";
 import { cn } from "@/shared/utils/cn";
 import {
   PING_SCHEDULE_DEFAULTS,
@@ -81,7 +82,7 @@ export default function AutoPingScheduleModal({ isOpen, onClose, onSave, connect
       size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!canSave}>Save</Button>
         </>
       }
@@ -106,9 +107,7 @@ export default function AutoPingScheduleModal({ isOpen, onClose, onSave, connect
                     : "text-text-muted hover:text-text-main"
                 )}
               >
-                <span className="material-symbols-outlined text-[15px] leading-none">
-                  {option.icon}
-                </span>
+                <Icon name={option.icon} className="size-4" />
                 <span>{option.label}</span>
               </button>
             );
@@ -134,7 +133,6 @@ export default function AutoPingScheduleModal({ isOpen, onClose, onSave, connect
                 value={form.anchor}
                 onChange={(e) => update({ anchor: e.target.value })}
                 error={anchorValid ? "" : "Use HH:MM"}
-                inputClassName="ring-1 ring-black/10 dark:ring-white/15"
               />
               <Input
                 label="Window (hours)"
@@ -145,7 +143,6 @@ export default function AutoPingScheduleModal({ isOpen, onClose, onSave, connect
                 value={form.windowHours}
                 onChange={(e) => update({ windowHours: e.target.value })}
                 error={windowValid ? "" : "0.5 – 24"}
-                inputClassName="ring-1 ring-black/10 dark:ring-white/15"
               />
               <Input
                 label="Pings per day"
@@ -157,7 +154,6 @@ export default function AutoPingScheduleModal({ isOpen, onClose, onSave, connect
                 onChange={(e) => update({ slotsPerDay: e.target.value })}
                 error={slotsValid ? "" : `1 – ${slotsMax}`}
                 hint={slotsValid ? `Max ${slotsMax}` : ""}
-                inputClassName="ring-1 ring-black/10 dark:ring-white/15"
               />
             </div>
 

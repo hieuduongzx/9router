@@ -92,16 +92,16 @@ export default function CustomConfigCard({ providerId }) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between text-left"
+        className="flex w-full cursor-pointer items-center justify-between text-left"
       >
         <div className="flex items-center gap-2">
-          <Icon name="tune" className="text-primary text-[20px]" />
+          <Icon name="tune" className="size-5 text-primary" />
           <span className="text-sm font-semibold">Custom Headers</span>
           {hasOverride && (
             <Badge variant="success" size="sm">Active</Badge>
           )}
         </div>
-        <Icon name={expanded ? "expand_less" : "expand_more"} className="text-text-muted" />
+        <Icon name={expanded ? "expand_less" : "expand_more"} className="size-5 text-muted-foreground" />
       </button>
 
       {expanded && (
@@ -110,44 +110,47 @@ export default function CustomConfigCard({ providerId }) {
             {rows.map((row, i) => {
               const overridden = row.name.trim() in builtin && row.value !== builtin[row.name.trim()];
               return (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
                     value={row.name}
                     onChange={(e) => setRow(i, "name", e.target.value)}
                     placeholder="Header-Name"
                     spellCheck={false}
-                    className="w-44 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none"
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none sm:w-44"
                   />
-                  <input
-                    value={row.value}
-                    onChange={(e) => setRow(i, "value", e.target.value)}
-                    placeholder="Value"
-                    spellCheck={false}
-                    title={overridden ? "Overridden" : row.name.trim() in builtin ? "Registry default" : ""}
-                    className={`min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-sm focus:border-primary focus:outline-none ${
-                      overridden ? "border-amber-400/60" : "border-border"
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    title="Remove header"
-                    onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : [{ name: "", value: "" }]))}
-                    className="shrink-0 text-text-muted hover:text-red-500"
-                  >
-                    <Icon name="delete" className="text-[18px]" />
-                  </button>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <input
+                      value={row.value}
+                      onChange={(e) => setRow(i, "value", e.target.value)}
+                      placeholder="Value"
+                      spellCheck={false}
+                      title={overridden ? "Overridden" : row.name.trim() in builtin ? "Registry default" : ""}
+                      className={`min-w-0 flex-1 rounded-md border bg-background px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none ${
+                        overridden ? "border-amber-400/60" : "border-border"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      title="Remove header"
+                      aria-label="Remove header"
+                      onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : [{ name: "", value: "" }]))}
+                      className="shrink-0 cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Icon name="delete" className="size-[18px]" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setRows((prev) => [...prev, { name: "", value: "" }])}
-              className="flex items-center gap-1 text-xs text-primary hover:underline"
+              className="flex cursor-pointer items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
-              <Icon name="add" className="text-[16px]" />
+              <Icon name="add" className="size-4" />
               Add header
             </button>
             <div className="flex gap-2">
@@ -155,7 +158,7 @@ export default function CustomConfigCard({ providerId }) {
                 type="button"
                 disabled={saving}
                 onClick={resetToBuiltin}
-                className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-black/[0.03] dark:hover:bg-white/[0.03] disabled:opacity-50"
+                className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
               >
                 Reset
               </button>
@@ -163,7 +166,7 @@ export default function CustomConfigCard({ providerId }) {
                 type="button"
                 disabled={saving}
                 onClick={save}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save"}
               </button>

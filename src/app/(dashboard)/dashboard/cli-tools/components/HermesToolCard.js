@@ -445,7 +445,7 @@ export default function HermesToolCard({
                     })}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-text-muted">
-                    <span className="material-symbols-outlined text-[14px]">terminal</span>
+                    <Icon name="terminal" className="size-3.5" />
                     <code className="px-1.5 py-0.5 bg-surface/60 rounded font-mono text-[11px]">
                       {profiles.find((p) => p.name === activeProfile)?.command || "hermes"}
                     </code>
@@ -458,9 +458,7 @@ export default function HermesToolCard({
                       }`}
                       title="Copy command"
                     >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {copiedCommand === (profiles.find((p) => p.name === activeProfile)?.command || "hermes") ? "check" : "content_copy"}
-                      </span>
+                      <Icon name={copiedCommand === (profiles.find((p) => p.name === activeProfile)?.command || "hermes") ? "check" : "content_copy"} className="size-3.5" />
                     </button>
                     <span className="hidden sm:inline">— every profile runs as its own agent with its own model.</span>
                   </div>
@@ -507,7 +505,7 @@ export default function HermesToolCard({
 
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Audio STT</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                  <Icon name="arrow_forward" className="hidden size-3.5 text-text-muted sm:inline" />
                   <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer" title="Route Hermes voice & audio transcription through 9router's /v1/audio/transcriptions — usage is tracked on this instance">
                     <input type="checkbox" checked={audioEnabled} onChange={(e) => setAudioEnabled(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer shrink-0" />
                     <span>Transcribe voice &amp; audio via 9router (per-profile)</span>
@@ -518,10 +516,10 @@ export default function HermesToolCard({
                 {audioEnabled && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">STT Model</span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                    <Icon name="arrow_forward" className="hidden size-3.5 text-text-muted sm:inline" />
                     <div className="relative w-full min-w-0">
                       <input type="text" value={sttModel} onChange={(e) => setSttModel(e.target.value)} placeholder="provider/whisper-model-id" className="w-full min-w-0 pl-2 pr-7 py-2 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5" />
-                      {sttModel && <button onClick={() => setSttModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors" title="Clear"><span className="material-symbols-outlined text-[14px]">close</span></button>}
+                      {sttModel && <button onClick={() => setSttModel("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-red-500 rounded transition-colors" title="Clear"><Icon name="close" className="size-3.5" /></button>}
                     </div>
                     <button onClick={() => openModelModal("stt")} disabled={!hasActiveProviders} className={`w-full sm:w-auto rounded border px-2 py-2 text-xs transition-colors sm:py-1.5 whitespace-nowrap sm:shrink-0 ${hasActiveProviders ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}>Select</button>
                   </div>
@@ -589,7 +587,7 @@ export default function HermesToolCard({
                     title="Set the endpoint and API key on every profile that routes through 9router. Each profile keeps its own model."
                     className="w-full sm:w-auto"
                   >
-                    <span className="material-symbols-outlined text-[14px] mr-1">groups</span>Apply to All Profiles
+                    <Icon name="groups" className="size-3.5 mr-1" />Apply to All Profiles
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={handleReset} disabled={!hermesStatus?.has9Router && !hermesStatus?.has9RouterStt} loading={restoring} className="w-full sm:w-auto">

@@ -17,6 +17,7 @@ const SIZES = {
   lg: "sm:max-w-lg",
   xl: "sm:max-w-xl",
   "2xl": "sm:max-w-2xl",
+  "3xl": "sm:max-w-3xl",
   full: "sm:max-w-4xl",
 };
 
@@ -44,27 +45,56 @@ export default function Modal({
   showTrafficLights,
   className,
   bodyClassName,
+  footerClassName,
 }) {
   void showTrafficLights;
 
   return (
     <Dialog open={Boolean(isOpen)} onOpenChange={(open) => !open && onClose?.()}>
       <DialogContent
-        className={cn("gap-0 p-0", SIZES[size] || SIZES.md, className)}
+        className={cn(
+          "flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0",
+          SIZES[size] || SIZES.md,
+          className,
+        )}
         onInteractOutside={closeOnOverlay ? undefined : (event) => event.preventDefault()}
       >
-        <DialogHeader className="border-b px-5 py-4 pr-12">
-          {/* Always rendered: Radix needs a title for the dialog's accessible name. */}
-          <DialogTitle className={title ? "text-base" : "sr-only"}>{title || "Dialog"}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
+        {title || description ? (
+          <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12 text-left">
+            <DialogTitle className={title ? "text-base font-semibold" : "sr-only"}>
+              {title || "Dialog"}
+            </DialogTitle>
+            {description ? (
+              <DialogDescription>{description}</DialogDescription>
+            ) : (
+              <DialogDescription className="sr-only">{title || "Dialog"}</DialogDescription>
+            )}
+          </DialogHeader>
+        ) : (
+          <>
+            <DialogTitle className="sr-only">Dialog</DialogTitle>
+            <DialogDescription className="sr-only">Dialog content</DialogDescription>
+          </>
+        )}
 
-        <div className={cn("custom-scrollbar max-h-[70vh] overflow-y-auto p-5", bodyClassName)}>
+        <div
+          className={cn(
+            "custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-5",
+            bodyClassName,
+          )}
+        >
           {children}
         </div>
 
         {footer ? (
-          <DialogFooter className="border-t px-5 py-3.5 sm:justify-end">{footer}</DialogFooter>
+          <DialogFooter
+            className={cn(
+              "shrink-0 border-t bg-muted/20 px-5 py-3.5 sm:items-center sm:justify-end",
+              footerClassName,
+            )}
+          >
+            {footer}
+          </DialogFooter>
         ) : null}
       </DialogContent>
     </Dialog>

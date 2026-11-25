@@ -42,7 +42,7 @@ import {
   QUOTA_SORT_OPTIONS,
 } from "./utils";
 import Card from "@/shared/components/Card";
-import { ConfirmModal, EditConnectionModal } from "@/shared/components";
+import { ConfirmModal, EditConnectionModal, Modal } from "@/shared/components";
 import AutoPingScheduleModal from "@/app/(dashboard)/dashboard/providers/[id]/AutoPingScheduleModal";
 import { getScheduleSlotLabels } from "@/shared/services/quotaPingSchedule";
 import { USAGE_SUPPORTED_PROVIDERS, AI_PROVIDERS } from "@/shared/constants/providers";
@@ -1259,7 +1259,7 @@ export default function ProviderLimits() {
                             aria-label="Configure auto-ping"
                             className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${isActive ? "text-primary" : "text-text-muted"}`}
                           >
-                            <span className="material-symbols-outlined text-[18px]">bolt</span>
+                            <Icon name="bolt" className="size-[18px]" />
                           </button>
                         </Tooltip>
                       );
@@ -1350,11 +1350,7 @@ export default function ProviderLimits() {
                     onHideQuota={(quotaRow) => handleHideQuota(conn.provider, quotaRow)}
                   />
                 )}
-                {quota?.message && !error && !isLoading && (
-                  <p className="mt-2 px-1 text-[10px] leading-relaxed text-text-muted">
-                    {quota.message}
-                  </p>
-                )}
+
                 {hiddenQuotaRows.length > 0 && (
                   <div className="mt-2 flex min-w-0 items-center gap-1 border-t border-black/5 pt-2 text-[10px] text-text-muted dark:border-white/5">
                     <Icon name="visibility_off" className="inline-block h-[1em] w-[1em] align-middle shrink-0 text-[14px]" />
@@ -1520,29 +1516,18 @@ export default function ProviderLimits() {
         loading={Boolean(resettingLimitId)}
       />
 
-      {resetCreditsState && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-black/15 bg-white shadow-2xl ring-1 ring-black/10 dark:border-white/15 dark:bg-neutral-950 dark:ring-white/10">
-            <div className="flex items-start justify-between gap-3 border-b border-black/10 bg-black/[0.03] px-4 py-3 dark:border-white/10 dark:bg-white/[0.04]">
-              <div className="min-w-0">
-                <h3 className="text-base font-semibold text-text-primary">
-                  {resetCreditsState.data?.kind === "claude" ? "Claude Code Limit Resets" : "Codex Reset Credit Expiry"}
-                </h3>
-                <p className="mt-0.5 truncate text-xs text-text-muted">
-                  {getConnectionLabel(resetCreditsState.connection) || (resetCreditsState.data?.kind === "claude" ? "Claude account" : "Codex account")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setResetCreditsState(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-black/5 hover:text-text-primary dark:hover:bg-white/5"
-                aria-label="Close reset credit expiry modal"
-              >
-                <Icon name="close" className="inline-block h-[1em] w-[1em] align-middle text-[18px]" />
-              </button>
-            </div>
-
-            <div className="max-h-[70vh] overflow-auto bg-white p-4 dark:bg-neutral-950">
+      <Modal
+        isOpen={Boolean(resetCreditsState)}
+        onClose={() => setResetCreditsState(null)}
+        title={resetCreditsState?.data?.kind === "claude" ? "Claude Code Limit Resets" : "Codex Reset Credit Expiry"}
+        size="xl"
+      >
+        {resetCreditsState && (
+          <div className="flex flex-col gap-3">
+            <p className="truncate text-xs text-muted-foreground">
+              {getConnectionLabel(resetCreditsState.connection) || (resetCreditsState.data?.kind === "claude" ? "Claude account" : "Codex account")}
+            </p>
+            <div>
               {resetCreditsState.loading ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-muted">
                   <Icon name="progress_activity" className="inline-block h-[1em] w-[1em] align-middle animate-spin text-[20px]" />
@@ -1628,8 +1613,8 @@ export default function ProviderLimits() {
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       <EditConnectionModal
         isOpen={showEditModal}

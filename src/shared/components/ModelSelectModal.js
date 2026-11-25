@@ -5,6 +5,7 @@ import { applyQoderModelNames } from "@/shared/utils/providerCustomModels";
 import { useState, useMemo, useEffect } from "react";
 import PropTypes from "prop-types";
 import Modal from "./Modal";
+import Button from "./Button";
 import ProviderIcon from "./ProviderIcon";
 import CapacityBadges from "./CapacityBadges";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
@@ -637,12 +638,28 @@ export default function ModelSelectModal({
       }}
       title={title}
       size={size}
-      className="p-4!"
-      footer={null}
+      footer={
+        !closeOnSelect ? (
+          <div className="flex w-full items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">
+              {addedModelValues.length} {addedModelValues.length === 1 ? "model" : "models"} selected
+            </span>
+            <Button
+              size="sm"
+              onClick={() => {
+                onClose();
+                setSearchQuery("");
+              }}
+            >
+              Done
+            </Button>
+          </div>
+        ) : null
+      }
     >
       {/* Info bar */}
       <div className="flex items-center gap-2 mb-3 px-2.5 py-2 bg-primary/8 border border-primary/20 rounded-sm text-xs text-muted-foreground">
-        <Icon name="info" className="text-primary shrink-0" style={{ fontSize: "14px" }} />
+        <Icon name="info" className="size-3.5 shrink-0 text-primary" />
         <span>
           {allowProviderWildcard
             ? "Click to add/remove a model, or click a provider name for wildcard (e.g. provider/*). Search supports exclusions (e.g. claude -haiku) and RegEx (/pattern/)."
@@ -663,7 +680,7 @@ export default function ModelSelectModal({
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-20 py-1.5 bg-surface border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+            className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-20 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {parsedQuery.isRegex && (
@@ -683,7 +700,7 @@ export default function ModelSelectModal({
                 className="text-text-muted hover:text-text-main cursor-pointer p-0.5 rounded"
                 title="Clear search"
               >
-                <span className="material-symbols-outlined text-[14px] leading-none">close</span>
+                <Icon name="close" className="size-3.5" />
               </button>
             )}
           </div>
@@ -738,6 +755,7 @@ export default function ModelSelectModal({
                 const isSelected = selectedModel === combo.name;
                 return (
                   <button
+                    type="button"
                     key={combo.id}
                     onClick={() => handleSelect({ id: combo.name, name: combo.name, value: combo.name })}
                     className={`
@@ -751,7 +769,7 @@ export default function ModelSelectModal({
                     `}
                   >
                     {addedModelValues.includes(combo.name) && (
-                      <Icon name="check" style={{ fontSize: "10px" }} />
+                      <Icon name="check" className="size-3" />
                     )}
                     {combo.name}
                   </button>
@@ -784,15 +802,15 @@ export default function ModelSelectModal({
                     title={isWildcardAdded ? `Click to remove wildcard ${wildcardValue}` : `Click to allow all models from ${group.name} (${wildcardValue})`}
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium transition-all cursor-pointer border ${
                       isWildcardAdded
-                        ? "bg-primary text-white border-primary shadow-2xs hover:bg-primary-hover"
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs hover:bg-primary/90"
                         : "text-primary border-transparent hover:bg-primary/10 hover:border-primary/20"
                     }`}
                   >
                     {isWildcardAdded && (
-                      <Icon name="check" className="leading-none text-[12px]" />
+                      <Icon name="check" className="size-3" />
                     )}
                     <span>{group.name}</span>
-                    <span className={`text-[10px] font-mono px-1 py-0.2 rounded ${isWildcardAdded ? "bg-white/20 text-white" : "text-text-muted bg-sidebar border border-border/50"}`}>
+                    <span className={`text-[10px] font-mono px-1 py-0.2 rounded ${isWildcardAdded ? "bg-primary-foreground/15 text-primary-foreground" : "text-text-muted bg-sidebar border border-border/50"}`}>
                       {wildcardValue}
                     </span>
                   </button>
@@ -812,6 +830,7 @@ export default function ModelSelectModal({
                 const isPlaceholder = model.isPlaceholder;
                 return (
                   <button
+                    type="button"
                     key={model.value}
                     onClick={() => handleSelect(model)}
                     title={isPlaceholder ? "Select to pre-fill, then edit model ID in the input" : undefined}
@@ -829,7 +848,7 @@ export default function ModelSelectModal({
                   >
                     <span className="flex items-center gap-1">
                       {addedModelValues.includes(model.value) && !isPlaceholder && (
-                        <Icon name="check" style={{ fontSize: "10px" }} />
+                        <Icon name="check" className="size-3" />
                       )}
                       {isPlaceholder ? (
                         <>
@@ -859,7 +878,7 @@ export default function ModelSelectModal({
 
         {Object.keys(filteredGroups).length === 0 && filteredCombos.length === 0 && (
           <div className="text-center py-4 text-muted-foreground">
-            <Icon name="search_off" className="size-6 mb-1 block" />
+            <Icon name="search_off" className="mx-auto mb-1.5 size-6 block opacity-60" />
             <p className="text-xs">No models found</p>
           </div>
         )}

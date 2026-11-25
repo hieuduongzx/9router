@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import RouteEditorModal, { TestStateMark } from "./RouteEditorModal";
+import { notify } from "@/store/notificationStore";
 import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, Select, SegmentedControl, Toggle, CapacityBadges, SmartPolicyModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
@@ -75,6 +73,11 @@ export default function CombosPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCombo, setEditingCombo] = useState(null);
+  const [editingInitialTab, setEditingInitialTab] = useState("models");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [providerFilter, setProviderFilter] = useState("all");
+  const [inlineUpdatingId, setInlineUpdatingId] = useState("");
   const [judgeCombo, setJudgeCombo] = useState(null);
   const [routerCombo, setRouterCombo] = useState(null);
   const [policyCombo, setPolicyCombo] = useState(null);
@@ -393,6 +396,84 @@ export default function CombosPage() {
     });
   };
 
+  const handleInlineThinkingChange = async (combo, nextMode) => {
+    const previous = combo.thinkingMode || "auto";
+    if (previous === nextMode) return;
+    setInlineUpdatingId(combo.id);
+    setCombos((current) =>
+      current.map((item) => (item.id === combo.id ? { ...item, thinkingMode: nextMode } : item)),
+    );
+    try {
+      const res = await fetch(`/api/combos/${combo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: combo.name,
+          models: combo.models,
+          modelProvider: combo.modelProvider,
+          thinkingMode: nextMode,
+          capabilityOverrides: combo.capabilityOverrides || {},
+          disabledMembers: combo.disabledMembers || [],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update thinking mode");
+      }
+      notify.success(`Thinking set to ${thinkingModeMeta(nextMode).label} for ${combo.name}`);
+    } catch (error) {
+      setCombos((current) =>
+        current.map((item) => (item.id === combo.id ? { ...item, thinkingMode: previous } : item)),
+      );
+      notify.error(error?.message || "Failed to update thinking mode");
+    } finally {
+      setInlineUpdatingId("");
+    }
+  };
+
+  const handleBulkTogglePublished = async (enabled) => {
+    const chosen = combos.filter((combo) => selectedIds.includes(combo.id));
+    if (chosen.length === 0) return;
+    const targets = enabled
+      ? chosen.filter((combo) => !publishedIds.has(combo.id) && Boolean(String(combo.modelProvider || "").trim()) && comboRoutedModels(combo).length > 0)
+      : chosen.filter((combo) => publishedIds.has(combo.id));
+    if (targets.length === 0) {
+      notify.info(enabled ? "Selected routes are already enabled or missing provider/models." : "Selected routes are already disabled.");
+      return;
+    }
+    setBulkBusy(true);
+    setPublishError("");
+    try {
+      const results = await Promise.all(
+        targets.map((combo) =>
+          enabled
+            ? fetch("/api/models/published", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ comboId: combo.id }),
+              })
+            : fetch(`/api/models/published?comboId=${encodeURIComponent(combo.id)}`, { method: "DELETE" }),
+        ),
+      );
+      setPublishedIds((current) => {
+        const next = new Set(current);
+        targets.forEach((combo, idx) => {
+          if (results[idx].ok || (enabled && results[idx].status === 409)) {
+            if (enabled) next.add(combo.id);
+            else next.delete(combo.id);
+          }
+        });
+        return next;
+      });
+      const succeeded = results.filter((r) => r.ok || (enabled && r.status === 409)).length;
+      if (succeeded > 0) notify.success(`${enabled ? "Enabled" : "Disabled"} ${succeeded} route${succeeded === 1 ? "" : "s"}`);
+    } catch (error) {
+      setPublishError(error?.message || "Failed to update selected routes.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const handleBulkSetStrategy = async (strategy) => {
     const chosen = combos.filter((combo) => selectedIds.includes(combo.id));
     if (chosen.length === 0 || !strategy) return;
@@ -449,8 +530,39 @@ export default function CombosPage() {
     }
   };
 
+  const routeProviders = useMemo(() => {
+    const set = new Set();
+    for (const combo of combos) {
+      const pName = String(combo.modelProvider || "").trim();
+      if (pName) set.add(pName);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [combos]);
+
+  const enabledRouteCount = useMemo(
+    () => combos.filter((combo) => publishedIds.has(combo.id)).length,
+    [combos, publishedIds],
+  );
+
+  const hasActiveFilters = Boolean(searchQuery.trim() || statusFilter !== "all" || providerFilter !== "all");
+
   const sortedCombos = useMemo(() => {
-    const list = [...combos];
+    const q = searchQuery.trim().toLowerCase();
+    const list = combos.filter((combo) => {
+      if (statusFilter === "enabled" && !publishedIds.has(combo.id)) return false;
+      if (statusFilter === "disabled" && publishedIds.has(combo.id)) return false;
+      if (providerFilter !== "all" && String(combo.modelProvider || "").toLowerCase() !== providerFilter.toLowerCase()) {
+        return false;
+      }
+      if (q) {
+        const hay = [combo.name, combo.modelProvider, ...(combo.models || [])]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
     switch (sortBy) {
       case "name":
         list.sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: "base" }));
@@ -473,7 +585,7 @@ export default function CombosPage() {
         break;
     }
     return list;
-  }, [combos, sortBy, publishedIds]);
+  }, [combos, sortBy, publishedIds, searchQuery, statusFilter, providerFilter]);
 
   const selectedCombos = combos.filter((combo) => selectedIds.includes(combo.id));
   const allSelected = sortedCombos.length > 0 && sortedCombos.every((combo) => selectedIds.includes(combo.id));
@@ -504,36 +616,112 @@ export default function CombosPage() {
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              Public model IDs, model behavior, advertised capabilities, pricing, and fallback strategy.
+              Public model IDs, thinking defaults, advertised capabilities, pricing, and routing strategy.
               {combos.length > 0 && (
                 <>
                   {" "}
-                  <span className="font-mono text-xs">
-                    {combos.filter((combo) => publishedIds.has(combo.id)).length}/{combos.length} enabled
+                  <span className="font-mono text-xs font-medium text-foreground">
+                    {enabledRouteCount}/{combos.length} enabled
                   </span>
-                  {" — only enabled routes appear in Models and accept requests."}
+                  {" — tune thinking, pricing, and strategy inline or click a route to edit."}
                 </>
               )}
             </p>
-            <div className="flex items-center gap-2">
-              <Select
-                options={SORT_OPTIONS}
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value)}
-                selectClassName="h-9 w-40 py-1 text-xs"
-                aria-label="Sort routes"
-              />
-              <Button icon="add" onClick={() => setShowCreateModal(true)} className="whitespace-nowrap">
-                Create Route
-              </Button>
-            </div>
+            <Button icon="add" onClick={() => setShowCreateModal(true)} className="shrink-0 self-start whitespace-nowrap sm:self-auto">
+              Create Route
+            </Button>
           </div>
+
+          {combos.length > 0 && (
+            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+                  <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search route, provider, or model..."
+                    aria-label="Search routes"
+                    className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20 [&::-webkit-search-cancel-button]:hidden"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Icon name="close" className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="inline-flex h-9 items-center gap-0.5 rounded-md border border-border bg-muted/50 p-0.5 text-xs">
+                  {[
+                    { value: "all", label: `All (${combos.length})` },
+                    { value: "enabled", label: `Enabled (${enabledRouteCount})` },
+                    { value: "disabled", label: `Off (${combos.length - enabledRouteCount})` },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setStatusFilter(item.value)}
+                      className={`h-full cursor-pointer rounded-sm px-2.5 font-medium transition-colors ${
+                        statusFilter === item.value
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {routeProviders.length > 1 && (
+                  <Select
+                    options={[
+                      { value: "all", label: `All providers (${routeProviders.length})` },
+                      ...routeProviders.map((name) => ({ value: name, label: name })),
+                    ]}
+                    value={providerFilter}
+                    onChange={(event) => setProviderFilter(event.target.value)}
+                    selectClassName="h-9 w-44 py-1 text-xs"
+                    aria-label="Filter by provider"
+                  />
+                )}
+                <Select
+                  options={SORT_OPTIONS}
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value)}
+                  selectClassName="h-9 w-40 py-1 text-xs"
+                  aria-label="Sort routes"
+                />
+                {hasActiveFilters && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setStatusFilter("all");
+                      setProviderFilter("all");
+                    }}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Model Routes Table */}
           {combos.length === 0 ? (
             <Card>
               <div className="py-12 text-center">
-                <div className="mb-4 inline-flex size-16 items-center justify-center border border-border bg-surface-2 text-foreground">
+                <div className="mb-4 inline-flex size-16 items-center justify-center rounded-xl border border-border bg-muted text-foreground">
                   <Icon name="layers" className="size-7" />
                 </div>
                 <p className="mb-1 font-medium text-foreground">No model routes yet</p>
@@ -551,9 +739,15 @@ export default function CombosPage() {
                 </div>
               )}
               {someSelected && (
-                <div className="flex flex-col gap-2 border-b border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="font-mono text-xs text-muted-foreground">{selectedCombos.length} selected</p>
+                <div className="flex flex-col gap-2 border-b border-border bg-muted/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-mono text-xs font-medium text-foreground">{selectedCombos.length} selected</p>
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => handleBulkTogglePublished(true)}>
+                      Enable
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => handleBulkTogglePublished(false)}>
+                      Disable
+                    </Button>
                     <div className="w-full min-w-[10rem] sm:w-44">
                       <Select
                         options={STRATEGY_OPTIONS}
@@ -563,7 +757,7 @@ export default function CombosPage() {
                         onChange={(event) => {
                           if (event.target.value) handleBulkSetStrategy(event.target.value);
                         }}
-                        selectClassName="h-9 py-1 text-xs"
+                        selectClassName="h-8 py-1 text-xs"
                         aria-label="Set strategy for selected routes"
                       />
                     </div>
@@ -577,10 +771,10 @@ export default function CombosPage() {
                 </div>
               )}
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1240px] table-fixed text-left text-sm">
+                <table className="w-full min-w-[980px] text-left text-sm">
                   <thead className="thead-data">
-                    <tr className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-                      <th className="w-10 px-2 py-2 font-medium">
+                    <tr className="text-xs font-medium tracking-wide text-muted-foreground">
+                      <th className="w-10 px-2.5 py-2.5 font-medium">
                         <input
                           type="checkbox"
                           checked={allSelected}
@@ -592,21 +786,27 @@ export default function CombosPage() {
                           className="size-4 accent-primary"
                         />
                       </th>
-                      <th className="w-[64px] px-3 py-2 font-medium">On</th>
-                      <th className="w-[19%] px-3 py-2 font-medium">Route</th>
-                      <th className="w-[16%] px-2 py-2 font-medium">Members</th>
-                      <th className="w-[18%] px-2 py-2 font-medium">Model profile</th>
-                      <th className="w-[14%] px-2 py-2 font-medium" title="Input / output, USD per one million tokens">
+                      <th className="w-14 px-2 py-2.5 font-medium">On</th>
+                      <th className="min-w-[180px] px-3 py-2.5 font-medium">Route</th>
+                      <th className="min-w-[160px] px-2.5 py-2.5 font-medium">Members</th>
+                      <th className="min-w-[185px] px-2.5 py-2.5 font-medium">Thinking &amp; Caps</th>
+                      <th className="w-[130px] px-2.5 py-2.5 font-medium" title="Input / output, USD per one million tokens">
                         Price (in / out)
                       </th>
-                      <th className="w-[23%] px-2 py-2 font-medium">Strategy</th>
-                      <th className="w-[10%] px-2 py-2 text-right font-medium">
+                      <th className="min-w-[185px] px-2.5 py-2.5 font-medium">Strategy</th>
+                      <th className="w-[120px] px-2.5 py-2.5 text-right font-medium">
                         <span className="sr-only">Actions</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="tbody-data">
-                    {sortedCombos.map((combo) => (
+                    {sortedCombos.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                          No routes match your current filter.
+                        </td>
+                      </tr>
+                    ) : sortedCombos.map((combo) => (
                       <ComboTableRow
                         key={combo.id}
                         combo={combo}
@@ -616,7 +816,12 @@ export default function CombosPage() {
                         modelProvider={modelProviders.find((provider) => provider.name.toLowerCase() === String(combo.modelProvider || "").toLowerCase())}
                         copied={copied}
                         onCopy={copy}
-                        onEdit={() => setEditingCombo(combo)}
+                        onEdit={(tab = "models") => {
+                          setEditingInitialTab(tab);
+                          setEditingCombo(combo);
+                        }}
+                        onInlineThinkingChange={(mode) => handleInlineThinkingChange(combo, mode)}
+                        inlineUpdating={inlineUpdatingId === combo.id}
                         onDelete={() => handleDelete(combo.id)}
                         canEditPricing={canEditPricing}
                         onEditPricing={() => setPricingCombo(combo)}
@@ -650,9 +855,8 @@ export default function CombosPage() {
         getCaps={getCaps}
       />
 
-      {/* Create Modal - Use key to force remount and reset state */}
       {showCreateModal && (
-        <ComboFormModal
+        <RouteEditorModal
           key="create"
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
@@ -664,10 +868,11 @@ export default function CombosPage() {
       )}
 
       {editingCombo && (
-        <ComboFormModal
-          key={editingCombo.id}
+        <RouteEditorModal
+          key={`${editingCombo.id}-${editingInitialTab}`}
           isOpen={!!editingCombo}
           combo={editingCombo}
+          initialTab={editingInitialTab}
           onClose={() => setEditingCombo(null)}
           onSave={(data, pricingRequest) => handleUpdate(editingCombo.id, data, pricingRequest)}
           activeProviders={activeProviders}
@@ -977,10 +1182,24 @@ function ModelProviderFormModal({ provider, onClose, onSaved }) {
       isOpen
       onClose={onClose}
       title={isEdit ? "Provider Settings" : "Add Provider"}
-      footer={null}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            loading={saving}
+            disabled={!name.trim() || !iconKey || saving}
+          >
+            {isEdit ? "Save provider" : "Add provider"}
+          </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3 border border-border bg-surface-2 px-3 py-3">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3">
           <LobeProviderIcon iconKey={iconKey} name={name || "Provider"} className="size-10" />
           <div className="min-w-0">
             <p className="truncate font-mono text-sm font-semibold text-foreground">
@@ -1022,54 +1241,11 @@ function ModelProviderFormModal({ provider, onClose, onSaved }) {
           </div>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button type="button" variant="ghost" fullWidth size="sm" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            fullWidth
-            size="sm"
-            onClick={handleSave}
-            loading={saving}
-            disabled={!name.trim() || !iconKey || saving}
-          >
-            {isEdit ? "Save provider" : "Add provider"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );
 }
 
-
-function TestStateMark({ model, result }) {
-  const state = result?.state || "pending";
-  const presentation = {
-    pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
-    success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
-    failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
-    skipped: { icon: "remove_circle_outline", color: "text-muted-foreground", label: "Skipped", spin: false },
-  }[state];
-  const detail = result?.error
-    ? `${presentation.label}: ${result.error}`
-    : result?.latencyMs != null
-      ? `${presentation.label} in ${result.latencyMs}ms`
-      : presentation.label;
-
-  return (
-    <span
-      className="inline-flex min-w-0 max-w-64 items-center gap-1.5 border border-border bg-muted px-2 py-1"
-      title={`${model} — ${detail}`}
-    >
-      <Icon name={presentation.icon} className={`shrink-0 size-3.5 ${presentation.color} ${presentation.spin ? "animate-spin" : ""}`} />
-      <code className="truncate font-mono text-[11px] text-foreground">{model}</code>
-      {result?.attemptOrder && (
-        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">#{result.attemptOrder}</span>
-      )}
-    </span>
-  );
-}
 
 function RouteTestDetails({ combo, testState }) {
   if (!testState) return null;
@@ -1077,8 +1253,8 @@ function RouteTestDetails({ combo, testState }) {
   const strategyLabel = STRATEGY_OPTIONS.find((option) => option.value === testState.strategy)?.label || testState.strategy;
 
   return (
-    <tr className="border-b border-border/60 bg-surface-2/40">
-      <td colSpan={7} className="px-3 py-2">
+    <tr className="border-b border-border/60 bg-muted/30">
+      <td colSpan={8} className="px-3 py-2">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
             <span className="uppercase tracking-wide text-muted-foreground">{strategyLabel} test</span>
@@ -1102,7 +1278,7 @@ function RouteTestDetails({ combo, testState }) {
             ))}
             {testState.judge && (
               <>
-                <span className="self-center text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Judge</span>
+                <span className="self-center text-xs font-medium tracking-wide text-muted-foreground">Judge</span>
                 <TestStateMark model={testState.judge.model} result={testState.judge} />
               </>
             )}
@@ -1113,41 +1289,72 @@ function RouteTestDetails({ combo, testState }) {
   );
 }
 
-function RouteProfileCell({ combo }) {
-  const thinking = thinkingModeMeta(combo.thinkingMode);
+function RouteProfileCell({ combo, onInlineThinkingChange, inlineUpdating = false, onEditBehavior }) {
+  const routedModels = useMemo(() => comboRoutedModels(combo), [combo]);
+  const thinkingProfile = useMemo(() => getComboThinkingProfile(routedModels), [routedModels]);
+  const currentMode = combo.thinkingMode || "auto";
+  const thinkingOptions = useMemo(() => {
+    if (thinkingProfile.options.some((option) => option.value === currentMode)) {
+      return thinkingProfile.options;
+    }
+    return [...thinkingProfile.options, thinkingModeMeta(currentMode)];
+  }, [currentMode, thinkingProfile]);
   const effectiveCapabilities = getEffectiveComboCapabilities(combo);
   const activeCapabilities = MODEL_CAPABILITIES.filter(([key]) => effectiveCapabilities[key]);
   const overrideCount = Object.keys(normalizeCapabilityOverrides(combo.capabilityOverrides)).length;
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <div className="flex min-w-0 items-baseline gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Thinking</span>
-        <span className={`truncate font-mono text-[11px] font-semibold ${thinking.value === "auto" ? "text-muted-foreground" : "text-foreground"}`}>
-          {thinking.label}
-        </span>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Think</span>
+        <div className="relative min-w-0">
+          <select
+            value={currentMode}
+            disabled={inlineUpdating}
+            onChange={(event) => onInlineThinkingChange?.(event.target.value)}
+            aria-label={`Thinking mode for ${combo.name}`}
+            title={thinkingModeMeta(currentMode).description}
+            className={`h-6 cursor-pointer appearance-none rounded border bg-background pl-2 pr-6 font-mono text-[11px] font-medium outline-none transition-colors focus:border-ring disabled:opacity-50 ${
+              currentMode === "auto"
+                ? "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                : "border-primary/40 bg-primary/5 text-foreground"
+            }`}
+          >
+            {thinkingOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <Icon
+            name="expand_more"
+            className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
       </div>
-      <div
-        className="flex min-w-0 items-center gap-1 text-muted-foreground"
+      <button
+        type="button"
+        onClick={onEditBehavior}
+        className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded px-1 py-0.5 -ml-1 text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         title={activeCapabilities.length > 0
-          ? `Advertised capabilities: ${activeCapabilities.map(([, label]) => label).join(", ")}`
-          : "No advertised capabilities"}
+          ? `Capabilities: ${activeCapabilities.map(([, label]) => label).join(", ")} — click to adjust`
+          : "No capabilities advertised — click to configure"}
       >
-        {activeCapabilities.slice(0, 4).map(([key, label, icon]) => (
-          <Icon name={icon} className="size-3.5" key={key} aria-label={label} />
+        {activeCapabilities.slice(0, 5).map(([key, label, icon]) => (
+          <Icon name={icon} className="size-3.5 shrink-0" key={key} aria-label={label} />
         ))}
         {activeCapabilities.length === 0 && (
-          <span className="font-mono text-[11px] text-muted-foreground">No Caps</span>
+          <span className="font-mono text-[11px]">No Caps</span>
         )}
-        {activeCapabilities.length > 4 && (
-          <span className="font-mono text-[11px] text-muted-foreground">+{activeCapabilities.length - 4}</span>
+        {activeCapabilities.length > 5 && (
+          <span className="font-mono text-[10px]">+{activeCapabilities.length - 5}</span>
         )}
         {overrideCount > 0 && (
-          <span className="ml-1 text-xs font-medium text-muted-foreground tracking-wide text-primary">
-            {overrideCount} override{overrideCount === 1 ? "" : "s"}
+          <span className="ml-0.5 rounded bg-primary/10 px-1 font-mono text-[10px] font-medium text-primary">
+            {overrideCount} mod
           </span>
         )}
-      </div>
+      </button>
     </div>
   );
 }
@@ -1289,24 +1496,45 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={`Pricing — ${combo.name}`} footer={null}>
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={`Pricing — ${combo.name}`}
+      description="Rates are USD per one million tokens ($/1M)."
+      footer={
+        <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {combo.pricingSource === "custom" && (
+              <Button type="button" variant="ghost" size="sm" onClick={handleReset} loading={resetting} disabled={busy}>
+                Restore default
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSave} loading={saving} disabled={busy}>
+              Save price
+            </Button>
+          </div>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-4">
-        <div className="border border-border bg-surface-2 px-3 py-2">
-          <p className="font-mono text-[11px] text-muted-foreground">
-            Billed as{" "}
-            <code className="text-foreground">
+        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+          <p className="font-mono text-xs text-muted-foreground">
+            Billing key:{" "}
+            <code className="font-semibold text-foreground">
               {combo.pricingTarget?.provider}/{combo.pricingTarget?.model}
             </code>
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Rates are USD per one million tokens. Renaming the route or changing its provider starts a new price entry.
-          </p>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3.5 py-2.5">
           <span className="min-w-0">
-            <span className="block font-mono text-xs font-semibold text-foreground">Free</span>
-            <span className="block text-[11px] text-muted-foreground">Bill this route at zero on every rate.</span>
+            <span className="block text-sm font-medium text-foreground">Free route</span>
+            <span className="block text-xs text-muted-foreground">Bill this route at $0 on every rate.</span>
           </span>
           <Toggle
             size="sm"
@@ -1322,47 +1550,39 @@ function RoutePricingModal({ combo, onClose, onSave, onReset }) {
             <div key={field}>
               <label
                 htmlFor={`price-${field}`}
-                className="mb-1 block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 {label}
               </label>
-              <input
-                id={`price-${field}`}
-                type="number"
-                min="0"
-                step="0.000001"
-                inputMode="decimal"
-                disabled={busy || free}
-                value={draft[field] ?? ""}
-                onChange={(event) => updateField(field, event.target.value)}
-                placeholder="0"
-                className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-foreground outline-none focus:border-primary/40 disabled:opacity-60"
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground">
+                  $
+                </span>
+                <input
+                  id={`price-${field}`}
+                  type="number"
+                  min="0"
+                  step="0.000001"
+                  inputMode="decimal"
+                  disabled={busy || free}
+                  value={draft[field] ?? ""}
+                  onChange={(event) => updateField(field, event.target.value)}
+                  placeholder="0"
+                  className="h-9 w-full rounded-md border border-input bg-background pl-6 pr-10 font-mono text-xs tabular-nums text-foreground outline-none transition-colors focus:border-ring disabled:opacity-50"
+                />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-muted-foreground">
+                  /1M
+                </span>
+              </div>
             </div>
           ))}
         </div>
 
         {error && (
-          <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+          <div role="alert" className="rounded-md border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
             {error}
           </div>
         )}
-
-        {/* Grid, not a flex row: Button carries `shrink-0`, so `fullWidth`
-            siblings in a row would each demand 100% and overflow the dialog. */}
-        <div className={`grid gap-2 ${combo.pricingSource === "custom" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          {combo.pricingSource === "custom" && (
-            <Button type="button" variant="ghost" size="sm" fullWidth onClick={handleReset} loading={resetting} disabled={busy}>
-              Restore default
-            </Button>
-          )}
-          <Button type="button" variant="ghost" size="sm" fullWidth onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button type="button" size="sm" fullWidth onClick={handleSave} loading={saving} disabled={busy}>
-            Save price
-          </Button>
-        </div>
       </div>
     </Modal>
   );
@@ -1377,6 +1597,8 @@ function ComboTableRow({
   copied,
   onCopy,
   onEdit,
+  onInlineThinkingChange,
+  inlineUpdating = false,
   onDelete,
   strategy = {},
   onSetStrategy,
@@ -1443,47 +1665,65 @@ function ComboTableRow({
             ariaLabel={`${published ? "Disable" : "Enable"} route ${combo.name}`}
           />
         </td>
-        <td className="px-3 py-2 align-middle">
-          <div className="flex min-w-0 items-center gap-2">
+        <td className="px-3 py-2.5 align-middle">
+          <button
+            type="button"
+            onClick={() => onEdit("models")}
+            className="flex min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-md p-1 -m-1 text-left transition-colors hover:bg-accent/60"
+            title={`Edit route ${combo.name}`}
+          >
             <LobeProviderIcon
               iconKey={modelProvider?.iconKey}
               name={combo.modelProvider || combo.name}
-              className="size-7"
+              className="size-7 shrink-0"
             />
             <span className="min-w-0">
               <code className="block truncate font-mono text-sm font-medium text-foreground" title={combo.name}>
                 {combo.name}
               </code>
-              <span className={`block truncate text-xs font-medium text-muted-foreground tracking-wide ${combo.modelProvider ? "text-muted-foreground" : "text-danger"}`}>
+              <span className={`block truncate text-xs ${combo.modelProvider ? "text-muted-foreground" : "font-medium text-danger"}`}>
                 {combo.modelProvider || "Provider not set"}
               </span>
             </span>
-          </div>
+          </button>
         </td>
         <td
-          className="px-2 py-2 align-middle"
+          className="px-2.5 py-2.5 align-middle"
           title={combo.models
             .map((model) => (routedModels.includes(model) ? model : `${model} (off)`))
             .join("\n")}
         >
-          {firstModel ? (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <code className="block min-w-0 truncate font-mono text-[11px] text-foreground">
-                {firstModel}
-              </code>
-              {overflowModels > 0 && (
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">+{overflowModels}</span>
-              )}
-              {skippedMembers > 0 && (
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{skippedMembers} off</span>
-              )}
-            </div>
-          ) : (
-            <span className="font-mono text-xs text-muted-foreground">—</span>
-          )}
+          <button
+            type="button"
+            onClick={() => onEdit("models")}
+            className="flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 -mx-1.5 text-left transition-colors hover:bg-accent/60"
+          >
+            {firstModel ? (
+              <>
+                <code className="block min-w-0 max-w-[180px] truncate font-mono text-xs text-foreground">
+                  {firstModel}
+                </code>
+                {overflowModels > 0 && (
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground">
+                    +{overflowModels}
+                  </span>
+                )}
+                {skippedMembers > 0 && (
+                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{skippedMembers} off</span>
+                )}
+              </>
+            ) : (
+              <span className="font-mono text-xs text-muted-foreground">+ Add models</span>
+            )}
+          </button>
         </td>
-        <td className="px-2 py-2 align-middle">
-          <RouteProfileCell combo={combo} />
+        <td className="px-2.5 py-2.5 align-middle">
+          <RouteProfileCell
+            combo={combo}
+            onInlineThinkingChange={onInlineThinkingChange}
+            inlineUpdating={inlineUpdating}
+            onEditBehavior={() => onEdit("behavior")}
+          />
         </td>
         <td className="px-2 py-2 align-middle">
           <RoutePriceCell
@@ -1606,7 +1846,7 @@ function ComboTableRow({
             </button>
             <button
               type="button"
-              onClick={onEdit}
+              onClick={() => onEdit("models")}
               className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Edit route"
               aria-label={`Edit ${combo.name}`}
@@ -1808,875 +2048,3 @@ function CapacityAdapterCap({ cap, entry, onChange, activeProviders, getCaps }) 
   );
 }
 
-function ModelItem({ id, index, model, enabled = true, isFirst, isLast, testResult, quickTestResult, onToggleEnabled, onEdit, onMoveUp, onMoveDown, onQuickTest, onRemove }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    // no transition — prevents the CSS settle animation fighting React's re-render on drop
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 999 : undefined,
-  };
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(model);
-  const testPresentation = testResult && {
-    pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
-    success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
-    failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
-    skipped: { icon: "remove_circle_outline", color: "text-muted-foreground", label: "Skipped", spin: false },
-  }[testResult.state];
-  const quickTestPresentation = quickTestResult && {
-    pending: { icon: "progress_activity", color: "text-primary", label: "Testing", spin: true },
-    success: { icon: "check_circle", color: "text-success", label: "Passed", spin: false },
-    failed: { icon: "cancel", color: "text-danger", label: "Failed", spin: false },
-  }[quickTestResult.state];
-  const commit = () => {
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== model) onEdit(trimmed);
-    else setDraft(model);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") commit();
-    if (e.key === "Escape") { setDraft(model); setEditing(false); }
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group flex min-w-0 items-center gap-1.5 rounded-sm px-2 py-1 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "ring-1 ring-primary/30" : ""} ${enabled ? "" : "opacity-60"}`}
-    >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        type="button"
-        className="cursor-grab touch-none p-0.5 rounded text-muted-foreground hover:text-primary active:cursor-grabbing shrink-0"
-        title="Drag to reorder"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="9" cy="4" r="2"/><circle cx="15" cy="4" r="2"/>
-          <circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/>
-          <circle cx="9" cy="20" r="2"/><circle cx="15" cy="20" r="2"/>
-        </svg>
-      </button>
-
-      {/* Index badge */}
-      <span className="text-[10px] font-medium text-muted-foreground w-3 text-center shrink-0">{index + 1}</span>
-
-      {/* Member on/off — keeps the member (and its order) but takes it out of routing */}
-      <Toggle
-        size="sm"
-        checked={enabled}
-        onChange={onToggleEnabled}
-        className="shrink-0"
-        title={enabled ? "Routed — click to skip this member" : "Skipped — click to route this member again"}
-        ariaLabel={`${enabled ? "Disable" : "Enable"} ${model}`}
-      />
-      {testPresentation && (
-        <Icon name={testPresentation.icon} className={`shrink-0 size-3.5 ${testPresentation.color} ${testPresentation.spin ? "animate-spin" : ""}`} title={testResult.error || `${testPresentation.label}${testResult.latencyMs != null ? ` in ${testResult.latencyMs}ms` : ""}`} />
-      )}
-
-      {/* Inline editable model value */}
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          className="min-w-0 flex-1 rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-foreground outline-none dark:bg-black/20"
-        />
-      ) : (
-        <div
-          className={`min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs hover:bg-black/5 dark:hover:bg-white/5 ${enabled ? "text-foreground" : "text-muted-foreground line-through decoration-text-subtle"}`}
-          onClick={() => setEditing(true)}
-          title="Click to edit"
-        >
-          {model}
-        </div>
-      )}
-
-      {/* Priority arrows */}
-      <div className="flex shrink-0 items-center gap-0.5">
-        <button
-          onClick={onMoveUp}
-          disabled={isFirst}
-          className={`p-0.5 rounded ${isFirst ? "text-muted-foreground/20 cursor-not-allowed" : "text-muted-foreground hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
-          title="Move up"
-        >
-          <Icon name="arrow_upward" className="size-[12px]" />
-        </button>
-        <button
-          onClick={onMoveDown}
-          disabled={isLast}
-          className={`p-0.5 rounded ${isLast ? "text-muted-foreground/20 cursor-not-allowed" : "text-muted-foreground hover:text-primary hover:bg-black/5 dark:hover:bg-white/5"}`}
-          title="Move down"
-        >
-          <Icon name="arrow_downward" className="size-[12px]" />
-        </button>
-      </div>
-
-      {onQuickTest && (
-        <button
-          type="button"
-          onClick={onQuickTest}
-          disabled={quickTestResult?.state === "pending"}
-          className={`shrink-0 rounded p-0.5 transition-colors disabled:cursor-wait ${quickTestPresentation ? quickTestPresentation.color : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}
-          title={quickTestResult?.error || (quickTestResult?.latencyMs != null
-            ? `${quickTestPresentation.label} in ${quickTestResult.latencyMs}ms`
-            : `Test ${model}`)}
-          aria-label={`Test ${model}`}
-        >
-          <Icon
-            name={quickTestPresentation?.icon || "play_arrow"}
-            className={`size-[13px] ${quickTestPresentation?.spin ? "animate-spin" : ""}`}
-          />
-        </button>
-      )}
-
-      {/* Remove */}
-      <button
-        onClick={onRemove}
-        className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-all"
-        title="Remove"
-      >
-        <Icon name="close" className="size-[12px]" />
-      </button>
-    </div>
-  );
-}
-
-function ComboFormModal({
-  isOpen,
-  combo,
-  onClose,
-  onSave,
-  onTest,
-  strategy = {},
-  testState,
-  activeProviders,
-  modelProviders = [],
-  canEditPricing = false,
-  kindFilter = null,
-}) {
-  // Initialize state with combo values - key prop on parent handles reset on remount
-  const [name, setName] = useState(combo?.name || "");
-  const [models, setModels] = useState(combo?.models || []);
-  const [modelProvider, setModelProvider] = useState(combo?.modelProvider || "");
-  const [thinkingMode, setThinkingMode] = useState(combo?.thinkingMode || "auto");
-  const [capabilityOverrides, setCapabilityOverrides] = useState(() =>
-    normalizeCapabilityOverrides(combo?.capabilityOverrides)
-  );
-  // Members kept in the list but taken out of routing. Keyed by model string so
-  // dragging, editing or removing a row can never move an off-switch to another.
-  const [disabledMembers, setDisabledMembers] = useState(() =>
-    normalizeDisabledMembers(combo?.disabledMembers, combo?.models || [])
-  );
-  const [showModelSelect, setShowModelSelect] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [nameError, setNameError] = useState("");
-  const [providerError, setProviderError] = useState("");
-  const [modelAliases, setModelAliases] = useState({});
-  const [showJudgeSelect, setShowJudgeSelect] = useState(false);
-  const [testStrategy, setTestStrategy] = useState(strategy.fallbackStrategy || "fallback");
-  const [testJudge, setTestJudge] = useState(strategy.judgeModel || "");
-  const [modalTestState, setModalTestState] = useState(testState || null);
-  const [quickTestStates, setQuickTestStates] = useState({});
-  // Price lives on the same form as the route it belongs to: rates are keyed by
-  // owner + public name, so both are edited in one save.
-  const [priceDraft, setPriceDraft] = useState(() => draftFromPricing(combo?.pricing || {}));
-  const [priceFree, setPriceFree] = useState(() => isFreePricing(combo?.pricing));
-  const [priceTouched, setPriceTouched] = useState(false);
-  const [priceReset, setPriceReset] = useState(false);
-  const [saveError, setSaveError] = useState("");
-
-
-  // Everything downstream (Caps, thinking levels, tests) describes what the route
-  // can actually serve, so all of it reads the enabled members only.
-  const disabledSet = useMemo(() => new Set(disabledMembers), [disabledMembers]);
-  const routedModels = useMemo(
-    () => comboRoutedModels({ models, disabledMembers }),
-    [models, disabledMembers]
-  );
-  const routedIndexByMember = useMemo(
-    () => new Map(routedModels.map((model, index) => [model, index])),
-    [routedModels]
-  );
-  const baseCapabilities = useMemo(() => deriveComboCapabilities(routedModels), [routedModels]);
-  const effectiveCapabilities = useMemo(
-    () => ({ ...baseCapabilities, ...capabilityOverrides }),
-    [baseCapabilities, capabilityOverrides]
-  );
-  const thinkingProfile = useMemo(() => getComboThinkingProfile(routedModels), [routedModels]);
-  const thinkingOptions = useMemo(() => {
-    if (thinkingProfile.options.some((option) => option.value === thinkingMode)) {
-      return thinkingProfile.options;
-    }
-    return [...thinkingProfile.options, thinkingModeMeta(thinkingMode)];
-  }, [thinkingMode, thinkingProfile]);
-  const selectedThinking = thinkingModeMeta(thinkingMode);
-  const capabilityOverrideCount = Object.keys(capabilityOverrides).length;
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  // Use stable index-based IDs so duplicates and similar names are handled correctly
-  const modelItems = models.map((model, i) => ({ uid: `item-${i}`, model }));
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = modelItems.findIndex((m) => m.uid === active.id);
-      const newIndex = modelItems.findIndex((m) => m.uid === over.id);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setModels((prev) => arrayMove(prev, oldIndex, newIndex));
-      }
-    }
-  };
-
-  const fetchModalData = async () => {
-    try {
-      const aliasesRes = await fetch("/api/models/alias");
-      if (!aliasesRes.ok) return;
-      const aliasesData = await aliasesRes.json();
-      setModelAliases(aliasesData.aliases || {});
-    } catch (error) {
-      console.error("Error fetching modal data:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) fetchModalData();
-  }, [isOpen]);
-
-  const validateName = (value) => {
-    if (!value.trim()) {
-      setNameError("Name is required");
-      return false;
-    }
-    if (!VALID_NAME_REGEX.test(value)) {
-      setNameError("Only letters, numbers, -, _ and . allowed");
-      return false;
-    }
-    setNameError("");
-    return true;
-  };
-
-  const handleNameChange = (e) => {
-    const value = e.target.value;
-    setName(value);
-    if (value) validateName(value);
-    else setNameError("");
-  };
-
-  const handleAddModel = (model) => {
-    if (!models.includes(model.value)) {
-      setModels([...models, model.value]);
-    }
-  };
-
-  // Dropping a member drops its off-switch with it, so re-adding it later starts routed.
-  const forgetDisabled = (model) => {
-    setDisabledMembers((current) => current.filter((member) => member !== model));
-  };
-
-  const handleDeselectModel = (model) => {
-    setModels(models.filter((m) => m !== model.value));
-    forgetDisabled(model.value);
-  };
-
-  const handleRemoveModel = (index) => {
-    const removed = models[index];
-    setModels(models.filter((_, i) => i !== index));
-    forgetDisabled(removed);
-  };
-
-  const handleToggleMember = (model, enabled) => {
-    setDisabledMembers((current) => (
-      enabled
-        ? current.filter((member) => member !== model)
-        : current.includes(model) ? current : [...current, model]
-    ));
-  };
-
-  // Renaming a member in place must carry its on/off state to the new id.
-  const handleEditModel = (index, nextValue) => {
-    const previous = models[index];
-    const updated = [...models];
-    updated[index] = nextValue;
-    setModels(updated);
-    setDisabledMembers((current) => (
-      current.includes(previous)
-        ? [...current.filter((member) => member !== previous), nextValue]
-        : current
-    ));
-  };
-
-  const handleMoveUp = (index) => {
-    if (index === 0) return;
-    const newModels = [...models];
-    [newModels[index - 1], newModels[index]] = [newModels[index], newModels[index - 1]];
-    setModels(newModels);
-  };
-
-  const handleMoveDown = (index) => {
-    if (index === models.length - 1) return;
-    const newModels = [...models];
-    [newModels[index], newModels[index + 1]] = [newModels[index + 1], newModels[index]];
-    setModels(newModels);
-  };
-
-  /**
-   * Turn the price fields into an instruction for the parent, or null when the
-   * catalog should be left alone. Rates are keyed by owner + public name, so a
-   * rename or an owner change has to re-write an existing custom price under the
-   * new key and drop the old entry.
-   */
-  const buildPricingRequest = (savedName, savedProvider) => {
-    if (!canEditPricing) return null;
-    const previousTarget = comboPricingTarget(combo);
-    const movedFrom = previousTarget
-      && (previousTarget.provider !== savedProvider.toLowerCase() || previousTarget.model !== savedName)
-      ? previousTarget
-      : null;
-
-    if (priceReset) return { mode: "reset", previousTarget: movedFrom };
-    if (priceTouched) {
-      return {
-        mode: "set",
-        pricing: parseDraft(priceDraft, { basePricing: combo?.pricing || {}, free: priceFree }),
-        previousTarget: movedFrom,
-      };
-    }
-    // Untouched price: only act when the key moved and there is a custom rate
-    // that would otherwise be left behind on the old key.
-    if (movedFrom && combo?.pricingSource === "custom" && combo.pricing) {
-      return { mode: "set", pricing: combo.pricing, previousTarget: movedFrom };
-    }
-    return null;
-  };
-
-  const handleSave = async () => {
-    if (!validateName(name)) return;
-    const normalizedProvider = modelProvider.trim();
-    if (!normalizedProvider) {
-      setProviderError("Model provider is required before this combo can be published");
-      return;
-    }
-    setProviderError("");
-    setSaveError("");
-
-    let pricingRequest = null;
-    try {
-      pricingRequest = buildPricingRequest(name.trim(), normalizedProvider);
-    } catch (reason) {
-      setSaveError(reason.message || "Unable to save price");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await onSave({
-        name: name.trim(),
-        models,
-        modelProvider: normalizedProvider,
-        thinkingMode,
-        capabilityOverrides,
-        disabledMembers: normalizeDisabledMembers(disabledMembers, models),
-      }, pricingRequest);
-    } catch (reason) {
-      setSaveError(reason.message || "Failed to save route");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updatePriceField = (field, value) => {
-    setSaveError("");
-    setPriceTouched(true);
-    setPriceReset(false);
-    setPriceDraft((current) => {
-      const merged = { ...current, [field]: value };
-      // Typing a real rate leaves Free; zeroing everything back re-enters it.
-      if (Number(value) > 0) setPriceFree(false);
-      else if (draftLooksFree(merged)) setPriceFree(true);
-      return merged;
-    });
-  };
-
-  const togglePriceFree = (next) => {
-    setSaveError("");
-    setPriceTouched(true);
-    setPriceReset(false);
-    setPriceFree(next);
-    setPriceDraft(next
-      ? draftFromPricing(freePricing())
-      : draftFromPricing(combo?.defaultPricing || combo?.pricing || {}));
-  };
-
-  // Queue a reset instead of writing immediately: the price and the route are
-  // saved together, so Cancel must leave the catalog untouched.
-  const requestPriceReset = () => {
-    setSaveError("");
-    setPriceTouched(false);
-    setPriceReset(true);
-    setPriceDraft(draftFromPricing(combo?.defaultPricing || {}));
-    setPriceFree(isFreePricing(combo?.defaultPricing));
-  };
-
-  const handleCapabilityChange = (key, enabled) => {
-    setCapabilityOverrides((current) => {
-      const next = { ...current };
-      if (Boolean(baseCapabilities[key]) === enabled) delete next[key];
-      else next[key] = enabled;
-      return next;
-    });
-  };
-
-  const handleRunTest = async () => {
-    // Only enabled members are routable, so they are the only ones worth probing.
-    const testedModels = [...routedModels];
-    setModalTestState({
-      testing: true,
-      strategy: testStrategy,
-      results: [],
-      testedModels,
-    });
-    try {
-      const result = await onTest({
-        models: testedModels,
-        strategy: testStrategy,
-        judgeModel: testJudge,
-      });
-      setModalTestState({ ...result, testedModels });
-    } catch (error) {
-      setModalTestState({
-        testing: false,
-        ok: false,
-        strategy: testStrategy,
-        results: [],
-        testedModels,
-        error: error?.message || "Failed to test model route",
-      });
-    }
-  };
-
-  const handleQuickTest = async (uid, model) => {
-    setQuickTestStates((current) => ({ ...current, [uid]: { state: "pending" } }));
-    try {
-      const result = await onTest({ models: [model], strategy: "fallback", judgeModel: "" });
-      const modelResult = result?.results?.[0];
-      setQuickTestStates((current) => ({
-        ...current,
-        [uid]: modelResult || {
-          state: result?.ok ? "success" : "failed",
-          error: result?.error || result?.message || "Model test failed",
-        },
-      }));
-    } catch (error) {
-      setQuickTestStates((current) => ({
-        ...current,
-        [uid]: { state: "failed", error: error?.message || "Model test failed" },
-      }));
-    }
-  };
-
-  const isEdit = !!combo;
-  const modalResultsByIndex = new Map((modalTestState?.results || []).map((result) => [result.index, result]));
-
-  return (
-    <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        title={isEdit ? "Edit Model Route" : "Create Model Route"}
-        size="full"
-      >
-        <div className="flex flex-col gap-3">
-          {/* Name */}
-          <div>
-            <Input
-              label="Combo Name"
-              value={name}
-              onChange={handleNameChange}
-              placeholder="my-combo"
-              error={nameError}
-            />
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Only letters, numbers, -, _ and . allowed
-            </p>
-          </div>
-
-          {/* Public model ownership */}
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-              Model Provider <span className="text-danger">*</span>
-            </label>
-            <Select
-              value={modelProvider}
-              onChange={(event) => {
-                setModelProvider(event.target.value);
-                if (event.target.value) setProviderError("");
-              }}
-              disabled={modelProviders.length === 0}
-              options={[
-                ...(modelProvider && !modelProviders.some((provider) => provider.name === modelProvider)
-                  ? [{ value: modelProvider, label: `${modelProvider} (legacy)` }]
-                  : []),
-                ...modelProviders.map((provider) => ({ value: provider.name, label: provider.name })),
-              ]}
-            />
-            {providerError ? (
-              <p className="mt-1 font-mono text-xs text-danger">{providerError}</p>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {modelProviders.length > 0
-                  ? "Shown as owned_by in /v1/models."
-                  : "Create a provider in the Providers tab first."}
-              </p>
-            )}
-          </div>
-
-          {/* Models */}
-          <div>
-            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-              <label className="text-sm font-medium">Models</label>
-              {models.length > 0 && (
-                <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-                  {routedModels.length} of {models.length} routed
-                </span>
-              )}
-            </div>
-
-            {models.length === 0 ? (
-              <div className="text-center py-4 border border-dashed border-black/10 dark:border-white/10 bg-black/[0.01] dark:bg-white/[0.01]">
-                <Icon name="layers" className="text-muted-foreground size-5 mb-1" />
-                <p className="text-xs text-muted-foreground">No models added yet</p>
-              </div>
-            ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis, restrictToParentElement]}>
-              <SortableContext items={modelItems.map((m) => m.uid)} strategy={verticalListSortingStrategy}>
-                <div className="flex max-h-[55vh] min-w-0 flex-col gap-1 overflow-y-auto sm:max-h-[350px]">
-                  {modelItems.map(({ uid, model }, index) => {
-                    // Tests run over the routed subset, so results are keyed by
-                    // position in that subset, not in the full member list.
-                    const routedIndex = routedIndexByMember.get(model);
-                    const tested = routedIndex != null
-                      && modalTestState?.testedModels?.[routedIndex] === model;
-                    return (
-                      <ModelItem
-                        key={uid}
-                        id={uid}
-                        index={index}
-                        model={model}
-                        enabled={!disabledSet.has(model)}
-                        isFirst={index === 0}
-                        isLast={index === modelItems.length - 1}
-                        testResult={
-                          tested
-                            ? modalTestState.testing
-                              ? { state: "pending" }
-                              : modalResultsByIndex.get(routedIndex)
-                            : null
-                        }
-                        quickTestResult={quickTestStates[uid]}
-                        onToggleEnabled={(next) => handleToggleMember(model, next)}
-                        onEdit={(newVal) => handleEditModel(index, newVal)}
-                        onMoveUp={() => handleMoveUp(index)}
-                        onMoveDown={() => handleMoveDown(index)}
-                        onQuickTest={isEdit && onTest ? () => handleQuickTest(uid, model) : null}
-                        onRemove={() => handleRemoveModel(index)}
-                      />
-                    );
-                  })}
-                </div>
-              </SortableContext>
-            </DndContext>
-            )}
-
-            {/* Add Model button */}
-            <button
-              onClick={() => setShowModelSelect(true)}
-              className="w-full mt-2 py-2 border border-dashed border-black/10 dark:border-white/10 rounded-sm text-xs text-primary font-medium hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1"
-            >
-              <Icon name="add" className="size-[16px]" />
-              Add Model
-            </button>
-          </div>
-
-          <section className="border-y border-border py-3" aria-labelledby="model-behavior-heading">
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              <span>
-                <span id="model-behavior-heading" className="block text-xs font-medium text-muted-foreground tracking-wide text-foreground">
-                  Model behavior
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Defaults and advertised Caps belong to this route, not its provider connection.
-                </span>
-              </span>
-              {capabilityOverrideCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCapabilityOverrides({})}
-                  className="self-start rounded-sm px-2 py-1 text-xs font-medium text-muted-foreground tracking-wide text-primary transition-colors hover:bg-primary/10"
-                >
-                  Reset Caps to automatic
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div className="min-w-0">
-                <Select
-                  label="Thinking default"
-                  value={thinkingMode}
-                  onChange={(event) => setThinkingMode(event.target.value)}
-                  options={thinkingOptions.map((option) => ({ value: option.value, label: option.label }))}
-                />
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{selectedThinking.description}</p>
-                <p className="mt-2 text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-                  Client request wins · {thinkingProfile.reasoningModels} reasoning member{thinkingProfile.reasoningModels === 1 ? "" : "s"}
-                </p>
-                {thinkingMode === "none" && thinkingProfile.cannotDisable > 0 && (
-                  <p className="mt-2 border-l-2 border-warning pl-2 text-xs text-warning">
-                    {thinkingProfile.cannotDisable} member{thinkingProfile.cannotDisable === 1 ? "" : "s"} cannot fully disable reasoning and will use the minimum supported level.
-                  </p>
-                )}
-              </div>
-
-              <div className="min-w-0 border border-border">
-                <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2">
-                  <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Caps exposed by this model</span>
-                  <span className="font-mono text-[11px] text-muted-foreground">Dashboard / Models · /v1/models</span>
-                </div>
-                <div className="grid sm:grid-cols-2">
-                  {MODEL_CAPABILITIES.map(([key, label, icon], index) => {
-                    const overridden = Object.prototype.hasOwnProperty.call(capabilityOverrides, key);
-                    const enabled = Boolean(effectiveCapabilities[key]);
-                    return (
-                      <div
-                        key={key}
-                        className={`flex min-w-0 items-center justify-between gap-3 px-3 py-2 ${index < MODEL_CAPABILITIES.length - 2 ? "border-b border-border" : ""} ${index % 2 === 0 ? "sm:border-r sm:border-border" : ""}`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <Icon name={icon} className={`size-4 ${enabled ? "text-primary" : "text-muted-foreground"}`} />
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-medium text-foreground">{label}</span>
-                            <span className="block text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">
-                              {overridden ? `Override ${enabled ? "on" : "off"}` : `Inherited ${enabled ? "on" : "off"}`}
-                            </span>
-                          </span>
-                        </span>
-                        <Toggle
-                          size="sm"
-                          checked={enabled}
-                          onChange={(next) => handleCapabilityChange(key, next)}
-                          ariaLabel={`${enabled ? "Disable" : "Enable"} ${label} for ${name || "this route"}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Inherited Caps come from the enabled members only. Caps change public model metadata; routing still
-              checks each member&apos;s actual capabilities.
-            </p>
-          </section>
-
-          {canEditPricing && (
-            <section className="border-b border-border pb-3" aria-labelledby="route-pricing-heading">
-              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <span className="min-w-0">
-                  <span id="route-pricing-heading" className="block text-xs font-medium tracking-wide text-foreground">
-                    Pricing
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    USD per one million tokens, billed as{" "}
-                    <code className="font-mono text-foreground">
-                      {(modelProvider.trim() || "provider").toLowerCase()}/{name.trim() || "route"}
-                    </code>
-                    . Saved together with the route.
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-2 self-start">
-                  {priceReset && (
-                    <span className="font-mono text-[11px] text-primary">Default restored on save</span>
-                  )}
-                  {!priceReset && combo?.pricingSource === "custom" && (
-                    <button
-                      type="button"
-                      onClick={requestPriceReset}
-                      className="rounded-sm px-2 py-1 text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/10"
-                    >
-                      Restore default
-                    </button>
-                  )}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 border border-border px-3 py-2">
-                <span className="min-w-0">
-                  <span className="block font-mono text-xs font-semibold text-foreground">Free</span>
-                  <span className="block text-[11px] text-muted-foreground">Bill this route at zero on every rate.</span>
-                </span>
-                <Toggle
-                  size="sm"
-                  checked={priceFree}
-                  disabled={saving}
-                  onChange={togglePriceFree}
-                  ariaLabel={`Set ${name || "this route"} free`}
-                />
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {PRICING_FIELDS.map(([field, label]) => (
-                  <div key={field}>
-                    <label
-                      htmlFor={`route-price-${field}`}
-                      className="mb-1 block text-xs font-medium tracking-wide text-muted-foreground"
-                    >
-                      {label}
-                    </label>
-                    <input
-                      id={`route-price-${field}`}
-                      type="number"
-                      min="0"
-                      step="0.000001"
-                      inputMode="decimal"
-                      disabled={saving || priceFree}
-                      value={priceDraft[field] ?? ""}
-                      onChange={(event) => updatePriceField(field, event.target.value)}
-                      placeholder="0"
-                      className="h-9 w-full rounded-sm border border-border bg-surface px-2 font-mono text-xs tabular-nums text-foreground outline-none focus:border-primary/40 disabled:opacity-60"
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {isEdit && onTest && (
-            <div className="border-y border-border py-3">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <span>
-                  <span className="block text-sm font-medium text-foreground">Test route</span>
-                  <span className="block text-xs text-muted-foreground">Run the current model list through one strategy path.</span>
-                </span>
-                {modalTestState && !modalTestState.testing && (
-                  <span className={`text-xs font-medium text-muted-foreground tracking-wide ${modalTestState.ok ? "text-success" : "text-danger"}`}>
-                    {modalTestState.ok ? "Passed" : "Failed"}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1">
-                  <Select
-                    label="Test strategy"
-                    options={STRATEGY_OPTIONS}
-                    value={testStrategy}
-                    onChange={(event) => {
-                      setTestStrategy(event.target.value);
-                      setModalTestState(null);
-                    }}
-                    selectClassName="h-9 py-1 text-xs"
-                  />
-                </div>
-                {testStrategy === "fusion" && (
-                  <button
-                    type="button"
-                    onClick={() => setShowJudgeSelect(true)}
-                    className="inline-flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-sm border border-dashed border-primary/40 px-3 font-mono text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5"
-                    title={testJudge ? `Judge: ${testJudge}` : `Auto judge: ${models[0] || "first model"}`}
-                  >
-                    <Icon name="gavel" className="size-3.5" />
-                    <span className="truncate">{testJudge || "Auto judge"}</span>
-                  </button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleRunTest}
-                  loading={modalTestState?.testing}
-                  disabled={models.length === 0 || modalTestState?.testing}
-                >
-                  Test
-                </Button>
-              </div>
-              {modalTestState && !modalTestState.testing && (
-                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                  <span className={`min-w-0 font-mono text-[11px] ${modalTestState.ok ? "text-success" : "text-danger"}`}>
-                    {modalTestState.error || modalTestState.message}
-                  </span>
-                  {modalTestState.judge && (
-                    <TestStateMark model={`Judge: ${modalTestState.judge.model}`} result={modalTestState.judge} />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {saveError && (
-            <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {saveError}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="grid gap-2 pt-1 sm:grid-cols-2">
-
-            <Button onClick={onClose} variant="ghost" fullWidth size="sm">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              fullWidth
-              size="sm"
-              disabled={!name.trim() || !modelProvider.trim() || !!nameError || saving}
-            >
-              {saving ? "Saving..." : isEdit ? "Save route" : "Create route"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Model Select Modal */}
-      {showModelSelect && (
-        <ModelSelectModal
-          isOpen={showModelSelect}
-          onClose={() => setShowModelSelect(false)}
-          onSelect={handleAddModel}
-          onDeselect={handleDeselectModel}
-          activeProviders={activeProviders}
-          modelAliases={modelAliases}
-          title="Add Model to Combo"
-          kindFilter={kindFilter}
-          addedModelValues={models}
-          closeOnSelect={false}
-        />
-      )}
-      {showJudgeSelect && (
-        <ModelSelectModal
-          isOpen={showJudgeSelect}
-          onClose={() => setShowJudgeSelect(false)}
-          onSelect={(model) => {
-            setTestJudge(model?.value || "");
-            setModalTestState(null);
-            setShowJudgeSelect(false);
-          }}
-          activeProviders={activeProviders}
-          modelAliases={modelAliases}
-          title={`Select Judge for ${name || combo?.name}`}
-          kindFilter={kindFilter}
-          addedModelValues={testJudge ? [testJudge] : []}
-          closeOnSelect={true}
-        />
-      )}
-    </>
-  );
-}

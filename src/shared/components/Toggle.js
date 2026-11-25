@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { cn } from "@/shared/utils/cn";
@@ -21,9 +22,12 @@ export default function Toggle({
   title,
   id,
 }) {
+  const generatedId = useId();
+  const switchId = id || generatedId;
+
   const control = (
     <Switch
-      id={id}
+      id={switchId}
       checked={checked}
       onCheckedChange={(next) => onChange?.(next)}
       disabled={disabled}
@@ -40,9 +44,9 @@ export default function Toggle({
   return (
     <div className={cn("flex items-center gap-3", disabled && "opacity-50", className)}>
       {control}
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         {label ? (
-          <Label htmlFor={id} className="leading-none">
+          <Label htmlFor={switchId} className={cn("leading-none", !disabled && "cursor-pointer")}>
             {label}
           </Label>
         ) : null}

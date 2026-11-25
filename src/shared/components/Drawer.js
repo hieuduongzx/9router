@@ -1,6 +1,6 @@
 "use client";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet";
 import { cn } from "@/shared/utils/cn";
 
 const WIDTHS = {
@@ -29,20 +29,25 @@ export default function Drawer({
     <Sheet open={Boolean(isOpen)} onOpenChange={(open) => !open && onClose?.()}>
       <SheetContent
         side="right"
-        className={cn("w-full gap-0 p-0", WIDTHS[width] || WIDTHS.md, className)}
+        className={cn("w-full gap-0 overflow-hidden p-0", WIDTHS[width] || WIDTHS.md, className)}
       >
         {accentClassName ? (
           <span className={cn("absolute left-0 top-0 h-10 w-[3px]", accentClassName)} aria-hidden />
         ) : null}
 
-        <SheetHeader className="flex-row items-center justify-between gap-3 pr-12">
-          <SheetTitle className={title ? "text-base" : "sr-only"}>{title || "Panel"}</SheetTitle>
+        <SheetHeader className="shrink-0 flex-row items-center justify-between gap-3 pr-12">
+          <SheetDescription className="sr-only">{title || "Side panel"}</SheetDescription>
+          <SheetTitle className={title ? "truncate text-base" : "sr-only"}>
+            {title || "Panel"}
+          </SheetTitle>
           {headerActions ? (
-            <div className="flex items-center gap-1.5">{headerActions}</div>
+            <div className="flex shrink-0 items-center gap-1.5">{headerActions}</div>
           ) : null}
         </SheetHeader>
 
-        <div className="custom-scrollbar flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-5">
+          {children}
+        </div>
       </SheetContent>
     </Sheet>
   );

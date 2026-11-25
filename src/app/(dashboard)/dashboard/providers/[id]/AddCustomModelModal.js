@@ -1,9 +1,8 @@
 "use client";
-import { Icon } from "@/shared/components/ui/icon";
-
 
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { Icon } from "@/shared/components/ui/icon";
 import { Button, Modal, Select, Toggle } from "@/shared/components";
 import { CAPACITY_META, STT_TRANSPORT_META, STT_TRANSPORTS } from "@/shared/constants/models";
 
@@ -21,7 +20,14 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
 
   // Reset state when modal opens
   useEffect(() => {
-    if (isOpen) { setModelId(""); setCaps(defaultCaps()); setModelType("llm"); setTransport(""); setTestStatus(null); setTestError(""); }
+    if (isOpen) {
+      setModelId("");
+      setCaps(defaultCaps());
+      setModelType("llm");
+      setTransport("");
+      setTestStatus(null);
+      setTestError("");
+    }
   }, [isOpen]);
 
   // Strip provider's own alias prefix (e.g. "cc/model" -> "model" for cc provider)
@@ -66,7 +72,27 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Custom Model">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Custom Model"
+      size="lg"
+      footer={
+        <div className="flex w-full items-center justify-end gap-2">
+          <Button type="button" onClick={onClose} variant="outline" size="sm">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            size="sm"
+            disabled={!modelId.trim() || saving}
+          >
+            {saving ? "Adding..." : "Add Model"}
+          </Button>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-4">
         <Select
           label="Model type"
@@ -96,10 +122,11 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
               onChange={(e) => { setModelId(e.target.value); setTestStatus(null); setTestError(""); }}
               onKeyDown={handleKeyDown}
               placeholder="e.g. claude-opus-4-5"
-              className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+              className="flex-1 min-w-0 px-3 py-2 text-sm border border-border rounded-md bg-background font-mono focus:outline-none focus:border-primary"
               autoFocus
             />
             <Button
+              type="button"
               variant="secondary"
               icon="science"
               loading={testStatus === "testing"}
@@ -109,24 +136,32 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
               {testStatus === "testing" ? "Testing..." : "Test"}
             </Button>
           </div>
-          <p className="text-xs text-text-muted mt-1">
-            Sent to provider as: <code className="font-mono bg-sidebar px-1 rounded">{stripAlias(modelId.trim()) || "model-id"}</code>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Sent to provider as:{" "}
+            <code className="font-mono bg-muted px-1.5 py-0.5 rounded">{stripAlias(modelId.trim()) || "model-id"}</code>
           </p>
         </div>
 
         {modelType === "llm" && (
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Capabilities</label>
-            <div className="flex flex-wrap gap-4">
+            <label className="text-sm font-medium mb-2 block">Capabilities</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {Object.entries(CAPACITY_META).map(([key, meta]) => (
-                <Toggle
+                <div
                   key={key}
-                  checked={!!caps[key]}
-                  onChange={(v) => setCaps((prev) => ({ ...prev, [key]: v }))}
-                  label={meta.label}
-                  description={meta.desc}
-                  size="sm"
-                />
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-foreground">{meta.label}</div>
+                    {meta.desc && <div className="text-[11px] text-muted-foreground truncate">{meta.desc}</div>}
+                  </div>
+                  <Toggle
+                    checked={!!caps[key]}
+                    onChange={(v) => setCaps((prev) => ({ ...prev, [key]: v }))}
+                    ariaLabel={meta.label}
+                    size="sm"
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -145,29 +180,17 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
 
         {/* Test result */}
         {testStatus === "ok" && (
-          <div className="flex items-center gap-2 text-sm text-green-600">
-            <Icon name="check_circle" className="inline-block h-[1em] w-[1em] align-middle text-base" />
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+            <Icon name="check_circle" className="size-4 shrink-0" />
             Model is reachable
           </div>
         )}
         {testStatus === "error" && (
-          <div className="flex items-start gap-2 text-sm text-red-500">
-            <Icon name="cancel" className="inline-block h-[1em] w-[1em] align-middle text-base shrink-0" />
-            <span>{testError || "Model not reachable"}</span>
+          <div className="flex items-start gap-2 text-sm text-destructive">
+            <Icon name="cancel" className="size-4 shrink-0 mt-0.5" />
+            <span className="break-words">{testError || "Model not reachable"}</span>
           </div>
         )}
-
-        <div className="flex gap-2 pt-1">
-          <Button onClick={onClose} variant="ghost" fullWidth size="sm">Cancel</Button>
-          <Button
-            onClick={handleSave}
-            fullWidth
-            size="sm"
-            disabled={!modelId.trim() || saving}
-          >
-            {saving ? "Adding..." : "Add Model"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

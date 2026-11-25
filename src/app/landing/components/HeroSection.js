@@ -37,14 +37,14 @@ export default function HeroSection() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/login?mode=register"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-foreground px-6 font-mono text-sm font-semibold text-background transition-colors hover:bg-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-foreground px-6 font-mono text-sm font-semibold text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2"
             >
               Get your API key
               <Icon name="arrow_forward" className="size-[18px]" aria-hidden="true" />
             </Link>
             <Link
               href="/models"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-border bg-card px-6 font-mono text-sm font-semibold text-foreground transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 font-mono text-sm font-semibold text-foreground transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               Browse models
               <Icon name="arrow_outward" className="size-[18px]" aria-hidden="true" />
@@ -78,13 +78,13 @@ export default function HeroSection() {
             </code>
 
             <dl className="mt-5 divide-y divide-border border-y border-border">
-              <div className="grid grid-cols-[7rem_1fr] gap-3 py-3">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-3 py-3 sm:grid-cols-[7rem_1fr]">
                 <dt className="font-mono text-[11px] font-semibold text-muted-foreground">CHAT</dt>
-                <dd className="font-mono text-xs font-semibold text-foreground">POST /v1/chat/completions</dd>
+                <dd className="min-w-0 break-all font-mono text-xs font-semibold text-foreground">POST /v1/chat/completions</dd>
               </div>
-              <div className="grid grid-cols-[7rem_1fr] gap-3 py-3">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-3 py-3 sm:grid-cols-[7rem_1fr]">
                 <dt className="font-mono text-[11px] font-semibold text-muted-foreground">CATALOG</dt>
-                <dd className="font-mono text-xs font-semibold text-foreground">GET /v1/models</dd>
+                <dd className="min-w-0 break-all font-mono text-xs font-semibold text-foreground">GET /v1/models</dd>
               </div>
             </dl>
 

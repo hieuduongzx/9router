@@ -4,12 +4,13 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { Button } from "@/shared/components";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
+import { useNotificationStore } from "@/store/notificationStore";
 import ModelRow from "./ModelRow";
 
 export default function CompatibleModelsSection({ providerStorageAlias, providerDisplayAlias, modelAliases, customModels, copied, onCopy, onDeleteAlias, onAddCustomModel, onDeleteCustomModel, onTestModel, onExportToRouter, exportingModelIds, modelTestResults, testingModelIds, connections, isAnthropic }) {
   const [newModel, setNewModel] = useState("");
   const [adding, setAdding] = useState(false);
-
+  const notify = useNotificationStore();
 
   const allModels = getProviderCustomModelRows({
     customModels,
@@ -22,7 +23,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
     if (!newModel.trim() || adding) return;
     const modelId = newModel.trim();
     if (allModels.some((model) => model.id === modelId)) {
-      alert("Model already exists for this provider.");
+      notify.warning("Model already exists for this provider.");
       return;
     }
 
@@ -32,11 +33,11 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
       setNewModel("");
     } catch (error) {
       console.log("Error adding model:", error);
+      notify.error(error?.message || "Failed to add model");
     } finally {
       setAdding(false);
     }
   };
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,7 +46,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
       </p>
 
       <div className="flex items-end gap-2 flex-wrap">
-        <div className="flex-1 min-w-[240px]">
+        <div className="flex-1 min-w-[220px]">
           <label htmlFor="new-compatible-model-input" className="text-xs text-muted-foreground mb-1 block">Model ID</label>
           <input
             id="new-compatible-model-input"
@@ -54,7 +55,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
             onChange={(e) => setNewModel(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             placeholder={isAnthropic ? "claude-3-opus-20240229" : "gpt-4o"}
-            className="w-full px-3 py-2 text-sm border border-border rounded-sm bg-background font-mono focus:outline-none focus:border-primary"
+            className="h-9 w-full px-3 text-sm border border-border rounded-md bg-background font-mono focus:outline-none focus:border-primary"
           />
         </div>
         <Button size="sm" icon="add" onClick={handleAdd} disabled={!newModel.trim() || adding}>
@@ -62,9 +63,8 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
         </Button>
       </div>
 
-
       {allModels.length > 0 && (
-        <div role="list" className="divide-y divide-border overflow-hidden border border-border">
+        <div role="list" className="divide-y divide-border overflow-hidden rounded-lg border border-border">
           {allModels.map(({ id, alias, source }) => (
             <ModelRow
               key={`${source}-${providerStorageAlias}/${id}`}
@@ -77,7 +77,6 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
               onExportToRouter={onExportToRouter ? () => onExportToRouter(id) : undefined}
               isExporting={exportingModelIds?.has(id)}
               testStatus={modelTestResults[id]}
-
               isTesting={testingModelIds.has(id)}
               isCustom
             />

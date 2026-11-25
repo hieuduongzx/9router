@@ -39,7 +39,7 @@ function CopyButton({ value, copiedId, onCopy, label }) {
   return (
     <button
       type="button"
-      onClick={() => onCopy(value, label)}
+      onClick={() => onCopy(value, effectiveKey)}
       aria-label={`Copy ${label}`}
       title={`Copy ${label}`}
       className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
@@ -405,7 +405,7 @@ export default function UserDetailsClient({ initialUser, currentUserId }) {
                           >
                             <Icon name={isVisible ? "visibility_off" : "visibility"} className="size-[15px]" />
                           </button>
-                          <CopyButton value={key.key} copiedId={copied} onCopy={copy} label={keyName} />
+                          <CopyButton value={key.key} copyKey={key.id} copiedId={copied} onCopy={copy} label={keyName} />
                         </div>
                       </td>
                       <td className="px-3 py-3">

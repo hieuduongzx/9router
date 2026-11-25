@@ -191,7 +191,7 @@ export default function QuotaTable({
                 aria-label={`Open usage details for ${quota.name}`}
               >
                 {resetDisplay}
-                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                <Icon name="open_in_new" className="size-3" />
               </a>
             ) : (
               resetDisplay

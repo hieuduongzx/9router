@@ -6,17 +6,21 @@ import { Icon } from "@/shared/components/ui/icon";
 
 // Render small icon badges for a model's capabilities (only those set true).
 // colorOverride: force a single color class for all badges (default: per-cap color).
-// size: icon font-size in px (default 16).
+// size: icon size in px (default 16).
 export default function CapacityBadges({ caps, className = "", colorOverride, size = 16 }) {
   if (!caps) return null;
   const active = Object.keys(CAPACITY_META).filter((k) => caps[k]);
   if (active.length === 0) return null;
 
   return (
-    <span className={`inline-flex items-center gap-0.5 ${className}`}>
+    <span className={`inline-flex items-center gap-1 ${className}`}>
       {active.map((k) => (
         <Tooltip key={k} text={`${CAPACITY_META[k].label} — ${CAPACITY_META[k].desc}`}>
-          <Icon name={CAPACITY_META[k].icon} className={`cursor-help ${colorOverride || CAPACITY_META[k].color}`} style={{ fontSize: `${size}px` }} />
+          <Icon
+            name={CAPACITY_META[k].icon}
+            size={size}
+            className={`cursor-help ${colorOverride || CAPACITY_META[k].color}`}
+          />
         </Tooltip>
       ))}
     </span>

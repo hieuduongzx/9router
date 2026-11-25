@@ -9,16 +9,6 @@ import { useSidebarCollapsed } from "@/shared/hooks/useSidebarCollapsed";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
 
-/**
- * The dashboard shell for both the user and admin route groups.
- *
- * Toasts are not rendered here — `<Toaster />` is mounted once in the root
- * layout. The previous version inlined a toast renderer, and the admin layout
- * carried a verbatim copy of it.
- *
- * Routes that manage their own scrolling (a chat transcript, a log tail) opt out
- * of the shell's padding and overflow rather than fighting it.
- */
 const FULL_BLEED_ROUTES = new Set([
   "/dashboard/basic-chat",
   "/admin/basic-chat",
@@ -29,8 +19,6 @@ const FULL_BLEED_ROUTES = new Set([
 export default function DashboardLayout({ children, variant = "user" }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  // Read-only here so the Suspense placeholder matches the rail's real width and
-  // the content doesn't jump once the sidebar hydrates.
   const [sidebarCollapsed] = useSidebarCollapsed();
 
   const fullBleed = FULL_BLEED_ROUTES.has(pathname);
@@ -50,10 +38,6 @@ export default function DashboardLayout({ children, variant = "user" }) {
   }, []);
 
   return (
-    // `fixed inset-0` takes the shell out of document flow: the document body
-    // stays empty, so the viewport can never gain a second scrollbar next to
-    // the content scroller's. `h-dvh` (not `h-screen`) tracks the visible
-    // viewport when the mobile browser's URL bar collapses.
     <div className="fixed inset-0 flex h-dvh w-full overflow-hidden bg-background">
       {sidebarOpen ? (
         <button
@@ -83,9 +67,11 @@ export default function DashboardLayout({ children, variant = "user" }) {
 
       {/* Mobile drawer */}
       <div
+        aria-hidden={!sidebarOpen}
+        inert={!sidebarOpen ? "" : undefined}
         className={cn(
           "fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out lg:hidden",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          sidebarOpen ? "translate-x-0" : "pointer-events-none -translate-x-full",
         )}
       >
         <Suspense fallback={null}>
@@ -94,14 +80,9 @@ export default function DashboardLayout({ children, variant = "user" }) {
       </div>
 
       <main className="flex h-full min-w-0 flex-1 flex-col">
-        {/* Not keyed by pathname: the header reads its page title from the
-            pathname reactively, and remounting it re-ran the identity fetch on
-            every navigation just to arrive at the same answer. */}
         <Header variant={variant} onMenuClick={() => setSidebarOpen(true)} />
         <div
           className={cn(
-            // `overscroll-contain` keeps a wheel/touch gesture that has already
-            // reached this box's end from chaining out to the document.
             "custom-scrollbar flex-1 overscroll-contain",
             fullBleed
               ? "flex flex-col overflow-hidden"

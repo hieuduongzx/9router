@@ -648,45 +648,49 @@ export default function ProxyPoolsPage() {
             </Button>
 
             {showRelayMenu && (
-              <div className="absolute left-0 top-full z-50 mt-1 w-48 border border-black/10 bg-white p-1 dark:border-white/10 dark:bg-foreground sm:left-auto sm:right-0">
+              <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg sm:left-auto sm:right-0">
                 <button
+                  type="button"
                   onClick={() => {
                     openCloudflareModal();
                     setShowRelayMenu(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
                   <Icon name="cloud" className="size-[20px] text-muted-foreground" />
                   Cloudflare Relay
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     openVercelModal();
                     setShowRelayMenu(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
                   <Icon name="cloud_upload" className="size-[20px] text-info" />
                   Vercel Relay
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     openDenoModal();
                     setShowRelayMenu(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
                   <Icon name="terminal" className="size-[20px] text-success" />
                   Deno Relay
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     openNetlifyModal();
                     setShowRelayMenu(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
-                  <span className="material-symbols-outlined text-[20px] text-teal-500">deployed_code</span>
+                  <Icon name="deployed_code" className="size-[20px] text-teal-500" />
                   Netlify Relay
                 </button>
               </div>
@@ -835,24 +839,30 @@ export default function ProxyPoolsPage() {
                     title={pool.isActive ? "Disable" : "Enable"}
                   />
                   <button
+                    type="button"
                     onClick={() => handleTest(pool.id)}
-                    className="p-2 rounded-sm hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-primary"
+                    className="cursor-pointer rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:opacity-50"
                     title="Test proxy"
+                    aria-label={`Test ${pool.name}`}
                     disabled={testingId === pool.id}
                   >
-                    <Icon name={testingId === pool.id ? "progress_activity" : "science"} className="size-[18px]" style={testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined} />
+                    <Icon name={testingId === pool.id ? "progress_activity" : "science"} className={testingId === pool.id ? "size-[18px] animate-spin" : "size-[18px]"} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => openEditModal(pool)}
-                    className="p-2 rounded-sm hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-primary"
+                    className="cursor-pointer rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                     title="Edit"
+                    aria-label={`Edit ${pool.name}`}
                   >
                     <Icon name="edit" className="size-[18px]" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(pool)}
-                    className="p-2 rounded-sm hover:bg-destructive/10 text-destructive"
+                    className="cursor-pointer rounded-md p-2 text-destructive transition-colors hover:bg-destructive/10"
                     title="Delete"
+                    aria-label={`Delete ${pool.name}`}
                   >
                     <Icon name="delete" className="size-[18px]" />
                   </button>
@@ -867,28 +877,29 @@ export default function ProxyPoolsPage() {
         isOpen={showBatchImportModal}
         title="Batch Import Proxies"
         onClose={closeBatchImportModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeBatchImportModal} disabled={importing}>
+              Cancel
+            </Button>
+            <Button onClick={handleBatchImport} disabled={!batchImportText.trim() || importing}>
+              {importing ? "Importing..." : "Import"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Paste Proxy List (One per line)</label>
+            <label className="mb-1 block text-sm font-medium text-foreground">Paste Proxy List (One per line)</label>
             <textarea
               value={batchImportText}
               onChange={(e) => setBatchImportText(e.target.value)}
               placeholder={"http://user:pass@127.0.0.1:7897\n127.0.0.1:7897:user:pass"}
-              className="w-full min-h-[180px] py-2 px-3 font-mono text-sm text-foreground bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-sm focus:ring-1 focus:ring-primary/30 focus:border-primary/50 focus:outline-none transition-all"
+              className="min-h-[180px] w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               Supported formats: protocol://user:pass@host:port, host:port:user:pass
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button fullWidth onClick={handleBatchImport} disabled={!batchImportText.trim() || importing}>
-              {importing ? "Importing..." : "Import"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeBatchImportModal} disabled={importing}>
-              Cancel
-            </Button>
           </div>
         </div>
       </Modal>
@@ -897,6 +908,19 @@ export default function ProxyPoolsPage() {
         isOpen={showVercelModal}
         title="Deploy Vercel Relay"
         onClose={closeVercelModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeVercelModal} disabled={deploying}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVercelDeploy}
+              disabled={!vercelForm.vercelToken.trim() || deploying}
+            >
+              {deploying ? "Deploying... (may take ~1 min)" : "Deploy"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           <div className="bg-info/5 border border-info/10 p-3 flex flex-col gap-1.5">
@@ -926,18 +950,7 @@ export default function ProxyPoolsPage() {
             placeholder="my-relay"
             hint="Unique name for your Vercel project. Leave empty for auto-generated name."
           />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              fullWidth
-              onClick={handleVercelDeploy}
-              disabled={!vercelForm.vercelToken.trim() || deploying}
-            >
-              {deploying ? "Deploying... (may take ~1 min)" : "Deploy"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeVercelModal} disabled={deploying}>
-              Cancel
-            </Button>
-          </div>
+
         </div>
       </Modal>
 
@@ -945,6 +958,19 @@ export default function ProxyPoolsPage() {
         isOpen={showCloudflareModal}
         title="Deploy Cloudflare Relay"
         onClose={closeCloudflareModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeCloudflareModal} disabled={deploying}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCloudflareDeploy}
+              disabled={!cloudflareForm.accountId.trim() || !cloudflareForm.apiToken.trim() || deploying}
+            >
+              {deploying ? "Deploying..." : "Deploy Worker"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           <div className="bg-muted/5 border border-border/10 p-3 flex flex-col gap-1.5">
@@ -990,18 +1016,7 @@ export default function ProxyPoolsPage() {
             placeholder="my-relay"
             hint="Unique name for your Cloudflare Worker. Leave empty for auto-generated name."
           />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              fullWidth
-              onClick={handleCloudflareDeploy}
-              disabled={!cloudflareForm.accountId.trim() || !cloudflareForm.apiToken.trim() || deploying}
-            >
-              {deploying ? "Deploying..." : "Deploy Worker"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeCloudflareModal} disabled={deploying}>
-              Cancel
-            </Button>
-          </div>
+
         </div>
       </Modal>
 
@@ -1009,6 +1024,19 @@ export default function ProxyPoolsPage() {
         isOpen={showDenoModal}
         title="Deploy Deno Relay"
         onClose={closeDenoModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeDenoModal} disabled={deploying}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDenoDeploy}
+              disabled={!denoForm.denoToken.trim() || !denoForm.orgDomain.trim() || deploying}
+            >
+              {deploying ? "Deploying..." : "Deploy Relay"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-3 flex flex-col gap-1.5">
@@ -1054,18 +1082,7 @@ export default function ProxyPoolsPage() {
             placeholder="deno-relay"
             hint="Unique app name. Leave empty for auto-generated name."
           />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              fullWidth
-              onClick={handleDenoDeploy}
-              disabled={!denoForm.denoToken.trim() || !denoForm.orgDomain.trim() || deploying}
-            >
-              {deploying ? "Deploying..." : "Deploy Relay"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeDenoModal} disabled={deploying}>
-              Cancel
-            </Button>
-          </div>
+
         </div>
       </Modal>
 
@@ -1073,21 +1090,34 @@ export default function ProxyPoolsPage() {
         isOpen={showNetlifyModal}
         title="Deploy Netlify Relay"
         onClose={closeNetlifyModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeNetlifyModal} disabled={deploying}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleNetlifyDeploy}
+              disabled={!netlifyForm.netlifyToken.trim() || deploying}
+            >
+              {deploying ? "Deploying... (may take ~1 min)" : "Deploy"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
-          <div className="rounded-lg bg-teal-500/5 border border-teal-500/10 p-3 flex flex-col gap-1.5">
-            <p className="text-sm text-text-main font-medium">What is Netlify Relay?</p>
-            <p className="text-xs text-text-muted">
+          <div className="flex flex-col gap-1.5 rounded-lg border border-teal-500/15 bg-teal-500/5 p-3">
+            <p className="text-sm font-medium text-foreground">What is Netlify Relay?</p>
+            <p className="text-xs text-muted-foreground">
               Deploys a serverless relay function to Netlify&apos;s global edge network. All AI provider requests are forwarded through Netlify&apos;s edge, masking your real IP.
             </p>
-            <ul className="text-xs text-text-muted list-disc pl-4 space-y-0.5">
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
               <li>Runs on Netlify Functions with a 60-second execution limit and streaming support</li>
               <li>Free tier: 125,000 function invocations and 100GB bandwidth per month</li>
               <li>Relay URL format: https://your-site.netlify.app/.netlify/functions/relay</li>
               <li>Deploy multiple relays on different accounts for more IP diversity</li>
             </ul>
-            <div className="mt-2 pt-2 border-t border-teal-500/10 text-xs text-text-muted">
-              <p className="font-medium text-text-main mb-1">How to generate API token:</p>
+            <div className="mt-2 border-t border-teal-500/15 pt-2 text-xs text-muted-foreground">
+              <p className="mb-1 font-medium text-foreground">How to generate API token:</p>
               <ol className="list-decimal pl-4 space-y-0.5">
                 <li>Go to <b>User Settings</b> → <b>Applications</b> → <b>Personal access tokens</b></li>
                 <li>Select <b>New access token</b> and generate a token</li>
@@ -1110,18 +1140,7 @@ export default function ProxyPoolsPage() {
             placeholder="netlify-relay"
             hint="Unique site name (lowercase letters, numbers, hyphens). Your relay URL will be https://site-name.netlify.app/.netlify/functions/relay"
           />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              fullWidth
-              onClick={handleNetlifyDeploy}
-              disabled={!netlifyForm.netlifyToken.trim() || deploying}
-            >
-              {deploying ? "Deploying... (may take ~1 min)" : "Deploy"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeNetlifyModal} disabled={deploying}>
-              Cancel
-            </Button>
-          </div>
+
         </div>
       </Modal>
 
@@ -1129,6 +1148,19 @@ export default function ProxyPoolsPage() {
         isOpen={showFormModal}
         title={editingProxyPool ? "Edit Proxy Pool" : "Add Proxy Pool"}
         onClose={closeFormModal}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button variant="outline" onClick={closeFormModal} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!formData.name.trim() || !formData.proxyUrl.trim() || saving}
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           <Input
@@ -1175,18 +1207,7 @@ export default function ProxyPoolsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              fullWidth
-              onClick={handleSave}
-              disabled={!formData.name.trim() || !formData.proxyUrl.trim() || saving}
-            >
-              {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button fullWidth variant="ghost" onClick={closeFormModal} disabled={saving}>
-              Cancel
-            </Button>
-          </div>
+
         </div>
       </Modal>
 

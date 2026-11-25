@@ -796,6 +796,7 @@ export default function UsersPageClient() {
           />
           <Input
             label="Password"
+            type="password"
             value={draft.password}
             onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
             hint="6–128 characters. Share it with the account owner securely."
@@ -803,11 +804,11 @@ export default function UsersPageClient() {
           />
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground tracking-wide text-muted-foreground">Role</span>
+              <span className="text-sm font-medium text-foreground">Role</span>
               <select
                 value={draft.role}
                 onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value }))}
-                className="h-7 rounded-sm border border-border bg-background px-2.5 font-sans text-[13px] font-medium leading-4 text-foreground focus-visible:border-primary focus-visible:outline-none"
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:border-primary focus-visible:outline-none"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -826,7 +827,7 @@ export default function UsersPageClient() {
             />
           </div>
           {createError && (
-            <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger">{createError}</div>
+            <div role="alert" className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">{createError}</div>
           )}
         </div>
       </Modal>

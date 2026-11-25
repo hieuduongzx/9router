@@ -12,8 +12,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowRight, RefreshCw, Users, Server, Activity, DollarSign } from "lucide-react";
+import { ArrowRight, RefreshCw, Users, Server, Activity, Settings } from "lucide-react";
 import Card from "@/shared/components/Card";
+import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 import PeriodDropdown from "@/shared/components/PeriodDropdown";
 import SectionLabel from "@/shared/components/SectionLabel";
@@ -116,9 +117,9 @@ function LegendChip({ color, label, line = false }) {
 
 function CardHead({ title, children }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3.5">
       <h2 className="font-mono text-sm font-semibold text-foreground">{title}</h2>
-      <div className="flex shrink-0 items-center gap-3">{children}</div>
+      <div className="flex flex-wrap items-center gap-3">{children}</div>
     </div>
   );
 }
@@ -236,13 +237,13 @@ function BreakdownTable({ title, href, hrefLabel, rows, extra, emptyHint, totalR
               ))}
             </tbody>
           </table>
-          {extra > 0 ? (
-            <p className="border-t border-border-subtle px-5 py-2.5 text-xs text-muted-foreground">
-              {extra} more in this period
-            </p>
-          ) : null}
         </div>
       )}
+      {rows.length > 0 && extra > 0 ? (
+        <p className="border-t border-border-subtle px-5 py-2.5 text-xs text-muted-foreground">
+          {extra} more in this period
+        </p>
+      ) : null}
     </Card>
   );
 }
@@ -347,7 +348,7 @@ export default function AdminDashboardClient() {
     const byStatus = stats?.byStatus || {};
     const rows = [
       { key: "success", label: "Succeeded", dot: "bg-success" },
-      { key: "error", label: "Failed", dot: "bg-danger" },
+      { key: "error", label: "Failed", dot: "bg-destructive" },
       { key: "rate_limited", label: "Rate limited", dot: "bg-warning" },
     ];
     if ((Number(byStatus.other) || 0) > 0) rows.push({ key: "other", label: "Other", dot: "bg-muted-foreground" });
@@ -370,17 +371,6 @@ export default function AdminDashboardClient() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-8">
-      {/* Admin Header */}
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center border border-border bg-primary/10">
-          <Icon name="admin_panel_settings" className="size-[20px] text-primary" />
-        </span>
-        <div>
-          <h1 className="font-mono text-lg font-semibold tracking-tight text-foreground">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground">System-wide overview and management</p>
-        </div>
-      </div>
-
       {error && (
         <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground" role="status">
           {error}
@@ -393,16 +383,17 @@ export default function AdminDashboardClient() {
           action={
             <div className="flex shrink-0 items-center gap-2">
               <PeriodDropdown value={period} onChange={setPeriod} disabled={refreshing} />
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="icon-sm"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex size-7 items-center justify-center border border-border bg-surface text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:cursor-wait disabled:opacity-60"
                 aria-label="Refresh dashboard"
                 title="Refresh dashboard"
               >
                 <RefreshCw aria-hidden size={13} strokeWidth={2.25} className={refreshing ? "animate-spin" : ""} />
-              </button>
+              </Button>
             </div>
           }
         >
@@ -440,7 +431,7 @@ export default function AdminDashboardClient() {
       {/* Usage Chart */}
       <Card padding="none" className="min-w-0 overflow-hidden">
         <CardHead title="System Usage">
-          <div className="hidden items-center gap-3 sm:flex">
+          <div className="flex flex-wrap items-center gap-3">
             <LegendChip color={COLOR_INPUT} label="Input" />
             <LegendChip color={COLOR_OUTPUT} label="Output" />
             <LegendChip color={COLOR_COST} label="Cost" line />
@@ -621,14 +612,14 @@ export default function AdminDashboardClient() {
                     })}
                   </tbody>
                 </table>
-                {hasLatency ? (
-                  <p className="border-t border-border-subtle px-5 py-2.5 font-mono text-xs text-muted-foreground">
-                    Latency p50 {formatLatency(latency.p50)} · p95 {formatLatency(latency.p95)}
-                    {Number.isFinite(latency.avg) ? ` · avg ${formatLatency(latency.avg)}` : ""}
-                  </p>
-                ) : null}
               </div>
             )}
+            {statusRows.total > 0 && hasLatency ? (
+              <p className="border-t border-border-subtle px-5 py-2.5 font-mono text-xs text-muted-foreground">
+                Latency p50 {formatLatency(latency.p50)} · p95 {formatLatency(latency.p95)}
+                {Number.isFinite(latency.avg) ? ` · avg ${formatLatency(latency.avg)}` : ""}
+              </p>
+            ) : null}
           </Card>
         </div>
       </section>
@@ -680,7 +671,7 @@ export default function AdminDashboardClient() {
             <Card padding="md" className="transition-colors group-hover:border-primary/30">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface-2">
-                  <DollarSign aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
+                  <Settings aria-hidden size={16} strokeWidth={2.25} className="text-muted-foreground" />
                 </span>
                 <div>
                   <p className="font-mono text-sm font-semibold text-foreground">Settings</p>

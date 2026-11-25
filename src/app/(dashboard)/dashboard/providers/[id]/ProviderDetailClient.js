@@ -24,6 +24,7 @@ import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
 import { Icon } from "@/shared/components/ui/icon";
+import { useNotificationStore } from "@/store/notificationStore";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -88,6 +89,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
   const [fetchingProviderModels, setFetchingProviderModels] = useState(false);
   const [modelsFetchStatus, setModelsFetchStatus] = useState(null);
   const { copied, copy } = useCopyToClipboard();
+  const notify = useNotificationStore();
 
   const AG_RISK_STORAGE_KEY = "ag_risk_confirmed";
 
@@ -490,7 +492,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         await fetchAliases();
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to set alias");
+        notify.error(data.error || "Failed to set alias");
       }
     } catch (error) {
       console.log("Error setting alias:", error);
@@ -510,19 +512,26 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     }
   };
 
-  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias, caps) => {
+  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias, caps, transport = null) => {
     try {
       const res = await fetch("/api/models/custom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerAlias: providerAliasOverride, id: modelId, type, ...(caps ? { caps } : {}) }),
+        body: JSON.stringify({
+          providerAlias: providerAliasOverride,
+          id: modelId,
+          type,
+          ...(caps ? { caps } : {}),
+          ...(transport ? { transport } : {}),
+        }),
       });
       if (res.ok) {
         await fetchCustomModels();
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("customModelChanged"));
+        notify.success(`Added custom model ${modelId}`);
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to add custom model");
+        notify.error(data.error || "Failed to add custom model");
       }
     } catch (error) {
       console.log("Error adding custom model:", error);
@@ -754,7 +763,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         }
         setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
         setSelectedConnectionIds([]);
-        if (failed > 0) alert(`Deleted ${idsToDelete.length - failed} connection(s), ${failed} failed.`);
+        if (failed > 0) notify.warning(`Deleted ${idsToDelete.length - failed} connection(s), ${failed} failed.`);
       }
     });
   };
@@ -925,7 +934,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           failed += 1;
         }
       }
-      if (failed > 0) alert(`Updated with ${failed} failed request(s).`);
+      if (failed > 0) notify.warning(`Updated with ${failed} failed request(s).`);
+      else notify.success(`Updated proxy for ${assignments.length} connection(s)`);
       await fetchConnections();
       setShowBulkProxyModal(false);
     } finally {
@@ -933,18 +943,20 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     }
   };
 
+  const proxyTargetConnections = selectedConnections.length > 0 ? selectedConnections : connections;
+
   const handleApplySinglePool = (proxyPoolId) => {
-    const targets = connections.map((c) => ({ connectionId: c.id, proxyPoolId }));
+    const targets = proxyTargetConnections.map((c) => ({ connectionId: c.id, proxyPoolId }));
     return applyProxyAssignments(targets);
   };
 
   const handleApplyOneToOne = () => {
     const activePools = proxyPools.filter((p) => p.isActive === true);
     if (activePools.length === 0) {
-      alert("No active proxy pools available.");
+      notify.warning("No active proxy pools available.");
       return;
     }
-    const targets = connections.map((c, i) => ({
+    const targets = proxyTargetConnections.map((c, i) => ({
       connectionId: c.id,
       proxyPoolId: activePools[i % activePools.length].id,
     }));
@@ -978,9 +990,15 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
                 onMoveDown={() => handleSwapPriority(index, index + 1)}
                 onToggleActive={(isActive) => handleUpdateConnectionStatus(conn.id, isActive)}
                 autoPing={AUTO_PING_SETTINGS_KEYS[providerId] && conn.authType === "oauth" ? {
-                  on: autoPing.connections[conn.id] === true,
-                  onToggle: (on) => handleAutoPingConnection(conn.id, on),
+                  isActive: autoPing.connections[conn.id] === true,
+                  reactiveOn: autoPing.connections[conn.id] === true,
+                  scheduleOn: false,
                   provider: providerId,
+                  onConfigure: () => {
+                    const next = !(autoPing.connections[conn.id] === true);
+                    handleAutoPingConnection(conn.id, next);
+                    notify.success(next ? "Auto-ping enabled for connection" : "Auto-ping disabled for connection");
+                  },
                 } : null}
                 onUpdateProxy={async (proxyPoolId) => {
                   try {
@@ -1019,32 +1037,42 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
     <Modal
       isOpen={showBulkProxyModal}
       onClose={closeBulkProxyModal}
-      title={`Apply Proxy (${connections.length} connections)`}
+      title={`Apply Proxy (${proxyTargetConnections.length} ${selectedConnections.length > 0 ? "selected" : "connections"})`}
+      footer={
+        <div className="flex w-full justify-end">
+          <Button type="button" onClick={closeBulkProxyModal} variant="outline" disabled={bulkUpdatingProxy}>
+            Cancel
+          </Button>
+        </div>
+      }
     >
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <button
+            type="button"
             onClick={handleApplyOneToOne}
             disabled={bulkUpdatingProxy || activePools.length === 0}
-            className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="sync_alt" className="text-muted-foreground size-[18px]" />
             <span className="text-sm text-foreground">One-to-one (rotate)</span>
           </button>
           <button
+            type="button"
             onClick={() => handleApplySinglePool(null)}
             disabled={bulkUpdatingProxy}
-            className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="link_off" className="text-muted-foreground size-[18px]" />
-            <span className="text-sm text-foreground">None (unbind all)</span>
+            <span className="text-sm text-foreground">None (unbind)</span>
           </button>
           {proxyPools.map((pool) => (
             <button
+              type="button"
               key={pool.id}
               onClick={() => handleApplySinglePool(pool.id)}
               disabled={bulkUpdatingProxy || pool.isActive !== true}
-              className="flex items-center gap-2 rounded-sm px-3 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Icon name="lan" className="text-muted-foreground size-[18px]" />
               <span className="truncate text-sm text-foreground">{pool.name}</span>
@@ -1056,10 +1084,6 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         </div>
 
         {bulkUpdatingProxy && <p className="text-xs text-muted-foreground">Applying...</p>}
-
-        <Button onClick={closeBulkProxyModal} variant="ghost" fullWidth disabled={bulkUpdatingProxy}>
-          Cancel
-        </Button>
       </div>
     </Modal>
   );
@@ -1138,7 +1162,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
       const existing = (combosData.combos || []).find((combo) => combo.name?.toLowerCase() === modelName.toLowerCase());
       if (existing) {
         if (existing.models?.includes(routeModel)) {
-          alert(`Model Router already contains ${modelName}.`);
+          notify.info(`Model Router already contains ${modelName}.`);
           return;
         }
         if (existing.modelProvider && existing.modelProvider.toLowerCase() !== modelProvider.name.toLowerCase()) {
@@ -1159,9 +1183,9 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         const createData = await createResponse.json().catch(() => ({}));
         if (!createResponse.ok) throw new Error(createData.error || "Failed to create Model Router route");
       }
-      alert(existing ? `Added ${modelName} to Model Router.` : `Created Model Router route ${modelName}.`);
+      notify.success(existing ? `Added ${modelName} to Model Router.` : `Created Model Router route ${modelName}.`);
     } catch (error) {
-      alert(error?.message || "Failed to export model to Model Router");
+      notify.error(error?.message || "Failed to export model to Model Router");
     } finally {
       setExportingModelIds((previous) => {
         const next = new Set(previous);
@@ -1504,7 +1528,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
       {providerInfo.deprecated && (
         <div className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30">
           <Icon name="warning" className="size-[16px] text-yellow-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-destructive dark:text-yellow-400 leading-relaxed">{providerInfo.deprecationNotice}</p>
+          <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">{providerInfo.deprecationNotice}</p>
         </div>
       )}
 
@@ -1594,7 +1618,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
         <Card>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-mono text-sm font-semibold">Connections</h2>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               {connections.length > 0 && proxyPools.length > 0 && (
                 <Button
                   size="sm"
@@ -1854,7 +1878,7 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           </div>
         </div>
         {modelsFetchStatus && (
-          <p className={`mb-3 break-words text-xs ${modelsFetchStatus.type === "error" ? "text-danger" : "text-success"}`}>
+          <p className={`mb-3 break-words text-xs ${modelsFetchStatus.type === "error" ? "text-destructive" : "text-success"}`}>
             {modelsFetchStatus.text}
           </p>
         )}
@@ -1978,8 +2002,8 @@ export default function ProviderDetailClient({ providerId, embedded = false, onC
           isOpen={showAddCustomModel}
           providerAlias={providerStorageAlias}
           providerDisplayAlias={providerDisplayAlias}
-          onSave={async (modelId, caps) => {
-            await handleAddCustomModel(modelId, "llm", providerStorageAlias, caps);
+          onSave={async (modelId, modelType, caps, transport) => {
+            await handleAddCustomModel(modelId, modelType || "llm", providerStorageAlias, caps, transport);
             setShowAddCustomModel(false);
           }}
           onClose={() => setShowAddCustomModel(false)}

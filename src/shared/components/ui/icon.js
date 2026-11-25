@@ -96,6 +96,7 @@ import {
   LockOpen,
   LogOut,
   Mail,
+  Map as MapIcon,
   MapPin,
   MapPinOff,
   Megaphone,
@@ -260,7 +261,9 @@ const ICON_MAP = {
   folder_shared: FolderOpen,
   gavel: Gavel,
   graphic_eq: AudioLines,
+  groups: UsersRound,
   group_off: UsersRound,
+  health_and_safety: ShieldCheck,
   help: CircleHelp,
   history: History,
   home: House,
@@ -285,8 +288,8 @@ const ICON_MAP = {
   lock_reset: Lock,
   logout: LogOut,
   mail: Mail,
-  map: Map,
-  map_off: Map,
+  map: MapIcon,
+  map_off: MapIcon,
   map_pin: MapPin,
   map_pin_off: MapPinOff,
   manage_accounts: UserCog,
@@ -404,10 +407,18 @@ function Icon({ name, className, size, spin, ...props }) {
   const Cmp = ICON_MAP[name];
   if (!Cmp) return null;
   const shouldSpin = spin ?? SPINNING.has(name);
+  const hasExplicitSizeClass =
+    typeof className === "string" && /\b(?:size-|w-|h-)/.test(className);
+  const hasFontSizeClass =
+    typeof className === "string" &&
+    /\btext-(?:\[|xs\b|sm\b|base\b|lg\b|xl\b|2xl\b|3xl\b|4xl\b)/.test(className);
+  const resolvedSize =
+    size ?? (props.style?.fontSize || (hasFontSizeClass && !hasExplicitSizeClass) ? "1em" : undefined);
+
   return (
     <Cmp
       aria-hidden
-      size={size}
+      size={resolvedSize}
       className={cn("shrink-0", shouldSpin && "animate-spin", className)}
       {...props}
     />

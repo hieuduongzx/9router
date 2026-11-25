@@ -189,8 +189,8 @@ export default function UsageTrendSection({
   const hasData = usageChartHasData(points);
 
   return (
-    <Card padding="none" className="min-w-0">
-      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+    <Card className="min-w-0 overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
         <div className="min-w-0">
           <CardTitle>Usage over time</CardTitle>
           <p className="mt-0.5 text-xs text-muted-foreground">

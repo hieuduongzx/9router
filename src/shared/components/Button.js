@@ -55,7 +55,7 @@ export default function Button({
       variant={VARIANTS[variant] || "default"}
       size={SIZES[size] || "default"}
       disabled={disabled || loading}
-      className={cn(fullWidth && "w-full", className)}
+      className={cn(fullWidth && "w-full shrink min-w-0", className)}
       {...props}
     >
       {loading ? <Icon name="progress_activity" /> : icon ? <Icon name={icon} /> : null}

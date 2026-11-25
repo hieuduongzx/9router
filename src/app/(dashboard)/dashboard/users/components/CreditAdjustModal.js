@@ -55,17 +55,20 @@ export default function CreditAdjustModal({ user, onClose, onUpdated }) {
       isOpen
       onClose={() => { if (!saving) onClose(); }}
       title={`Adjust credit · ${user.username}`}
-      size="sm"
+      size="md"
       footer={
-        <>
-          <Button variant="outline" disabled={!amount || saving} onClick={() => submit("deduct")}>Deduct</Button>
-          <Button variant="secondary" disabled={amount === "" || saving} onClick={() => submit("set")}>Set balance</Button>
-          <Button disabled={!amount || saving} loading={saving} onClick={() => submit("add")}>Add credit</Button>
-        </>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <Button type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancel</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" disabled={!amount || saving} onClick={() => submit("deduct")}>Deduct</Button>
+            <Button type="button" variant="secondary" disabled={amount === "" || saving} onClick={() => submit("set")}>Set balance</Button>
+            <Button type="button" disabled={!amount || saving} loading={saving} onClick={() => submit("add")}>Add credit</Button>
+          </div>
+        </div>
       }
     >
       <div className="space-y-4">
-        <div className="border border-border bg-bg-alt/60 px-4 py-3">
+        <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
           <p className="text-xs text-muted-foreground">Current balance</p>
           <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-foreground">
             {formatCredit(user.creditCents)}
@@ -86,7 +89,9 @@ export default function CreditAdjustModal({ user, onClose, onUpdated }) {
           autoFocus
         />
         {error && (
-          <div role="alert" className="border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>
+          <div role="alert" className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
         )}
       </div>
     </Modal>

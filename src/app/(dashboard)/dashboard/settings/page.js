@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [debugError, setDebugError] = useState("");
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [settings, setSettings] = useState({ fallbackStrategy: "fill-first" });
+  const [signupCreditDraft, setSignupCreditDraft] = useState(null);
   const [loading, setLoading] = useState(true);
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
   const [passStatus, setPassStatus] = useState({ type: "", message: "" });
@@ -968,15 +969,21 @@ export default function SettingsPage() {
                     min="0"
                     step="0.01"
                     disabled={loading}
-                    value={((Number(settings.signupCreditCents) || 0) / 100).toString()}
+                    value={signupCreditDraft ?? ((Number(settings.signupCreditCents) || 0) / 100).toString()}
                     onChange={(event) => {
                       const dollars = event.target.value;
+                      setSignupCreditDraft(dollars);
+                      if (dollars.trim() === "") return;
                       const cents = Math.round(Number(dollars) * 100);
                       if (Number.isFinite(cents) && cents >= 0) {
                         setSettings((prev) => ({ ...prev, signupCreditCents: cents }));
                       }
                     }}
-                    onBlur={(event) => updateSignupCreditDollars(event.target.value)}
+                    onBlur={(event) => {
+                      const rawValue = event.target.value;
+                      setSignupCreditDraft(null);
+                      updateSignupCreditDollars(rawValue.trim() === "" ? "0" : rawValue);
+                    }}
                     hint="USD"
                   />
                 </div>
@@ -1573,7 +1580,8 @@ export default function SettingsPage() {
                   value={settings.stickyRoundRobinLimit || 3}
                   onChange={(e) => updateStickyLimit(e.target.value)}
                   disabled={loading}
-                  className="w-16 sm:w-20 text-center shrink-0"
+                  className="w-16 sm:w-20 shrink-0"
+                  inputClassName="text-center"
                 />
               </div>
             )}
@@ -1609,7 +1617,8 @@ export default function SettingsPage() {
                   value={settings.comboStickyRoundRobinLimit || 1}
                   onChange={(e) => updateComboStickyLimit(e.target.value)}
                   disabled={loading}
-                  className="w-20 text-center"
+                  className="w-20 shrink-0"
+                  inputClassName="text-center"
                 />
               </div>
             )}
