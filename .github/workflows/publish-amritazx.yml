@@ -40,10 +40,10 @@ jobs:
           if [ -f package-lock.json ]; then
             echo "dockerfile=./Dockerfile" >> "$GITHUB_OUTPUT"
           else
-            echo "package-lock.json is gitignored; adapting Dockerfile copy to use npm install inside Alpine..."
+            echo "package-lock.json is gitignored; adapting Dockerfile copy to use npm@11 install inside Alpine..."
             sed \
               -e 's|COPY package.json package-lock.json ./|COPY package.json ./|' \
-              -e 's|npm ci \\|npm install --no-audit --no-fund \\|' \
+              -e 's|npm ci \\|npm install -g npm@11 \&\& npm install --no-audit --no-fund \\|' \
               ./Dockerfile > "$RUNNER_TEMP/Dockerfile"
             echo "dockerfile=$RUNNER_TEMP/Dockerfile" >> "$GITHUB_OUTPUT"
           fi
