@@ -30,23 +30,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Read app version
+      - name: Read app version and prepare Dockerfile
         id: meta
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Building amritazx/9router:${VERSION}"
+          echo "Building image for version ${VERSION}"
 
-      - name: Setup Node.js to generate package-lock.json
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Ensure package-lock.json exists
-        run: |
-          if [ ! -f package-lock.json ]; then
-            echo "Generating package-lock.json for Docker npm ci..."
-            npm install --package-lock-only --no-audit --no-fund --ignore-scripts
+          if [ -f package-lock.json ]; then
+            echo "dockerfile=./Dockerfile" >> "$GITHUB_OUTPUT"
+          else
+            echo "package-lock.json is gitignored; adapting Dockerfile copy to use npm install inside Alpine..."
+            sed \
+              -e 's|COPY package.json package-lock.json ./|COPY package.json ./|' \
+              -e 's|npm ci \\|npm install --no-audit --no-fund \\|' \
+              ./Dockerfile > "$RUNNER_TEMP/Dockerfile"
+            echo "dockerfile=$RUNNER_TEMP/Dockerfile" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Docker Buildx
@@ -56,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ${{ steps.meta.outputs.dockerfile }}
           platforms: linux/amd64
           load: true
           tags: |
